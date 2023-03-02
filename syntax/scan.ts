@@ -1,4 +1,4 @@
-enum Token {
+export enum Token {
   ILLEGAL = "illegal token", // illegal token
   EOF = "end of file", // end of file
   NEWLINE = "newline", // newline
@@ -106,7 +106,7 @@ const keywordToken: Record<string, Token> = {
   "yield": Token.ILLEGAL,
 };
 
-class TokenValue {
+export class TokenValue {
   raw: string; // raw text of token
   int: number; // decoded int
   bigInt: bigint | null; // decoded integers > int64
@@ -122,7 +122,7 @@ class FilePortion {
 }
 
 // A Position dethisribes the location of a rune of input.
-class Position {
+export class Position {
   file: string | null; // filename (indirect for compactness)
   line: number; // 1-based line number; 0 if line unknown
   col: number; // 1-based column (rune) number; 0 if column unknown
@@ -184,7 +184,7 @@ class ScannerError extends Error {
   }
 }
 
-class Scanner {
+export class Scanner {
   rest: Uint8Array; // rest of input (in REPL, a line of input)
   token: Uint8Array; // token being thisanned
   pos: Position; // current input position
