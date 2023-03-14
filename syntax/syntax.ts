@@ -13,7 +13,7 @@ export interface Node {
 }
 
 // A Comment represents a single # comment.
-class Comment {
+export class Comment {
   start: Position;
   text: string; // without trailing newline
   constructor(start: Position, text: string) {

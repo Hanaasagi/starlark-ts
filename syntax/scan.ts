@@ -1,111 +1,182 @@
-export enum Token {
-  ILLEGAL = "illegal token", // illegal token
-  EOF = "end of file", // end of file
-  NEWLINE = "newline", // newline
-  INDENT = "indent", // indent
-  OUTDENT = "outdent", // outdent
-  IDENT = "identifier", // identifier
-  INT = "int literal", // int literal
-  FLOAT = "float literal", // float literal
-  STRING = "string literal", // string literal
-  BYTES = "bytes literal", // bytes literal
-  PLUS = "+", // +
-  MINUS = "-", // -
-  STAR = "*", // *
-  SLASH = "/", // /
-  SLASHSLASH = "//", // //
-  PERCENT = "%", // %
-  AMP = "&", // &
-  PIPE = "|", // |
-  CIRCUMFLEX = "^", // ^
-  LTLT = "<<", // <<
-  GTGT = ">>", // >>
-  TILDE = "~", // ~
-  DOT = ".", // .
-  COMMA = ",", // ,
-  EQ = "=", // =
-  SEMI = ";", // ;
-  COLON = ":", // :
-  LPAREN = "(", // (
-  RPAREN = ")", // )
-  LBRACK = "[", // [
-  RBRACK = "]", // ]
-  LBRACE = "{", // {
-  RBRACE = "}", // }
-  LT = "<", // <
-  GT = ">", // >
-  GE = ">=", // >=
-  LE = "<=", // <=
-  EQL = "==", // ==
-  NEQ = "!=", // !=
-  PLUS_EQ = "+=", // +=
-  MINUS_EQ = "-=", // -=
-  STAR_EQ = "*=", // *=
-  SLASH_EQ = "/=", // /=
-  SLASHSLASH_EQ = "//=", // //=
-  PERCENT_EQ = "%=", // %=
-  AMP_EQ = "&=", // &=
-  PIPE_EQ = "|=", // |=
-  CIRCUMFLEX_EQ = "^=", // ^=
-  LTLT_EQ = "<<=", // <<=
-  GTGT_EQ = ">>=", // >>=
-  STARSTAR = "**", // **
-  AND = "and", // and
-  BREAK = "break", // break
-  CONTINUE = "continue", // continue
-  DEF = "def", // def
-  ELIF = "elif", // elif
-  ELSE = "else", // else
-  FOR = "for", // for
-  IF = "if", // if
-  IN = "in", // in
-  LAMBDA = "lambda", // lambda
-  LOAD = "load", // load
-  NOT = "not", // not
-  NOT_IN = "not in", // not in (synthesized by parser)
-  OR = "or", // or
-  PASS = "pass", // pass
-  RETURN = "return", // return
-  WHILE = "while", // while
+import { Comment } from "./syntax";
+
+// A Token represents a Starlark lexical token.
+export const enum Token {
+  // illegal token
+  ILLEGAL = "illegal token",
+  // end of file
+  EOF = "end of file",
+  // newline
+  NEWLINE = "newline",
+  // indent
+  INDENT = "indent",
+  // outdent
+  OUTDENT = "outdent",
+  // identifier
+  IDENT = "identifier",
+  // int literal
+  INT = "int literal",
+  // float literal
+  FLOAT = "float literal",
+  // string literal
+  STRING = "string literal",
+  // bytes literal
+  BYTES = "bytes literal",
+  // +
+  PLUS = "+",
+  // -
+  MINUS = "-",
+  // *
+  STAR = "*",
+  // /
+  SLASH = "/",
+  // //
+  SLASHSLASH = "//",
+  // %
+  PERCENT = "%",
+  // &
+  AMP = "&",
+  // |
+  PIPE = "|",
+  // ^
+  CIRCUMFLEX = "^",
+  // <<
+  LTLT = "<<",
+  // >>
+  GTGT = ">>",
+  // ~
+  TILDE = "~",
+  // .
+  DOT = ".",
+  //,
+  COMMA = ",",
+  // =
+  EQ = "=",
+  // ;
+  SEMI = ";",
+  // :
+  COLON = ":",
+  // (
+  LPAREN = "(",
+  // )
+  RPAREN = ")",
+  // [
+  LBRACK = "[",
+  // ]
+  RBRACK = "]",
+  // {
+  LBRACE = "{",
+  // }
+  RBRACE = "}",
+  // <
+  LT = "<",
+  // >
+  GT = ">",
+  // >=
+  GE = ">=",
+  // <=
+  LE = "<=",
+  // ==
+  EQL = "==",
+  // !=
+  NEQ = "!=",
+  // +=
+  PLUS_EQ = "+=",
+  // -=
+  MINUS_EQ = "-=",
+  // *=
+  STAR_EQ = "*=",
+  // /=
+  SLASH_EQ = "/=",
+  // //=
+  SLASHSLASH_EQ = "//=",
+  // %=
+  PERCENT_EQ = "%=",
+  // &=
+  AMP_EQ = "&=",
+  // |=
+  PIPE_EQ = "|=",
+  // ^=
+  CIRCUMFLEX_EQ = "^=",
+  // <<=
+  LTLT_EQ = "<<=",
+  // >>=
+  GTGT_EQ = ">>=",
+  // **
+  STARSTAR = "**",
+  // and
+  AND = "and",
+  // break
+  BREAK = "break",
+  // continue
+  CONTINUE = "continue",
+  // def
+  DEF = "def",
+  // elif
+  ELIF = "elif",
+  // else
+  ELSE = "else",
+  // for
+  FOR = "for",
+  // if
+  IF = "if",
+  // in
+  IN = "in",
+  // lambda
+  LAMBDA = "lambda",
+  // load
+  LOAD = "load",
+  // not
+  NOT = "not",
+  // not in (synthesized by parser)
+  NOT_IN = "not in",
+  // or
+  OR = "or",
+  // pass
+  PASS = "pass",
+  // return
+  RETURN = "return",
+  // while
+  WHILE = "while",
 }
 
-
 const keywordToken: Record<string, Token> = {
-  "and": Token.AND,
-  "break": Token.BREAK,
-  "continue": Token.CONTINUE,
-  "def": Token.DEF,
-  "elif": Token.ELIF,
-  "else": Token.ELSE,
-  "for": Token.FOR,
-  "if": Token.IF,
-  "in": Token.IN,
-  "lambda": Token.LAMBDA,
-  "load": Token.LOAD,
-  "not": Token.NOT,
-  "or": Token.OR,
-  "pass": Token.PASS,
-  "return": Token.RETURN,
-  "while": Token.WHILE,
+  and: Token.AND,
+  break: Token.BREAK,
+  continue: Token.CONTINUE,
+  def: Token.DEF,
+  elif: Token.ELIF,
+  else: Token.ELSE,
+  for: Token.FOR,
+  if: Token.IF,
+  in: Token.IN,
+  lambda: Token.LAMBDA,
+  load: Token.LOAD,
+  not: Token.NOT,
+  or: Token.OR,
+  pass: Token.PASS,
+  return: Token.RETURN,
+  while: Token.WHILE,
 
   // reserved words:
-  "as": Token.ILLEGAL,
+  as: Token.ILLEGAL,
   // "assert":   ILLEGAL, // heavily used by our tests
-  "class": Token.ILLEGAL,
-  "del": Token.ILLEGAL,
-  "except": Token.ILLEGAL,
-  "finally": Token.ILLEGAL,
-  "from": Token.ILLEGAL,
-  "global": Token.ILLEGAL,
-  "import": Token.ILLEGAL,
-  "is": Token.ILLEGAL,
-  "nonlocal": Token.ILLEGAL,
-  "raise": Token.ILLEGAL,
-  "try": Token.ILLEGAL,
-  "with": Token.ILLEGAL,
-  "yield": Token.ILLEGAL,
+  class: Token.ILLEGAL,
+  del: Token.ILLEGAL,
+  except: Token.ILLEGAL,
+  finally: Token.ILLEGAL,
+  from: Token.ILLEGAL,
+  global: Token.ILLEGAL,
+  import: Token.ILLEGAL,
+  is: Token.ILLEGAL,
+  nonlocal: Token.ILLEGAL,
+  raise: Token.ILLEGAL,
+  try: Token.ILLEGAL,
+  with: Token.ILLEGAL,
+  yield: Token.ILLEGAL,
 };
 
+// tokenValue records the position and value associated with each token.
 export class TokenValue {
   raw: string; // raw text of token
   int: number; // decoded int
@@ -115,6 +186,10 @@ export class TokenValue {
   pos: Position; // start position of token
 }
 
+// A FilePortion describes the content of a portion of a file.
+// Callers may provide a FilePortion for the src argument of Parse
+// when the desired initial line and column numbers are not (1, 1),
+// such as when an expression is parsed from within larger file.
 class FilePortion {
   Content: Uint8Array;
   FirstLine: number;
@@ -152,14 +227,14 @@ export class Position {
     if (s.includes("\n")) {
       const n = s.split("\n").length - 1;
       this.line += n;
-      s = s.substr(s.lastIndexOf("\n") + 1);
+      s = s.substring(s.lastIndexOf("\n")! + 1, s.length);
       this.col = 1;
     }
     this.col += s.length;
     return this;
   }
 
-  string(): string {
+  toString(): string {
     const file = this.filename();
     if (this.line > 0) {
       if (this.col > 0) {
@@ -185,18 +260,30 @@ class ScannerError extends Error {
 }
 
 export class Scanner {
-  rest: Uint8Array; // rest of input (in REPL, a line of input)
-  token: Uint8Array; // token being thisanned
-  pos: Position; // current input position
-  depth: number; // nesting of [ ] { } ( )
-  indentstk: number[]; // stack of indentation levels
-  dents: number; // number of saved INDENT (>0) or OUTDENT (<0) tokens to return
-  lineStart: boolean; // after NEWLINE; convert spaces to indentation tokens
-  keepComments: boolean; // accumulate comments in slice
-  lineComments: Comment[]; // list of full line comments (if keepComments)
-  suffixComments: Comment[]; // list of suffix comments (if keepComments)
-  readline?: () => Promise<Uint8Array>; // read next line of input (REPL only)
+  // rest of input (in REPL, a line of input)
+  rest: Uint8Array;
+  // token being thisanned
+  token: Uint8Array;
+  // current input position
+  pos: Position;
+  // nesting of [ ] { } ( )
+  depth: number;
+  // stack of indentation levels
+  indentstk: number[];
+  // number of saved INDENT (>0) or OUTDENT (<0) tokens to return
+  dents: number;
+  // after NEWLINE; convert spaces to indentation tokens
+  lineStart: boolean;
+  // accumulate comments in slice
+  keepComments: boolean;
+  // list of full line comments (if keepComments)
+  lineComments: Comment[];
+  // list of suffix comments (if keepComments)
+  suffixComments: Comment[];
+  // read next line of input (REPL only)
+  readline?: () => Promise<Uint8Array>;
 
+  // TODO: check this function
   constructor(filename: string, src: unknown, keepComments: boolean) {
     let firstLine = 1;
     let firstCol = 1;
@@ -217,35 +304,37 @@ export class Scanner {
     }
   }
 
-  error(pos: Position, s: string): never {
-    throw new ScannerError(pos, s);
+  error(pos: Position, msg: string): never {
+    throw new ScannerError(pos, msg);
   }
 
-  errorf(pos: Position, format: string, ...args: any[]): never {
-    return this.error(pos, sprintf(format, ...args));
+  // TODO: recover
+  // The scanner and parser panic both for routine errors like
+  // syntax errors and for programmer bugs like array index
+  // errors.  Turn both into error returns.  Catching bug panics
+  // is especially important when processing many files.
+  // recover(err: Error | null | undefined): void {
+  //   if (err instanceof Error) {
+  //     throw err;
+  //   } else if (err) {
+  //     throw new ScannerError(this.pos, `internal error: ${err}`);
+  //   }
+  // }
+
+  // eof reports whether the input has reached end of file.
+  isEof(): boolean {
+    return (
+      this.rest.length == 0 &&
+      (this.readLine == null || this.readLine() == false)
+    );
   }
 
-  recover(err: Error | null | undefined): void {
-    if (err instanceof Error) {
-      throw err;
-    } else if (err) {
-      throw new ScannerError(this.pos, `internal error: ${err}`);
-    }
-  }
-
-  eof(): boolean {
-    if (this.rest.length === 0) {
-      this.readLine();
-    }
-    return this.rest.length === 0;
-  }
-
-  async readLine(): Promise<boolean> {
-    if (this.readline) {
+  readLine(): boolean {
+    if (this.readline != null) {
       try {
         this.rest = await this.readline();
       } catch (err) {
-        this.errorf(this.pos, "%v", err); // EOF or ErrInterrupt
+        this.error(this.pos, err.toString()); // EOF or ErrInterrupt
       }
       return this.rest.length > 0;
     }
@@ -261,7 +350,9 @@ export class Scanner {
       return "\0";
     }
 
-    // fast path: AthisII
+    // fast path: ASCII
+
+    // BUG: stream encoding utf-8
     const b = this.rest[0];
     if (b < 0x80) {
       if (b === 0x0d) {
@@ -316,22 +407,18 @@ export class Scanner {
     return r;
   }
 
-  /**
-   * startToken marks the beginning of the next input token.
-   * It must be followed by a call to endToken once the token has
-   * been consumed using readRune.
-   */
+  // startToken marks the beginning of the next input token.
+  // It must be followed by a call to endToken once the token has
+  // been consumed using readRune.
   startToken(val: TokenValue): void {
     this.token = this.rest;
     val.raw = "";
     val.pos = this.pos;
   }
 
-  /**
-   * endToken marks the end of an input token.
-   * It records the actual token string in val.raw if the caller
-   * has not done that already.
-   */
+  // endToken marks the end of an input token.
+  // It records the actual token string in val.raw if the caller
+  // has not done that already.
   endToken(val: TokenValue): void {
     if (val.raw === "") {
       val.raw = this.token
@@ -340,8 +427,15 @@ export class Scanner {
     }
   }
 
+  // nextToken is called by the parser to obtain the next input token.
+  // It returns the token value and sets val to the data associated with
+  // the token.
+  //
+  // For all our input tokens, the associated data is val.pos (the
+  // position where the token begins), val.raw (the input string
+  // corresponding to the token).  For string and int tokens, the string
+  // and int fields additionally contain the token's interpreted value.
   nextToken(val: TokenValue): Token {
-
     // The following distribution of tokens guides case ordering:
     //
     //      COMMA          27   %
@@ -362,8 +456,6 @@ export class Scanner {
 
     let c: string;
 
-    // BUG:
-    start:
     // Deal with leading spaces and indentation.
     let blank = false;
     const savedLineStart = this.lineStart;
@@ -372,12 +464,12 @@ export class Scanner {
       let col = 0;
       while (true) {
         c = this.peekRune();
-        if (c === ' ') {
+        if (c === " ") {
           col++;
           this.readRune();
-        } else if (c === '\t') {
+        } else if (c === "\t") {
           const tab = 8;
-          col += tab - (this.pos.col - 1) % tab;
+          col += tab - ((this.pos.col - 1) % tab);
           this.readRune();
         } else {
           break;
@@ -385,7 +477,7 @@ export class Scanner {
       }
 
       // The third clause matches EOF.
-      if (c === '#' || c === '\n' || c === '\0') {
+      if (c === "#" || c === "\n" || c === "\0") {
         blank = true;
       }
 
@@ -399,12 +491,18 @@ export class Scanner {
           this.indentstk.push(col);
         } else if (col < cur) {
           // outdent(s)
-          while (this.indentstk.length > 0 && col < this.indentstk[this.indentstk.length - 1]) {
+          while (
+            this.indentstk.length > 0 &&
+            col < this.indentstk[this.indentstk.length - 1]
+          ) {
             this.dents--;
             this.indentstk.pop();
           }
           if (col !== this.indentstk[this.indentstk.length - 1]) {
-            this.error(this.pos, "unindent does not match any outer indentation level");
+            this.error(
+              this.pos,
+              "unindent does not match any outer indentation level"
+            );
           }
         }
       }
@@ -427,39 +525,39 @@ export class Scanner {
     c = this.peekRune();
 
     // Skip spaces.
-    while (c === ' ' || c === '\t') {
+    while (c === " " || c === "\t") {
       this.readRune();
       c = this.peekRune();
     }
 
     // comment
-    if (c === '#') {
+    if (c === "#") {
       if (this.keepComments) {
         this.startToken(val);
       }
       // Consume up to newline (included).
-      while (c !== '\0' && c !== '\n') {
+      while (c !== "\0" && c !== "\n") {
         this.readRune();
         c = this.peekRune();
       }
       if (this.keepComments) {
         this.endToken(val);
         if (blank) {
-          this.lineComments.push({ pos: val.pos, raw: val.raw });
+          this.lineComments.push(new Comment(val.pos, val.raw));
         } else {
-          this.suffixComments.push({ pos: val.pos, raw: val.raw });
+          this.suffixComments.push(new Comment(val.pos, val.raw));
         }
       }
     }
 
     // newline
-    if (c === '\n') {
+    if (c === "\n") {
       this.lineStart = true;
 
       // Ignore newlines within expressions (common case).
       if (this.depth > 0) {
         this.readRune();
-        continue start;
+        return this.nextToken(val);
       }
 
       // Ignore blank lines, except in the REPL,
@@ -467,34 +565,34 @@ export class Scanner {
       if (blank) {
         if (this.readline === null) {
           this.readRune();
-          continue start;
+          return this.nextToken(val);
         } else if (this.indentstk.length > 1) {
           this.dents = 1 - this.indentstk.length;
           this.indentstk = this.indentstk.slice(0, 1);
-          continue start;
+          return this.nextToken(val);
         }
       }
 
       // At top-level (not in an expression).
       this.startToken(val);
       this.readRune();
-      val.raw = '\n';
+      val.raw = "\n";
       return Token.NEWLINE;
     }
 
     // end of file
-    if (c === '\0') {
+    if (c === "\0") {
       // Emit OUTDENTs for unfinished indentation,
       // preceded by a NEWLINE if we haven't just emitted one.
       if (this.indentstk.length > 1) {
         if (savedLineStart) {
           this.dents = 1 - this.indentstk.length;
           this.indentstk = this.indentstk.slice(0, 1);
-          continue start;
+          return this.nextToken(val);
         } else {
           this.lineStart = true;
           this.startToken(val);
-          val.raw = '\n';
+          val.raw = "\n";
           return Token.EOF;
         }
       }
@@ -505,20 +603,20 @@ export class Scanner {
     }
 
     // line continuation
-    if (c === '\\') {
+    if (c === "\\") {
       this.readRune();
-      if (this.peekRune() !== '\n') {
-        this.errorf(this.pos, 'stray backslash in program');
+      if (this.peekRune() !== "\n") {
+        this.error(this.pos, "stray backslash in program");
       }
       this.readRune();
-      continue start;
+      return this.nextToken(val);
     }
 
     // start of the next token
     this.startToken(val);
 
     // comma (common case)
-    if (c === ',') {
+    if (c === ",") {
       this.readRune();
       this.endToken(val);
       return Token.COMMA;
@@ -531,18 +629,29 @@ export class Scanner {
 
     // identifier or keyword
     if (isIdentStart(c)) {
-      if ((c === 'r' || c === 'b') && this.rest.length > 1 && (this.rest[1] === '"' || this.rest[1] === "'")) {
+      if (
+        (c === "r" || c === "b") &&
+        this.rest.length > 1 &&
+        (this.rest[1] === '"'.charCodeAt(0) ||
+          this.rest[1] === "'".charCodeAt(0))
+      ) {
         //  r"..."
         //  b"..."
         this.readRune();
         c = this.peekRune();
         return this.scanString(val, c);
-      } else if (c === 'r' && this.rest.length > 2 && this.rest[1] === 'b' && (this.rest[2] === '"' || sc.rest[2] === "'")) {
+      } else if (
+        c === "r" &&
+        this.rest.length > 2 &&
+        this.rest[1] === "b".charCodeAt(0) &&
+        (this.rest[2] === '"'.charCodeAt(0) ||
+          this.rest[2] === "'".charCodeAt(0))
+      ) {
         // rb"..."
         this.readRune();
         this.readRune();
         c = this.peekRune();
-        return this.thisanString(val, c);
+        return this.scanString(val, c);
       }
 
       while (isIdent(c)) {
@@ -559,84 +668,100 @@ export class Scanner {
 
     // brackets
     switch (c) {
-      case '[', '(', '{':
+      case "[":
+      case "(":
+      case "{":
         this.depth++;
         this.readRune();
         this.endToken(val);
         switch (c) {
-          case '[':
+          case "[":
             return Token.LBRACK;
-          case '(':
+          case "(":
             return Token.LPAREN;
-          case '{':
+          case "{":
             return Token.LBRACE;
+          default:
+            throw new Error("unreachable");
         }
-        throw new Error("unreachable");
 
-      case ']', ')', '}':
+      case "]":
+      case ")":
+      case "}":
         if (this.depth == 0) {
-          this.errorf(this.pos, `unexpected ${c}`);
+          this.error(this.pos, `unexpected ${c}`);
         } else {
           this.depth--;
         }
         this.readRune();
         this.endToken(val);
         switch (c) {
-          case ']':
+          case "]":
             return Token.RBRACK;
-          case ')':
+          case ")":
             return Token.RPAREN;
-          case '}':
+          case "}":
             return Token.RBRACE;
+          default:
+            throw new Error("unreachable");
         }
-        throw new Error("unreachable");
     }
 
     // int or float literal, or period
-    if (isdigit(c) || c == '.') {
-      return this.thisanNumber(val, c);
+    if (isdigit(c) || c == ".") {
+      return this.scanNumber(val, c);
     }
 
     // other punctuation
     this.endToken(val);
     switch (c) {
-      case '=', '<', '>', '!', '+', '-', '%', '/', '&', '|', '^': // possibly followed by '='
+      case "=":
+      case "<":
+      case ">":
+      case "!":
+      case "+":
+      case "-":
+      case "%":
+      case "/":
+      case "&":
+      case "|":
+      case "^": // possibly followed by '='
         const start = this.pos;
         this.readRune();
-        if (this.peekRune() == '=') {
+        if (this.peekRune() == "=") {
           this.readRune();
           switch (c) {
-            case '<':
+            case "<":
               return Token.LE;
-            case '>':
+            case ">":
               return Token.GE;
-            case '=':
+            case "=":
               return Token.EQL;
-            case '!':
+            case "!":
               return Token.NEQ;
-            case '+':
+            case "+":
               return Token.PLUS_EQ;
-            case '-':
+            case "-":
               return Token.MINUS_EQ;
-            case '/':
+            case "/":
               return Token.SLASH_EQ;
-            case '%':
+            case "%":
               return Token.PERCENT_EQ;
-            case '&':
+            case "&":
               return Token.AMP_EQ;
-            case '|':
+            case "|":
               return Token.PIPE_EQ;
-            case '^':
+            case "^":
               return Token.CIRCUMFLEX_EQ;
           }
         }
         switch (c) {
-          case '=':
+          case "=":
             return Token.EQ;
-          case '<':
-            if (this.peekRune() == '<') {
+          case "<":
+            if (this.peekRune() == "<") {
               this.readRune();
-              if (this.peekRune() == '=') {
+              if (this.peekRune() == "=") {
                 this.readRune();
                 return Token.LTLT_EQ;
               } else {
@@ -644,10 +769,10 @@ export class Scanner {
               }
             }
             return Token.LT;
-          case '>':
-            if (this.peekRune() == '>') {
+          case ">":
+            if (this.peekRune() == ">") {
               this.readRune();
-              if (this.peekRune() == '=') {
+              if (this.peekRune() == "=") {
                 this.readRune();
                 return Token.GTGT_EQ;
               } else {
@@ -655,16 +780,16 @@ export class Scanner {
               }
             }
             return Token.GT;
-          case '!':
+          case "!":
             this.error(start, "unexpected input character '!'");
-          case '+':
+          case "+":
             return Token.PLUS;
-          case '-':
+          case "-":
             return Token.MINUS;
-          case '/':
-            if (this.peekRune() == '/') {
+          case "/":
+            if (this.peekRune() == "/") {
               this.readRune();
-              if (this.peekRune() == '=') {
+              if (this.peekRune() == "=") {
                 this.readRune();
                 return Token.SLASHSLASH_EQ;
               } else {
@@ -672,51 +797,56 @@ export class Scanner {
               }
             }
             return Token.SLASH;
-          case '%':
+          case "%":
             return Token.PERCENT;
-          case '&':
+          case "&":
             return Token.AMP;
-          case '|':
+          case "|":
             return Token.PIPE;
-          case '^':
+          case "^":
             return Token.CIRCUMFLEX;
+          default:
+            throw new Error("unreachable");
         }
-        throw new ScannerError("unreachable");
 
-      case ':', ';', '~': // single-char tokens (except comma)
+      case ":":
+      case ";":
+      case "~": // single-char tokens (except comma)
         this.readRune();
         switch (c) {
-          case ':':
+          case ":":
             return Token.COLON;
-          case ';':
+          case ";":
             return Token.SEMI;
-          case '~':
+          case "~":
             return Token.TILDE;
+          default:
+            throw new Error("unreachable");
         }
-        throw new Error("unreachable");
 
-      case '*': // possibly followed by '*' or '='
-        this.readRune()
-        switch this.peekRune() {
-          case '*':
-            this.readRune()
-            return Token.STARSTAR
-          case '=':
-            this.readRune()
-            return Token.STAR_EQ
+      case "*": // possibly followed by '*' or '='
+        this.readRune();
+        switch (this.peekRune()) {
+          case "*":
+            this.readRune();
+            return Token.STARSTAR;
+          case "=":
+            this.readRune();
+            return Token.STAR_EQ;
         }
-        return Token.STAR
+        return Token.STAR;
     }
 
-    this.errorf(this.pos, "unexpected input character %#q", c)
-    panic("unreachable")
-
-
+    this.error(this.pos, `unexpected input character ${c}`);
   }
 
   scanString(val: TokenValue, quote: string): Token {
     const start = this.pos;
-    const triple = this.rest.length >= 3 && this.rest[0] === quote && this.rest[1] === quote && this.rest[2] === quote;
+    const triple =
+      this.rest.length >= 3 &&
+      this.rest[0] === quote &&
+      this.rest[1] === quote &&
+      this.rest[2] === quote;
     this.readRune();
 
     // String literals may contain escaped or unescaped newlines,
@@ -728,44 +858,44 @@ export class Scanner {
     const raw = new Array();
 
     // Copy the prefix, e.g. r' or " (see startToken).
-    raw.write(this.token.slice(0, this.token.length - this.rest.length));
+    raw.push(this.token.slice(0, this.token.length - this.rest.length));
 
     if (!triple) {
       // single-quoted string literal
       while (true) {
-        if (this.eof()) {
+        if (this.isEof()) {
           this.error(val.pos, "unexpected EOF in string");
         }
         const c = this.readRune();
-        raw.writeRune(c);
+        raw.push(c);
         if (c === quote) {
           break;
         }
-        if (c === '\n') {
+        if (c === "\n") {
           this.error(val.pos, "unexpected newline in string");
         }
-        if (c === '\\') {
-          if (this.eof()) {
+        if (c === "\\") {
+          if (this.isEof()) {
             this.error(val.pos, "unexpected EOF in string");
           }
           const c = this.readRune();
-          raw.writeRune(c);
+          raw.push(c);
         }
       }
     } else {
       // triple-quoted string literal
       this.readRune();
-      raw.writeRune(quote);
+      raw.push(quote);
       this.readRune();
-      raw.writeRune(quote);
+      raw.push(quote);
 
       let quoteCount = 0;
       while (true) {
-        if (this.eof()) {
+        if (this.isEof()) {
           this.error(val.pos, "unexpected EOF in string");
         }
         const c = this.readRune();
-        raw.writeRune(c);
+        raw.push(c);
         if (c === quote) {
           quoteCount++;
           if (quoteCount === 3) {
@@ -774,18 +904,19 @@ export class Scanner {
         } else {
           quoteCount = 0;
         }
-        if (c === '\\') {
-          if (this.eof()) {
+        if (c === "\\") {
+          if (this.isEof()) {
             this.error(val.pos, "unexpected EOF in string");
           }
           const c = this.readRune();
-          raw.writeRune(c);
+          raw.push(c);
         }
       }
     }
 
     val.raw = raw.toString();
 
+    // BUG:
     const { s, isByte, err } = unquote(val.raw);
     if (err) {
       this.error(start, err.message);
@@ -794,13 +925,12 @@ export class Scanner {
     return isByte ? Token.BYTES : Token.STRING;
   }
 
-
   scanNumber(val: TokenValue, c: string): Token {
     const start = this.pos;
     let fraction = false;
     let exponent = false;
 
-    if (c === '.') {
+    if (c === ".") {
       // dot or start of fraction
       this.readRune();
       c = this.peekRune();
@@ -809,41 +939,41 @@ export class Scanner {
         return Token.DOT;
       }
       fraction = true;
-    } else if (c === '0') {
+    } else if (c === "0") {
       // hex, octal, binary or float
       this.readRune();
       c = this.peekRune();
 
-      if (c === '.') {
+      if (c === ".") {
         fraction = true;
-      } else if (c === 'x' || c === 'X') {
+      } else if (c === "x" || c === "X") {
         // hex
         this.readRune();
         c = this.peekRune();
         if (!isxdigit(c)) {
-          this.error(start, 'invalid hex literal');
+          this.error(start, "invalid hex literal");
         }
         while (isxdigit(c)) {
           this.readRune();
           c = this.peekRune();
         }
-      } else if (c === 'o' || c === 'O') {
+      } else if (c === "o" || c === "O") {
         // octal
         this.readRune();
         c = this.peekRune();
         if (!isodigit(c)) {
-          this.error(this.pos, 'invalid octal literal');
+          this.error(this.pos, "invalid octal literal");
         }
         while (isodigit(c)) {
           this.readRune();
           c = this.peekRune();
         }
-      } else if (c === 'b' || c === 'B') {
+      } else if (c === "b" || c === "B") {
         // binary
         this.readRune();
         c = this.peekRune();
         if (!isbdigit(c)) {
-          this.error(this.pos, 'invalid binary literal');
+          this.error(this.pos, "invalid binary literal");
         }
         while (isbdigit(c)) {
           this.readRune();
@@ -854,22 +984,25 @@ export class Scanner {
         let allzeros = true;
         let octal = true;
         while (isdigit(c)) {
-          if (c !== '0') {
+          if (c !== "0") {
             allzeros = false;
           }
-          if (c > '7') {
+          if (c > "7") {
             octal = false;
           }
           this.readRune();
           c = this.peekRune();
         }
-        if (c === '.') {
+        if (c === ".") {
           fraction = true;
-        } else if (c === 'e' || c === 'E') {
+        } else if (c === "e" || c === "E") {
           exponent = true;
         } else if (octal && !allzeros) {
           this.endToken(val);
-          this.errorf(this.pos, `obsolete form of octal literal; use 0o${val.raw.slice(1)}`);
+          this.error(
+            this.pos,
+            `obsolete form of octal literal; use 0o${val.raw.slice(1)}`
+          );
         }
       }
     } else {
@@ -879,9 +1012,9 @@ export class Scanner {
         c = this.peekRune();
       }
 
-      if (c === '.') {
+      if (c === ".") {
         fraction = true;
-      } else if (c === 'e' || c === 'E') {
+      } else if (c === "e" || c === "E") {
         exponent = true;
       }
     }
@@ -894,7 +1027,7 @@ export class Scanner {
         c = this.peekRune();
       }
 
-      if (c === 'e' || c === 'E') {
+      if (c === "e" || c === "E") {
         exponent = true;
       }
     }
@@ -902,7 +1035,7 @@ export class Scanner {
     if (exponent) {
       this.readRune();
       c = this.peekRune();
-      if (c === '+' || c === '-') {
+      if (c === "+" || c === "-") {
         this.readRune();
         c = this.peekRune();
         if (!isdigit(c)) {
@@ -918,11 +1051,41 @@ export class Scanner {
     this.endToken(val);
     if (fraction || exponent) {
       // TODO: missing
-
+      let v = parseFloat(val.raw);
+      if (isNaN(v)) {
+        this.error(this.pos, "invalid float literal");
+      }
+      val.float = v;
+      return Token.FLOAT;
+    } else {
+      let err: Error | null = null;
+      const s: string = val.raw;
+      val.bigInt = null;
+      if (s.length > 2 && s[0] === "0" && (s[1] === "o" || s[1] === "O")) {
+        val.int = parseInt(s.substring(2), 8);
+      } else if (
+        s.length > 2 &&
+        s[0] === "0" &&
+        (s[1] === "b" || s[1] === "B")
+      ) {
+        val.int = parseInt(s.substring(2), 2);
+      } else {
+        val.int = parseInt(s, 10);
+        // FIXME: fuck
+        // if (isNaN(val.int)) {
+        //   const num: bigInt.BigInteger = bigInt(s, 10);
+        //   if (!num.isNaN()) {
+        //     val.bigInt = num;
+        //     err = null;
+        //   }
+        // }
+      }
+      if (err !== null) {
+        this.error(start, "invalid int literal");
+      }
+      return Token.INT;
     }
-
   }
-
 }
 
 // isIdent reports whether c is an identifier rune.
@@ -931,28 +1094,26 @@ function isIdent(c: string): boolean {
 }
 
 function isIdentStart(c: string): boolean {
-  return 'a' <= c && c <= 'z' ||
-    'A' <= c && c <= 'Z' ||
-    c == '_' ||
-    /[a-zA-Z]/.test(c);
+  return (
+    ("a" <= c && c <= "z") ||
+    ("A" <= c && c <= "Z") ||
+    c == "_" ||
+    /[a-zA-Z]/.test(c)
+  );
 }
-
 
 function isdigit(c: string): boolean {
-  return '0' <= c && c <= '9'
+  return "0" <= c && c <= "9";
 }
 function isodigit(c: string): boolean {
-  return '0' <= c && c <= '7'
+  return "0" <= c && c <= "7";
 }
 function isxdigit(c: string): boolean {
-  return isdigit(c) || 'A' <= c && c <= 'F' || 'a' <= c && c <= 'f'
+  return isdigit(c) || ("A" <= c && c <= "F") || ("a" <= c && c <= "f");
 }
 function isbdigit(c: string): boolean {
-  return '0' == c || c == '1'
+  return "0" == c || c == "1";
 }
-
-
-
 
 // BUG:
 function isFilePortion(src: unknown): src is FilePortion {
@@ -965,25 +1126,24 @@ function isFilePortion(src: unknown): src is FilePortion {
   );
 }
 
-    // import * as fs from "fs";
-    // import * as path from "path";
+// import * as fs from "fs";
+// import * as path from "path";
 
-    // function readSource(filename: string, src: unknown): Promise<Buffer> {
-    //   switch (typeof src) {
-    //     case "string":
-    //       return Promise.resolve(Buffer.from(src));
-    //     case "object":
-    //       if (Buffer.isBuffer(src)) {
-    //         return Promise.resolve(src);
-    //       } else if (typeof src === "function") {
-    //         return src().then((data: unknown) => readSource(filename, data));
-    //       } else if ("Content" in src) {
-    //         return Promise.resolve(src.Content);
-    //       } else if (src === null) {
-    //         return fs.promises.readFile(filename);
-    //       }
-    //     default:
-    //       throw new Error(`invalid source: ${typeof src}`);
-    //   }
-    // }
-
+// function readSource(filename: string, src: unknown): Promise<Buffer> {
+//   switch (typeof src) {
+//     case "string":
+//       return Promise.resolve(Buffer.from(src));
+//     case "object":
+//       if (Buffer.isBuffer(src)) {
+//         return Promise.resolve(src);
+//       } else if (typeof src === "function") {
+//         return src().then((data: unknown) => readSource(filename, data));
+//       } else if ("Content" in src) {
+//         return Promise.resolve(src.Content);
+//       } else if (src === null) {
+//         return fs.promises.readFile(filename);
+//       }
+//     default:
+//       throw new Error(`invalid source: ${typeof src}`);
+//   }
+// }
