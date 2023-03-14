@@ -1,6 +1,6 @@
 import { TokenValue, Scanner, Token, Position } from "./scan";
 
-const debug = true;
+const debug = false;
 
 class Parser {
   private in: Scanner;
@@ -50,7 +50,6 @@ class Parser {
     return this.parseSimpleStmt(stmts, true)
   }
 
-
   parseDefStmt(): Stmt {
     const defpos = this.nextToken(); // consume DEF
     const id = this.parseIdent();
@@ -68,7 +67,6 @@ class Parser {
       body: body,
     };
   }
-
 
   parseIfStmt(): Stmt {
     const ifpos = this.nextToken(); // consume IF
@@ -134,7 +132,6 @@ class Parser {
       body: body
     });
   }
-
 
   // Equivalent to 'exprlist' production in Python grammar.
   //
@@ -224,7 +221,6 @@ class Parser {
 
   // TODO: parseLoadStmt
 
-
   // suite is typically what follows a COLON (e.g. after DEF or FOR).
   // suite = simple_stmt | NEWLINE INDENT stmt+ OUTDENT
   parseSuite(this: parser): Stmt[] {
@@ -260,7 +256,6 @@ class Parser {
     }
     return this.nextToken();
   }
-
 
   // params = (param COMMA)* param COMMA?
   //        |
@@ -335,7 +330,6 @@ class Parser {
     return new TupleExpr(exprs);
   }
 
-
   // parseExprs parses a comma-separated list of expressions, starting with the comma.
   // It is used to parse tuples and list elements.
   // expr_list = (',' expr)* ','?
@@ -353,7 +347,6 @@ class Parser {
     }
     return exprs;
   }
-
 
   // parseTest parses a 'test', a single-component expression.
   parseTest(): Expr {
@@ -416,7 +409,6 @@ class Parser {
 
     return new LambdaExpr(lambda, params, body);
   }
-
 
   parseTestPrec(prec: number): Expr {
     let p = this;
@@ -495,7 +487,6 @@ class Parser {
       }
     }
   }
-
 
   // slice_suffix = '[' expr? ':' expr?  ':' expr? ']'
   parseSliceSuffix(x: Expr): Expr {
@@ -591,7 +582,6 @@ class Parser {
     return args;
   }
 
-
   //  primary = IDENT
   //          | INT | FLOAT | STRING | BYTES
   //          | '[' ...                    // list literal or comprehension
@@ -654,8 +644,6 @@ class Parser {
     throw new Error(`got ${this.tok}, want primary expression`);
   }
 
-
-
   // list = '[' ']'
   //      | '[' expr ']'
   //      | '[' expr expr_list ']'
@@ -685,7 +673,6 @@ class Parser {
     const rbrack = this.consume(Token.RBRACK);
     return { type: 'ListExpr', Lbrack: lbrack, List: exprs, Rbrack: rbrack };
   }
-
 
   // dict = '{' '}'
   //      | '{' dict_entry_list '}'
@@ -719,7 +706,6 @@ class Parser {
     return new DictExpr({ lbrace, list: entries, rbrace });
   }
 
-
   // dict_entry = test ':' test
   parseDictEntry(): DictEntry {
     const key = this.parseTest();
@@ -727,7 +713,6 @@ class Parser {
     const value = this.parseTest();
     return new DictEntry(key, value);
   }
-
 
   // comp_suffix = FOR loopvars IN expr comp_suffix
   //             | IF expr comp_suffix
@@ -764,4 +749,3 @@ class Parser {
   }
 
 }
-
