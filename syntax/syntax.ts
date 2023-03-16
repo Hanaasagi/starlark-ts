@@ -85,9 +85,10 @@ class File {
   }
 
   public span(): [Position, Position] {
-    if (this.Stmts.length === 0) {
-      return [null, null];
-    }
+    // asserts(this.Stmts.length != 0);
+    // if (this.Stmts.length === 0) {
+    //   return [null, null];
+    // }
     const start = this.Stmts[0].span()[0];
     const end = this.Stmts[this.Stmts.length - 1].span()[1];
     return [start, end];
@@ -96,7 +97,7 @@ class File {
 
 export interface Stmt extends Node {
   // TODO: stmt()?
-  stmt();
+  stmt(): void;
 }
 
 // An AssignStmt represents an assignment:
@@ -125,7 +126,7 @@ class AssignStmt implements Stmt {
     return [start, end];
   }
 
-  stmt() {}
+  stmt() { }
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -154,7 +155,7 @@ class DefStmt implements Stmt {
     const [_, end] = this.Body[this.Body.length - 1].span();
     return [this.Def, end];
   }
-  stmt() {}
+  stmt() { }
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -175,7 +176,7 @@ export class ExprStmt implements Stmt {
   public span(): [Position, Position] {
     return this.X.span();
   }
-  stmt() {}
+  stmt() { }
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -217,7 +218,7 @@ class IfStmt implements Stmt {
     const [_, end] = body[body.length - 1].span();
     return [this.ifPos, end];
   }
-  stmt() {}
+  stmt() { }
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -260,9 +261,9 @@ class LoadStmt implements Stmt {
   }
   // ModuleName returns the name of the module loaded by this statement.
   ModuleName(): string {
-    return this.Module.Value as string;
+    return this.Module.value as string;
   }
-  stmt() {}
+  stmt() { }
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -286,7 +287,7 @@ class BranchStmt implements Stmt {
   public span(): [Position, Position] {
     return [this.tokenPos, this.tokenPos.add(this.token.toString())];
   }
-  stmt() {}
+  stmt() { }
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -314,7 +315,7 @@ class ReturnStmt implements Stmt {
     const [, end] = this.Result.span();
     return [this.Return, end];
   }
-  stmt() {}
+  stmt() { }
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -323,10 +324,12 @@ class ReturnStmt implements Stmt {
   }
 }
 
-interface Expr extends Node {}
+interface Expr extends Node {
+  expr(): void;
+}
 
 // An Ident represents an identifier.
-class Ident {
+class Ident implements Expr {
   private commentsRef: CommentsRef;
 
   public NamePos: Position;
@@ -348,10 +351,17 @@ class Ident {
   public span(): [Position, Position] {
     return [this.NamePos, this.NamePos.add(this.Name)];
   }
+  expr() { }
+  public comments(): Comments | null {
+    return this.commentsRef.comments();
+  }
+  public allocComments(): void {
+    this.commentsRef.allocComments();
+  }
 }
 
 // A Literal represents a literal string or number.
-class Literal {
+class Literal implements Expr {
   private commentsRef: CommentsRef;
   public token: Token; // = STRING | BYTES | INT | FLOAT
   public tokenPos: Position;
@@ -374,10 +384,17 @@ class Literal {
   public span(): [start: Position, end: Position] {
     return [this.tokenPos, this.tokenPos.add(this.raw)];
   }
+  expr() { }
+  public comments(): Comments | null {
+    return this.commentsRef.comments();
+  }
+  public allocComments(): void {
+    this.commentsRef.allocComments();
+  }
 }
 
 // A ParenExpr represents a parenthesized expression: (X).
-class ParenExpr {
+class ParenExpr implements Expr {
   private commentsRef: CommentsRef;
   private lparen: Position;
   private x: Expr;
@@ -393,10 +410,17 @@ class ParenExpr {
   public span(): [Position, Position] {
     return [this.lparen, this.rparen.add(")")];
   }
+  expr() { }
+  public comments(): Comments | null {
+    return this.commentsRef.comments();
+  }
+  public allocComments(): void {
+    this.commentsRef.allocComments();
+  }
 }
 
 // A CallExpr represents a function call expression: Fn(Args).
-class CallExpr {
+class CallExpr implements Expr {
   private commentsRef: CommentsRef;
   public Fn: Expr;
   public Lparen: Position;
@@ -411,14 +435,21 @@ class CallExpr {
     this.Rparen = Rparen;
   }
 
-  public Span(): [Position, Position] {
+  public span(): [Position, Position] {
     const [start, _] = this.Fn.span();
     return [start, this.Rparen.add(")")] as [Position, Position];
+  }
+  expr() { }
+  public comments(): Comments | null {
+    return this.commentsRef.comments();
+  }
+  public allocComments(): void {
+    this.commentsRef.allocComments();
   }
 }
 
 // A DotExpr represents a field or method selector: X.Name.
-class DotExpr {
+class DotExpr implements Expr {
   private commentsRef: CommentsRef;
   private X: Expr;
   private Dot: Position;
@@ -433,17 +464,24 @@ class DotExpr {
     this.Name = Name;
   }
 
-  public Span(): [Position, Position] {
+  public span(): [Position, Position] {
     let start: Position, end: Position;
     [start] = this.X.span();
     [, end] = this.Name.span();
     return [start, end];
   }
+  expr() { }
+  public comments(): Comments | null {
+    return this.commentsRef.comments();
+  }
+  public allocComments(): void {
+    this.commentsRef.allocComments();
+  }
 }
 
 // A Comprehension represents a list or dict comprehension:
 // [Body for ... if ...] or {Body for ... if ...}
-class Comprehension {
+class Comprehension implements Expr {
   private commentsRef: CommentsRef;
   public Curly: boolean; // {x:y for ...} or {x for ...}, not [x for ...]
   public Lbrack: Position;
@@ -466,13 +504,20 @@ class Comprehension {
     this.Rbrack = Rbrack;
   }
 
-  public Span(): [Position, Position] {
+  public span(): [Position, Position] {
     return [this.Lbrack, this.Rbrack.add("]")];
+  }
+  expr() { }
+  public comments(): Comments | null {
+    return this.commentsRef.comments();
+  }
+  public allocComments(): void {
+    this.commentsRef.allocComments();
   }
 }
 
 // A ForStmt represents a loop: for Vars in X: Body.
-class ForStmt {
+class ForStmt implements Stmt {
   private commentsRef: CommentsRef;
   public For: Position;
   public Vars: Expr; // name, or tuple of names
@@ -487,14 +532,22 @@ class ForStmt {
     this.Body = Body;
   }
 
-  public Span(): [Position, Position] {
+  public span(): [Position, Position] {
     const [, end] = this.Body[this.Body.length - 1].span();
     return [this.For, end];
+  }
+
+  stmt() { }
+  public comments(): Comments | null {
+    return this.commentsRef.comments();
+  }
+  public allocComments(): void {
+    this.commentsRef.allocComments();
   }
 }
 
 // A WhileStmt represents a while loop: while X: Body.
-class WhileStmt {
+class WhileStmt implements Stmt {
   private commentsRef: CommentsRef;
   public While: Position;
   public Cond: Expr;
@@ -507,9 +560,16 @@ class WhileStmt {
     this.Body = Body;
   }
 
-  public Span(): [start: Position, end: Position] {
+  public span(): [start: Position, end: Position] {
     const [, end] = this.Body[this.Body.length - 1].span();
     return [this.While, end];
+  }
+  stmt() { }
+  public comments(): Comments | null {
+    return this.commentsRef.comments();
+  }
+  public allocComments(): void {
+    this.commentsRef.allocComments();
   }
 }
 
@@ -554,7 +614,7 @@ class IfClause {
 }
 
 // A DictExpr represents a dictionary literal: { List }.
-class DictExpr {
+class DictExpr implements Expr {
   commentsRef: CommentsRef;
   Lbrace: Position;
   List: DictEntry[]; // all DictEntrys
@@ -567,14 +627,21 @@ class DictExpr {
     this.Rbrace = Rbrace;
   }
 
-  Span(): [Position, Position] {
+  span(): [Position, Position] {
     return [this.Lbrace, this.Rbrace.add("}")];
+  }
+  expr() { }
+  public comments(): Comments | null {
+    return this.commentsRef.comments();
+  }
+  public allocComments(): void {
+    this.commentsRef.allocComments();
   }
 }
 
 // A DictEntry represents a dictionary entry: Key: Value.
 // Used only within a DictExpr.
-class DictEntry {
+class DictEntry implements Expr {
   commentsRef: CommentsRef;
   Key: Expr;
   Colon: Position;
@@ -587,15 +654,23 @@ class DictEntry {
     this.Value = Value;
   }
 
-  Span(): [Position, Position] {
+  span(): [Position, Position] {
     let [start] = this.Key.span();
     let [, end] = this.Value.span();
     return [start, end];
   }
+  expr() { }
+  public comments(): Comments | null {
+    return this.commentsRef.comments();
+  }
+  public allocComments(): void {
+    this.commentsRef.allocComments();
+  }
 }
 
 // A LambdaExpr represents an inline function abstraction.
-class LambdaExpr {
+class LambdaExpr implements Expr {
+  private commentsRef: CommentsRef;
   private lambda: Position;
   private params: Expr[]; // param = ident | ident=expr | * | *ident | **ident
   private body: Expr;
@@ -605,16 +680,25 @@ class LambdaExpr {
     this.lambda = lambda;
     this.params = params;
     this.body = body;
+    this.commentsRef = new CommentsRef();
   }
 
-  public Span(): [Position, Position] {
+  public span(): [Position, Position] {
     const [, end] = this.body.span();
     return [this.lambda, end];
+  }
+  expr() { }
+  public comments(): Comments | null {
+    return this.commentsRef.comments();
+  }
+  public allocComments(): void {
+    this.commentsRef.allocComments();
   }
 }
 
 // A ListExpr represents a list literal: [ List ].
-class ListExpr {
+class ListExpr implements Expr {
+  private commentsRef: CommentsRef;
   private lbrack: Position;
   private list: Expr[];
   private rbrack: Position;
@@ -623,15 +707,23 @@ class ListExpr {
     this.lbrack = lbrack;
     this.list = list;
     this.rbrack = rbrack;
+    this.commentsRef = new CommentsRef();
   }
 
-  public Span(): [Position, Position] {
+  public span(): [Position, Position] {
     return [this.lbrack, this.rbrack.add("]")];
+  }
+  expr() { }
+  public comments(): Comments | null {
+    return this.commentsRef.comments();
+  }
+  public allocComments(): void {
+    this.commentsRef.allocComments();
   }
 }
 
 // CondExpr represents the conditional: X if COND else ELSE.
-class CondExpr {
+class CondExpr implements Expr {
   private commentsRef: CommentsRef;
   private If: Position;
   private Cond: Expr;
@@ -655,15 +747,22 @@ class CondExpr {
     this.False = False;
   }
 
-  public Span(): [start: Position, end: Position] {
+  public span(): [start: Position, end: Position] {
     const [startTrue, endTrue] = this.True.span();
     const [startFalse, endFalse] = this.False.span();
     return [startTrue, endFalse];
   }
+  expr() { }
+  public comments(): Comments | null {
+    return this.commentsRef.comments();
+  }
+  public allocComments(): void {
+    this.commentsRef.allocComments();
+  }
 }
 
 // A TupleExpr represents a tuple literal: (List).
-class TupleExpr {
+class TupleExpr implements Expr {
   private commentsRef: CommentsRef;
   private Lparen: Position; // optional (e.g. in x, y = 0, 1), but required if List is empty
   private List: Expr[];
@@ -681,7 +780,7 @@ class TupleExpr {
     this.Rparen = Rparen;
   }
 
-  public Span(): [start: Position, end: Position] {
+  public span(): [start: Position, end: Position] {
     if (this.Lparen.isValid()) {
       return [this.Lparen, this.Rparen];
     } else {
@@ -691,13 +790,20 @@ class TupleExpr {
       ];
     }
   }
+  expr() { }
+  public comments(): Comments | null {
+    return this.commentsRef.comments();
+  }
+  public allocComments(): void {
+    this.commentsRef.allocComments();
+  }
 }
 
 // A UnaryExpr represents a unary expression: Op X.
 //
 // As a special case, UnaryOp{Op:Star} may also represent
 // the star parameter in def f(...args: any[]) or def f(...: any[]).
-class UnaryExpr {
+class UnaryExpr implements Expr {
   commentsRef: CommentsRef;
   OpPos: Position;
   Op: Token;
@@ -710,7 +816,7 @@ class UnaryExpr {
     this.X = X;
   }
 
-  Span(): [start: Position, end: Position] {
+  span(): [start: Position, end: Position] {
     if (this.X !== null) {
       const [, end] = this.X.span();
       return [this.OpPos, end];
@@ -718,6 +824,13 @@ class UnaryExpr {
       const end = this.OpPos.add("*");
       return [this.OpPos, end];
     }
+  }
+  expr() { }
+  public comments(): Comments | null {
+    return this.commentsRef.comments();
+  }
+  public allocComments(): void {
+    this.commentsRef.allocComments();
   }
 }
 
@@ -727,28 +840,37 @@ class UnaryExpr {
 // represent a named argument in a call f(k=v)
 // or a named parameter in a function declaration
 // def f(param=default).
-class BinaryExpr {
+class BinaryExpr implements Expr {
+  private commentsRef: CommentsRef;
   private X: Expr;
   private OpPos: Position;
   private Op: Token;
   private Y: Expr;
 
   constructor(X: Expr, OpPos: Position, Op: Token, Y: Expr) {
+    this.commentsRef = new CommentsRef();
     this.X = X;
     this.OpPos = OpPos;
     this.Op = Op;
     this.Y = Y;
   }
 
-  public Span(): [start: Position, end: Position] {
+  public span(): [start: Position, end: Position] {
     const [start] = this.X.span();
     const [, end] = this.Y.span();
     return [start, end];
   }
+  expr() { }
+  public comments(): Comments | null {
+    return this.commentsRef.comments();
+  }
+  public allocComments(): void {
+    this.commentsRef.allocComments();
+  }
 }
 
 // A SliceExpr represents a slice or substring expression: X[Lo:Hi:Step].
-class SliceExpr {
+class SliceExpr implements Expr {
   commentsRef: any;
   X: Expr;
   Lbrack: Position;
@@ -774,14 +896,21 @@ class SliceExpr {
     this.Rbrack = Rbrack;
   }
 
-  Span(): [start: Position, end: Position] {
+  span(): [start: Position, end: Position] {
     const [start, _] = this.X.span();
     return [start, this.Rbrack];
+  }
+  expr() { }
+  public comments(): Comments | null {
+    return this.commentsRef.comments();
+  }
+  public allocComments(): void {
+    this.commentsRef.allocComments();
   }
 }
 
 // An IndexExpr represents an index expression: X[Y].
-class IndexExpr {
+class IndexExpr implements Expr {
   commentsRef: CommentsRef;
   X: Expr;
   Lbrack: Position;
@@ -796,8 +925,15 @@ class IndexExpr {
     this.Rbrack = Rbrack;
   }
 
-  Span(): [start: Position, end: Position] {
+  span(): [start: Position, end: Position] {
     const [start, _] = this.X.span();
     return [start, this.Rbrack];
+  }
+  expr() { }
+  public comments(): Comments | null {
+    return this.commentsRef.comments();
+  }
+  public allocComments(): void {
+    this.commentsRef.allocComments();
   }
 }
