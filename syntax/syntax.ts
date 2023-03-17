@@ -71,7 +71,7 @@ export class CommentsRef {
 }
 
 // A File represents a Starlark file.
-class File {
+export class File {
   private commentsRef: any;
   public Path: string;
   public Stmts: Stmt[];

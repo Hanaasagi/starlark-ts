@@ -7,7 +7,7 @@ var Disassemble = false;
 const debug = false; // make code generation verbose, for debugging the compiler
 
 // Increment this to force recompilation of saved bytecode files.
-const Version = 13;
+export const Version = 13;
 const variableStackEffect = 0x7f;
 
 enum Opcode {
@@ -180,7 +180,7 @@ class Pclinecol {
 //
 // Funcodes are serialized by the encoder.function method,
 // which must be updated whenever this declaration is changed.
-class Funcode {
+export class Funcode {
   prog: Program;
   pos: syntax.Position;
   name: string;
@@ -277,7 +277,7 @@ class Funcode {
 
 // Programs are serialized by the Program.Encode method,
 // which must be updated whenever this declaration is changed.
-class Program {
+export class Program {
   loads: Binding[];
   names: string[];
   constants: any;
