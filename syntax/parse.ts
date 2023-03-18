@@ -3,19 +3,19 @@ import { TokenValue, Scanner, Token, Position } from "./scan";
 const debug = false;
 
 class Parser {
-  private in: Scanner;
+  private input: Scanner;
   private tok: Token;
   private tokval: TokenValue;
 
-  constructor(in: Scanner) {
-    this.in = in;
+  constructor(input: Scanner) {
+    this.input = input;
   }
 
   // nextToken advances the scanner and returns the position of the
   // previous token.
   nextToken(): Position {
     const oldpos = this.tokval.pos;
-    this.tok = this.in.nextToken(this.tokval);
+    this.tok = this.input.nextToken(this.tokval);
     // enable to see the token stream
     if (debug) {
       console.log(`nextToken: ${this.tok} ${this.tokval.pos}`);
@@ -252,7 +252,7 @@ class Parser {
 
   consume(t: Token): Position {
     if (this.tok !== t) {
-      this.in.errorf(this.in.pos, `got ${Token[this.tok]}, want ${Token[t]}`);
+      this.input.errorf(this.input.pos, `got ${Token[this.tok]}, want ${Token[t]}`);
     }
     return this.nextToken();
   }
@@ -362,7 +362,7 @@ class Parser {
       const ifpos = p.nextToken();
       const cond = parseTestPrec(0);
       if (p.tok !== Token.ELSE) {
-        p.in.error(ifpos, "conditional expression without else clause");
+        p.input.error(ifpos, "conditional expression without else clause");
       }
       const elsepos = p.nextToken();
       const else_ = this.sparseTest();
@@ -439,7 +439,7 @@ class Parser {
       if (this.tok === Token.NOT) {
         this.nextToken();
         if (this.tok !== Token.IN) {
-          this.in.error(this.in.pos, `got ${this.tok}, want in`);
+          this.input.error(this.input.pos, `got ${this.tok}, want in`);
         }
         this.tok = Token.NOT_IN;
       }
@@ -450,7 +450,7 @@ class Parser {
       }
 
       if (!first && opprec === precedence[Token.EQL]) {
-        this.in.errorf(this.in.pos, `${(x as BinaryExpr).Op} does not associate with ${this.tok} (use parens)`);
+        this.input.errorf(this.input.pos, `${(x as BinaryExpr).Op} does not associate with ${this.tok} (use parens)`);
       }
 
       const op = this.tok;
@@ -740,7 +740,7 @@ class Parser {
         const cond = this.parseTestNoCond();
         clauses.push(new IfClause(pos, cond));
       } else {
-        this.in.errorf(this.in.pos, `got ${this.tok}, want ${endBrace}, for, or if`);
+        this.input.errorf(this.input.pos, `got ${this.tok}, want ${endBrace}, for, or if`);
       }
     }
     const rbrace = this.nextToken();
