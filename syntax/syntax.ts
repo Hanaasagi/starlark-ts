@@ -77,7 +77,7 @@ export class File implements Node {
   public Stmts: Stmt[];
   public Module: any; // a *resolve.Module, set by resolver
 
-  constructor(path: string, stmts: Stmt[], module: any) {
+  constructor(path: string = "", stmts: Stmt[], module: any | null) {
     this.commentsRef = undefined;
     this.Path = path;
     this.Stmts = stmts;
@@ -111,7 +111,7 @@ export interface Stmt extends Node {
 //	x = 0
 //	x, y = y, x
 // 	x += 1
-class AssignStmt implements Stmt {
+export class AssignStmt implements Stmt {
   // BUG:
   private commentsRef: CommentsRef;
   public OpPos: Position;
@@ -133,7 +133,7 @@ class AssignStmt implements Stmt {
     return [start, end];
   }
 
-  stmt() { }
+  stmt() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -143,7 +143,7 @@ class AssignStmt implements Stmt {
 }
 
 // A DefStmt represents a function definition.
-class DefStmt implements Stmt {
+export class DefStmt implements Stmt {
   commentsRef: any;
   Def: Position;
   Name: Ident;
@@ -162,7 +162,7 @@ class DefStmt implements Stmt {
     const [_, end] = this.Body[this.Body.length - 1].span();
     return [this.Def, end];
   }
-  stmt() { }
+  stmt() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -183,7 +183,7 @@ export class ExprStmt implements Stmt {
   public span(): [Position, Position] {
     return this.X.span();
   }
-  stmt() { }
+  stmt() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -194,19 +194,19 @@ export class ExprStmt implements Stmt {
 
 // An IfStmt is a conditional: If Cond: True; else: False.
 // 'elseif' is desugared into a chain of IfStmts.
-class IfStmt implements Stmt {
+export class IfStmt implements Stmt {
   private commentsRef: CommentsRef;
-  private ifPos: Position; // IF or ELIF
+  public ifPos: Position; // IF or ELIF
   public cond: Expr;
   public trueBody: Stmt[];
-  private elsePos: Position; // ELSE or ELIF
+  public elsePos: Position | null; // ELSE or ELIF
   public falseBody: Stmt[]; // optional
 
   constructor(
     ifPos: Position,
     cond: Expr,
     trueBody: Stmt[],
-    elsePos: Position,
+    elsePos: Position | null,
     falseBody: Stmt[]
   ) {
     this.commentsRef = new CommentsRef();
@@ -225,7 +225,7 @@ class IfStmt implements Stmt {
     const [_, end] = body[body.length - 1].span();
     return [this.ifPos, end];
   }
-  stmt() { }
+  stmt() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -242,7 +242,7 @@ class IfStmt implements Stmt {
 // binds some names (like y above) with an identifier and some (like x)
 // without. For consistency we create fake identifiers for all the
 // strings.
-class LoadStmt implements Stmt {
+export class LoadStmt implements Stmt {
   private commentsRef: CommentsRef;
   Load: Position;
   Module: Literal; // a string
@@ -270,7 +270,7 @@ class LoadStmt implements Stmt {
   ModuleName(): string {
     return this.Module.value as string;
   }
-  stmt() { }
+  stmt() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -280,7 +280,7 @@ class LoadStmt implements Stmt {
 }
 
 // A BranchStmt changes the flow of control: break, continue, pass.
-class BranchStmt implements Stmt {
+export class BranchStmt implements Stmt {
   private commentsRef: CommentsRef;
   private token: Token; // = BREAK | CONTINUE | PASS
   private tokenPos: Position;
@@ -294,7 +294,7 @@ class BranchStmt implements Stmt {
   public span(): [Position, Position] {
     return [this.tokenPos, this.tokenPos.add(this.token.toString())];
   }
-  stmt() { }
+  stmt() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -304,7 +304,7 @@ class BranchStmt implements Stmt {
 }
 
 // A ReturnStmt returns from a function.
-class ReturnStmt implements Stmt {
+export class ReturnStmt implements Stmt {
   private commentsRef: CommentsRef;
   public readonly Return: Position;
   public readonly Result?: Expr;
@@ -322,7 +322,7 @@ class ReturnStmt implements Stmt {
     const [, end] = this.Result.span();
     return [this.Return, end];
   }
-  stmt() { }
+  stmt() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -331,12 +331,12 @@ class ReturnStmt implements Stmt {
   }
 }
 
-interface Expr extends Node {
+export interface Expr extends Node {
   expr(): void;
 }
 
 // An Ident represents an identifier.
-class Ident implements Expr {
+export class Ident implements Expr {
   private commentsRef: CommentsRef;
 
   public NamePos: Position;
@@ -347,7 +347,7 @@ class Ident implements Expr {
   constructor(
     NamePos: Position,
     Name: string,
-    Binding: any // a *resolver.Binding, set by resolver
+    Binding: any | null // a *resolver.Binding, set by resolver
   ) {
     this.commentsRef = new CommentsRef();
     this.NamePos = NamePos;
@@ -358,7 +358,7 @@ class Ident implements Expr {
   public span(): [Position, Position] {
     return [this.NamePos, this.NamePos.add(this.Name)];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -368,7 +368,7 @@ class Ident implements Expr {
 }
 
 // A Literal represents a literal string or number.
-class Literal implements Expr {
+export class Literal implements Expr {
   private commentsRef: CommentsRef;
   public token: Token; // = STRING | BYTES | INT | FLOAT
   public tokenPos: Position;
@@ -391,7 +391,7 @@ class Literal implements Expr {
   public span(): [start: Position, end: Position] {
     return [this.tokenPos, this.tokenPos.add(this.raw)];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -401,7 +401,7 @@ class Literal implements Expr {
 }
 
 // A ParenExpr represents a parenthesized expression: (X).
-class ParenExpr implements Expr {
+export class ParenExpr implements Expr {
   private commentsRef: CommentsRef;
   private lparen: Position;
   public x: Expr;
@@ -417,7 +417,7 @@ class ParenExpr implements Expr {
   public span(): [Position, Position] {
     return [this.lparen, this.rparen.add(")")];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -427,7 +427,7 @@ class ParenExpr implements Expr {
 }
 
 // A CallExpr represents a function call expression: Fn(Args).
-class CallExpr implements Expr {
+export class CallExpr implements Expr {
   private commentsRef: CommentsRef;
   public Fn: Expr;
   public Lparen: Position;
@@ -446,7 +446,7 @@ class CallExpr implements Expr {
     const [start, _] = this.Fn.span();
     return [start, this.Rparen.add(")")] as [Position, Position];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -456,14 +456,14 @@ class CallExpr implements Expr {
 }
 
 // A DotExpr represents a field or method selector: X.Name.
-class DotExpr implements Expr {
+export class DotExpr implements Expr {
   private commentsRef: CommentsRef;
   public X: Expr;
   private Dot: Position;
-  private NamePos: Position;
+  private NamePos: Position | null;
   public Name: Ident;
 
-  constructor(X: Expr, Dot: Position, NamePos: Position, Name: Ident) {
+  constructor(X: Expr, Dot: Position, NamePos: Position | null, Name: Ident) {
     this.commentsRef = new CommentsRef();
     this.X = X;
     this.Dot = Dot;
@@ -477,7 +477,7 @@ class DotExpr implements Expr {
     [, end] = this.Name.span();
     return [start, end];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -488,7 +488,7 @@ class DotExpr implements Expr {
 
 // A Comprehension represents a list or dict comprehension:
 // [Body for ... if ...] or {Body for ... if ...}
-class Comprehension implements Expr {
+export class Comprehension implements Expr {
   private commentsRef: CommentsRef;
   public Curly: boolean; // {x:y for ...} or {x for ...}, not [x for ...]
   public Lbrack: Position;
@@ -514,7 +514,7 @@ class Comprehension implements Expr {
   public span(): [Position, Position] {
     return [this.Lbrack, this.Rbrack.add("]")];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -524,7 +524,7 @@ class Comprehension implements Expr {
 }
 
 // A ForStmt represents a loop: for Vars in X: Body.
-class ForStmt implements Stmt {
+export class ForStmt implements Stmt {
   private commentsRef: CommentsRef;
   public For: Position;
   public Vars: Expr; // name, or tuple of names
@@ -544,7 +544,7 @@ class ForStmt implements Stmt {
     return [this.For, end];
   }
 
-  stmt() { }
+  stmt() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -554,7 +554,7 @@ class ForStmt implements Stmt {
 }
 
 // A WhileStmt represents a while loop: while X: Body.
-class WhileStmt implements Stmt {
+export class WhileStmt implements Stmt {
   private commentsRef: CommentsRef;
   public While: Position;
   public Cond: Expr;
@@ -571,7 +571,7 @@ class WhileStmt implements Stmt {
     const [, end] = this.Body[this.Body.length - 1].span();
     return [this.While, end];
   }
-  stmt() { }
+  stmt() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -581,7 +581,7 @@ class WhileStmt implements Stmt {
 }
 
 // A ForClause represents a for clause in a list comprehension: for Vars in X.
-class ForClause implements Node {
+export class ForClause implements Node {
   private commentsRef: CommentsRef;
   public forPos: Position;
   public vars: Expr;
@@ -610,7 +610,7 @@ class ForClause implements Node {
 }
 
 // TypeScript equivalent of IfClause
-class IfClause implements Node {
+export class IfClause implements Node {
   private commentsRef: any;
   public If: Position;
   public Cond: Expr;
@@ -634,7 +634,7 @@ class IfClause implements Node {
 }
 
 // A DictExpr represents a dictionary literal: { List }.
-class DictExpr implements Expr {
+export class DictExpr implements Expr {
   commentsRef: CommentsRef;
   Lbrace: Position;
   List: DictEntry[]; // all DictEntrys
@@ -650,7 +650,7 @@ class DictExpr implements Expr {
   span(): [Position, Position] {
     return [this.Lbrace, this.Rbrace.add("}")];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -661,7 +661,7 @@ class DictExpr implements Expr {
 
 // A DictEntry represents a dictionary entry: Key: Value.
 // Used only within a DictExpr.
-class DictEntry implements Expr {
+export class DictEntry implements Expr {
   commentsRef: CommentsRef;
   Key: Expr;
   Colon: Position;
@@ -679,7 +679,7 @@ class DictEntry implements Expr {
     let [, end] = this.Value.span();
     return [start, end];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -689,7 +689,7 @@ class DictEntry implements Expr {
 }
 
 // A LambdaExpr represents an inline function abstraction.
-class LambdaExpr implements Expr {
+export class LambdaExpr implements Expr {
   private commentsRef: CommentsRef;
   private lambda: Position;
   public params: Expr[]; // param = ident | ident=expr | * | *ident | **ident
@@ -707,7 +707,7 @@ class LambdaExpr implements Expr {
     const [, end] = this.body.span();
     return [this.lambda, end];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -717,7 +717,7 @@ class LambdaExpr implements Expr {
 }
 
 // A ListExpr represents a list literal: [ List ].
-class ListExpr implements Expr {
+export class ListExpr implements Expr {
   private commentsRef: CommentsRef;
   private lbrack: Position;
   public list: Expr[];
@@ -733,7 +733,7 @@ class ListExpr implements Expr {
   public span(): [Position, Position] {
     return [this.lbrack, this.rbrack.add("]")];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -743,7 +743,7 @@ class ListExpr implements Expr {
 }
 
 // CondExpr represents the conditional: X if COND else ELSE.
-class CondExpr implements Expr {
+export class CondExpr implements Expr {
   private commentsRef: CommentsRef;
   private If: Position;
   public Cond: Expr;
@@ -751,14 +751,7 @@ class CondExpr implements Expr {
   private ElsePos: any;
   public False: Expr;
 
-  constructor(
-    commentsRef: any,
-    If: any,
-    Cond: Expr,
-    True: Expr,
-    ElsePos: any,
-    False: Expr
-  ) {
+  constructor(If: any, Cond: Expr, True: Expr, ElsePos: any, False: Expr) {
     this.commentsRef = new CommentsRef();
     this.If = If;
     this.Cond = Cond;
@@ -772,7 +765,7 @@ class CondExpr implements Expr {
     const [startFalse, endFalse] = this.False.span();
     return [startTrue, endFalse];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -782,17 +775,16 @@ class CondExpr implements Expr {
 }
 
 // A TupleExpr represents a tuple literal: (List).
-class TupleExpr implements Expr {
+export class TupleExpr implements Expr {
   private commentsRef: CommentsRef;
-  private Lparen: Position; // optional (e.g. in x, y = 0, 1), but required if List is empty
+  private Lparen: Position | null; // optional (e.g. in x, y = 0, 1), but required if List is empty
   public List: Expr[];
-  private Rparen: Position;
+  private Rparen: Position | null;
 
   constructor(
-    commentsRef: any,
-    Lparen: Position,
     List: Expr[],
-    Rparen: Position
+    Lparen?: Position | null,
+    Rparen?: Position | null
   ) {
     this.commentsRef = new CommentsRef();
     this.Lparen = Lparen;
@@ -800,9 +792,9 @@ class TupleExpr implements Expr {
     this.Rparen = Rparen;
   }
 
-  public span(): [start: Position, end: Position] {
-    if (this.Lparen.isValid()) {
-      return [this.Lparen, this.Rparen];
+  public span(): [Position, Position] {
+    if (this.Lparen?.isValid()) {
+      return [this.Lparen!, this.Rparen!];
     } else {
       return [
         this.List[0].span()[0],
@@ -810,7 +802,7 @@ class TupleExpr implements Expr {
       ];
     }
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -823,13 +815,13 @@ class TupleExpr implements Expr {
 //
 // As a special case, UnaryOp{Op:Star} may also represent
 // the star parameter in def f(...args: any[]) or def f(...: any[]).
-class UnaryExpr implements Expr {
+export class UnaryExpr implements Expr {
   commentsRef: CommentsRef;
   OpPos: Position;
   Op: Token;
   X: Expr | null;
 
-  constructor(commentsRef: any, OpPos: Position, Op: Token, X: Expr | null) {
+  constructor(OpPos: Position, Op: Token, X: Expr | null) {
     this.commentsRef = new CommentsRef();
     this.OpPos = OpPos;
     this.Op = Op;
@@ -845,7 +837,7 @@ class UnaryExpr implements Expr {
       return [this.OpPos, end];
     }
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -860,11 +852,11 @@ class UnaryExpr implements Expr {
 // represent a named argument in a call f(k=v)
 // or a named parameter in a function declaration
 // def f(param=default).
-class BinaryExpr implements Expr {
+export class BinaryExpr implements Expr {
   private commentsRef: CommentsRef;
   public X: Expr;
   private OpPos: Position;
-  private Op: Token;
+  public Op: Token;
   public Y: Expr;
 
   constructor(X: Expr, OpPos: Position, Op: Token, Y: Expr) {
@@ -880,7 +872,7 @@ class BinaryExpr implements Expr {
     const [, end] = this.Y.span();
     return [start, end];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -890,7 +882,7 @@ class BinaryExpr implements Expr {
 }
 
 // A SliceExpr represents a slice or substring expression: X[Lo:Hi:Step].
-class SliceExpr implements Expr {
+export class SliceExpr implements Expr {
   commentsRef: any;
   X: Expr;
   Lbrack: Position;
@@ -920,7 +912,7 @@ class SliceExpr implements Expr {
     const [start, _] = this.X.span();
     return [start, this.Rbrack];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -930,7 +922,7 @@ class SliceExpr implements Expr {
 }
 
 // An IndexExpr represents an index expression: X[Y].
-class IndexExpr implements Expr {
+export class IndexExpr implements Expr {
   commentsRef: CommentsRef;
   X: Expr;
   Lbrack: Position;
@@ -949,7 +941,7 @@ class IndexExpr implements Expr {
     const [start, _] = this.X.span();
     return [start, this.Rbrack];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }

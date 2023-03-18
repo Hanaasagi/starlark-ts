@@ -321,6 +321,8 @@ export class Scanner {
   //   }
   // }
 
+  recover(err: any) {}
+
   // eof reports whether the input has reached end of file.
   isEof(): boolean {
     return (

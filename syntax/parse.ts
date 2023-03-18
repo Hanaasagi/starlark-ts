@@ -1,11 +1,136 @@
 import { TokenValue, Scanner, Token, Position } from "./scan";
+import * as syntax from "./syntax";
+import { Walk } from "./walk";
 
+// A Mode value is a set of flags (or 0) that controls optional parser functionality.
+type Mode = number;
+
+// Enable this flag to print the token stream and log.Fatal on the first error.
 const debug = false;
 
+const RetainComments: Mode = 1 << 0; // retain comments in AST; see Node.Comments
+
+// Parse parses the input data and returns the corresponding parse tree.
+//
+// If src != nil, ParseFile parses the source from src and the filename
+// is only used when recording position information.
+// The type of the argument for the src parameter must be string,
+// []byte, io.Reader, or FilePortion.
+// If src == nil, ParseFile parses the file specified by filename.
+function parse(
+  filename: string,
+  src: any,
+  mode: Mode
+): [syntax.File | null, Error | null] {
+  let input = new Scanner(filename, src, (mode & RetainComments) != 0);
+  // if (err) {
+  //   return [null, err];
+  // }
+  let p = new Parser(input);
+
+  try {
+    p.nextToken(); // read first lookahead token
+    let f = p.parseFile();
+    if (f) {
+      f.Path = filename;
+    }
+    p.assignComments(f);
+    return [f, null];
+  } catch (e) {
+    p.input.recover(e);
+    return [null, e];
+  }
+}
+
+// ParseCompoundStmt parses a single compound statement:
+// a blank line, a def, for, while, or if statement, or a
+// semicolon-separated list of simple statements followed
+// by a newline. These are the units on which the REPL operates.
+// ParseCompoundStmt does not consume any following input.
+// The parser calls the readline function each
+// time it needs a new line of input.
+function ParseCompoundStmt(
+  filename: string,
+  readline: () => [Uint8Array, Error]
+): [syntax.File | null, Error | null] {
+  const input = new Scanner(filename, readline, false);
+  let p: Parser = new Parser(input);
+  let err: Error;
+
+  try {
+    p.nextToken(); // read first lookahead token
+    let stmts: syntax.Stmt[] = [];
+
+    switch (p.tok) {
+      case Token.DEF:
+      case Token.IF:
+      case Token.FOR:
+      case Token.WHILE:
+        stmts = p.parseStmt(stmts);
+        break;
+      case Token.NEWLINE:
+        // blank line
+        break;
+      default:
+        stmts = p.parseSimpleStmt(stmts, false);
+        // Require but don't consume newline, to avoid blocking again.
+        // BUG:?
+        // @ts-ignore
+        if (p.tok !== Token.NEWLINE) {
+          p.input.error(p.input.pos, "invalid syntax");
+        }
+    }
+
+    let f = new syntax.File(filename, stmts, null);
+    return [f, null];
+  } catch (e) {
+    err = e;
+    p.input.recover(err);
+
+    if (err) {
+      throw err;
+    }
+  } finally {
+  }
+}
+
+// ParseExpr parses a Starlark expression.
+// A comma-separated list of expressions is parsed as a tuple.
+// See Parse for explanation of parameters.
+function ParseExpr(
+  filename: string,
+  src: unknown,
+  mode: Mode
+): [syntax.Expr | null, Error | null] {
+  let [input, err] = new Scanner(filename, src, (mode & RetainComments) !== 0);
+  if (err !== null) {
+    return [null, err];
+  }
+
+  let p: Parser = new Parser(input);
+
+  try {
+    p.nextToken(); // read first lookahead token
+    let expr = p.parseExpr(false);
+
+    if (p.tok === Token.NEWLINE) {
+      p.nextToken();
+    }
+
+    if (p.tok !== Token.EOF) {
+      p.input.error(p.input.pos, `got ${p.tok} after expression, want EOF`);
+    }
+    p.assignComments(expr);
+    return [expr, null];
+  } catch (e) {
+    return [null, e];
+  }
+}
+
 class Parser {
-  private input: Scanner;
-  private tok: Token;
-  private tokval: TokenValue;
+  public input: Scanner;
+  public tok: Token;
+  public tokval: TokenValue;
 
   constructor(input: Scanner) {
     this.input = input;
@@ -24,33 +149,32 @@ class Parser {
   }
 
   // file_input = (NEWLINE | stmt)* EOF
-  parseFile(): File {
-    const stmts: Stmt[] = []
+  parseFile(): syntax.File {
+    let stmts: syntax.Stmt[] = [];
     while (this.tok !== Token.EOF) {
       if (this.tok === Token.NEWLINE) {
-        this.nextToken()
-        continue
+        this.nextToken();
+        continue;
       }
-      stmts = this.parseStmt(stmts))
+      stmts = this.parseStmt(stmts);
     }
-    // BUG:
-    return { Stmts: stmts }
+    return new syntax.File("", stmts, null);
   }
 
-  parseStmt(stmts: Stmt[]): Stmt[] {
+  parseStmt(stmts: syntax.Stmt[]): syntax.Stmt[] {
     if (this.tok === Token.DEF) {
-      return [...stmts, this.parseDefStmt()]
+      return [...stmts, this.parseDefStmt()];
     } else if (this.tok === Token.IF) {
-      return [...stmts, this.parseIfStmt()]
+      return [...stmts, this.parseIfStmt()];
     } else if (this.tok === Token.FOR) {
-      return [...stmts, this.parseForStmt()]
+      return [...stmts, this.parseForStmt()];
     } else if (this.tok === Token.WHILE) {
-      return [...stmts, this.parseWhileStmt()]
+      return [...stmts, this.parseWhileStmt()];
     }
-    return this.parseSimpleStmt(stmts, true)
+    return this.parseSimpleStmt(stmts, true);
   }
 
-  parseDefStmt(): Stmt {
+  parseDefStmt(): syntax.Stmt {
     const defpos = this.nextToken(); // consume DEF
     const id = this.parseIdent();
     this.consume(Token.LPAREN);
@@ -59,84 +183,56 @@ class Parser {
     this.consume(Token.COLON);
     const body = this.parseSuite();
     // BUG:
-    return {
-      type: "DefStmt",
-      def: defpos,
-      name: id,
-      params: params,
-      body: body,
-    };
+    return new syntax.DefStmt(defpos, id, params, body);
   }
 
-  parseIfStmt(): Stmt {
+  parseIfStmt(): syntax.Stmt {
     const ifpos = this.nextToken(); // consume IF
     const cond = this.parseTest();
     this.consume(Token.COLON);
     const body = this.parseSuite();
-    const ifStmt: IfStmt = {
-      type: 'if',
-      ifPos: ifpos,
-      cond: cond,
-      trueBranch: body,
-      elseBranch: null,
-    };
+    const ifStmt = new syntax.IfStmt(ifpos, cond, body, null, []);
     let tail = ifStmt;
     while (this.tok === Token.ELIF) {
       const elifpos = this.nextToken(); // consume ELIF
       const cond = this.parseTest();
       this.consume(Token.COLON);
       const body = this.parseSuite();
-      const elif: IfStmt = {
-        type: 'if',
-        ifPos: elifpos,
-        cond: cond,
-        trueBranch: body,
-        elseBranch: null,
-      };
+      const elif = new syntax.IfStmt(elifpos, cond, body, null, []);
       tail.elsePos = elifpos;
-      tail.elseBranch = [elif];
+      tail.falseBody = [elif];
       tail = elif;
     }
     if (this.tok === Token.ELSE) {
       tail.elsePos = this.nextToken(); // consume ELSE
       this.consume(Token.COLON);
-      tail.elseBranch = this.parseSuite();
+      tail.falseBody = this.parseSuite();
     }
     return ifStmt;
   }
 
-  parseForStmt(): Stmt {
-    const forpos = this.nextToken() // consume FOR
-    const vars = this.parseForLoopVariables()
-    this.consume(Token.IN)
-    const x = this.parseExpr(false)
-    this.consume(Token.COLON)
-    const body = this.parseSuite()
-    return {
-      type: "ForStmt",
-      for: forpos,
-      vars: vars,
-      x: x,
-      body: body,
-    }
+  parseForStmt(): syntax.Stmt {
+    const forpos = this.nextToken(); // consume FOR
+    const vars = this.parseForLoopVariables();
+    this.consume(Token.IN);
+    const x = this.parseExpr(false);
+    this.consume(Token.COLON);
+    const body = this.parseSuite();
+    return new syntax.ForStmt(forpos, vars, x, body);
   }
 
-  parseWhileStmt(): Stmt {
+  parseWhileStmt(): syntax.Stmt {
     const whilepos: Position = this.nextToken(); // consume WHILE
-    const cond: Expr = this.parseTest();
+    const cond: syntax.Expr = this.parseTest();
     this.consume(Token.COLON);
-    const body: Stmt[] = this.parseSuite();
-    return new WhileStmt({
-      while: whilepos,
-      cond: cond,
-      body: body
-    });
+    const body: syntax.Stmt[] = this.parseSuite();
+    return new syntax.WhileStmt(whilepos, cond, body);
   }
 
   // Equivalent to 'exprlist' production in Python grammar.
   //
   // loop_variables = primary_with_suffix (COMMA primary_with_suffix)* COMMA?
-  parseForLoopVariables(): Expr {
+  parseForLoopVariables(): syntax.Expr {
     // Avoid parseExpr because it would consume the IN token
     // following x in "for x in y: ...".
     const v = this.parsePrimaryWithSuffix();
@@ -144,7 +240,7 @@ class Parser {
       return v;
     }
 
-    const list: Expr[] = [v];
+    const list: syntax.Expr[] = [v];
     while (this.tok === Token.COMMA) {
       this.nextToken();
       if (terminatesExprList(this.tok)) {
@@ -152,16 +248,17 @@ class Parser {
       }
       list.push(this.parsePrimaryWithSuffix());
     }
-    return new TupleExpr(list);
+    return new syntax.TupleExpr(list);
   }
 
-  parseSimpleStmt(stmts: Stmt[], consumeNL: boolean): Stmt[] {
+  parseSimpleStmt(stmts: syntax.Stmt[], consumeNL: boolean): syntax.Stmt[] {
     while (true) {
       stmts.push(this.parseSmallStmt());
       if (this.tok !== Token.SEMI) {
         break;
       }
       this.nextToken(); // consume SEMI
+      //@ts-ignore
       if (this.tok === Token.NEWLINE || this.tok === Token.EOF) {
         break;
       }
@@ -173,22 +270,29 @@ class Parser {
     return stmts;
   }
 
-  parseSmallStmt(): Stmt {
+  parseSmallStmt(): syntax.Stmt {
     switch (this.tok) {
       case Token.RETURN:
         const pos = this.nextToken(); // consume RETURN
-        let result: Expr | undefined;
-        if (this.tok !== Token.EOF && this.tok !== Token.NEWLINE && this.tok !== Token.SEMI) {
+        let result: syntax.Expr | undefined;
+        if (
+          //@ts-ignore
+          this.tok !== Token.EOF &&
+          //@ts-ignore
+          this.tok !== Token.NEWLINE &&
+          //@ts-ignore
+          this.tok !== Token.SEMI
+        ) {
           result = this.parseExpr(false);
         }
-        return new ReturnStmt(pos, result);
+        return new syntax.ReturnStmt(pos, result);
 
       case Token.BREAK:
       case Token.CONTINUE:
       case Token.PASS:
         const tok = this.tok;
         const tokenPos = this.nextToken(); // consume it
-        return new BranchStmt(tok, tokenPos);
+        return new syntax.BranchStmt(tok, tokenPos);
 
       case Token.LOAD:
         return this.parseLoadStmt();
@@ -212,47 +316,124 @@ class Parser {
         const op = this.tok;
         const pos = this.nextToken(); // consume op
         const rhs = this.parseExpr(false);
-        return new AssignStmt(pos, op, x, rhs);
+        return new syntax.AssignStmt(pos, op, x, rhs);
     }
 
     // Expression statement (e.g. function call, doc string).
-    return new ExprStmt(x);
+    return new syntax.ExprStmt(x);
   }
 
-  // TODO: parseLoadStmt
+  parseLoadStmt(): syntax.LoadStmt {
+    const loadPos = this.nextToken(); // consume LOAD
+    const lparen = this.consume(Token.LPAREN);
+
+    if (this.tok !== Token.STRING) {
+      this.input.error(
+        this.input.pos,
+        "first operand of load statement must be a string literal"
+      );
+    }
+    const module = this.parsePrimary() as syntax.Literal;
+
+    const from: syntax.Ident[] = [];
+    const to: syntax.Ident[] = [];
+    //@ts-ignore
+    while (this.tok !== Token.RPAREN && this.tok !== Token.EOF) {
+      this.consume(Token.COMMA);
+      //@ts-ignore
+      if (this.tok === Token.RPAREN) {
+        break; // allow trailing comma
+      }
+      switch (this.tok) {
+        case Token.STRING: {
+          // load("module", "id")
+          // To name is same as original.
+          const lit = this.parsePrimary() as syntax.Literal;
+          const id = new syntax.Ident(
+            lit.tokenPos.add('"'),
+            lit.value as string,
+            null
+          );
+          to.push(id);
+          from.push(id);
+          break;
+        }
+        //@ts-ignore
+        case Token.IDENT: {
+          // load("module", to="from")
+          const id = this.parseIdent();
+          to.push(id);
+          if (this.tok !== Token.EQ) {
+            this.input.error(
+              this.input.pos,
+              `load operand must be "%[1]s" or %[1]s="originalname" (want '=' after %[1]s)`
+              // id.Name
+            );
+          }
+          this.consume(Token.EQ);
+          if (this.tok !== Token.STRING) {
+            this.input.error(
+              this.input.pos,
+              `original name of loaded symbol must be quoted: %s="originalname"`
+              // id.Name
+            );
+          }
+          const lit = this.parsePrimary() as syntax.Literal;
+          from.push(
+            new syntax.Ident(lit.tokenPos.add(`"`), lit.value as string, null)
+          );
+          break;
+        }
+
+        //@ts-ignore
+        case Token.RPAREN:
+          this.input.error(this.input.pos, "trailing comma in load statement");
+
+        default:
+          this.input.error(
+            this.input.pos,
+            `load operand must be "name" or localname="name" (got %#v)`
+          );
+      }
+    }
+    const rparen = this.consume(Token.RPAREN);
+
+    if (to.length === 0) {
+      this.input.error(lparen, "load statement must import at least 1 symbol");
+    }
+    return new syntax.LoadStmt(loadPos, module, to, from, rparen);
+  }
 
   // suite is typically what follows a COLON (e.g. after DEF or FOR).
   // suite = simple_stmt | NEWLINE INDENT stmt+ OUTDENT
-  parseSuite(this: parser): Stmt[] {
+  parseSuite(): syntax.Stmt[] {
     if (this.tok === Token.NEWLINE) {
       this.nextToken(); // consume NEWLINE
       this.consume(Token.INDENT);
-      const stmts: Stmt[] = [];
+      let stmts: syntax.Stmt[] = [];
+      //@ts-ignore
       while (this.tok !== Token.OUTDENT && this.tok !== Token.EOF) {
-        stmts.push(...this.parseStmt());
+        stmts = this.parseStmt(stmts);
       }
       this.consume(Token.OUTDENT);
       return stmts;
     }
 
-    return this.parseSimpleStmt(undefined, true);
+    return this.parseSimpleStmt([], true);
   }
 
-  parseIdent(this: parser): Ident {
+  parseIdent(): syntax.Ident {
     if (this.tok !== Token.IDENT) {
-      this.in.error(this.in.pos, "not an identifier");
+      this.input.error(this.input.pos, "not an identifier");
     }
-    const id: Ident = {
-      NamePos: this.tokval.pos,
-      Name: this.tokval.raw,
-    };
+    const id = new syntax.Ident(this.tokval.pos, this.tokval.raw, null);
     this.nextToken();
     return id;
   }
 
   consume(t: Token): Position {
     if (this.tok !== t) {
-      this.input.errorf(this.input.pos, `got ${Token[this.tok]}, want ${Token[t]}`);
+      this.input.error(this.input.pos, `got ${this.tok}, want ${t}`);
     }
     return this.nextToken();
   }
@@ -273,8 +454,8 @@ class Parser {
   //      *Unary{Op: STAR}                                *
   //      *Unary{Op: STAR, X: *Ident}                     *args
   //      *Unary{Op: STARSTAR, X: *Ident}                 **kwargs
-  parseParams(): Expr[] {
-    const params: Expr[] = [];
+  parseParams(): syntax.Expr[] {
+    const params: syntax.Expr[] = [];
     while (
       this.tok !== Token.RPAREN &&
       this.tok !== Token.COLON &&
@@ -283,6 +464,7 @@ class Parser {
       if (params.length > 0) {
         this.consume(Token.COMMA);
       }
+      //@ts-ignore
       if (this.tok === Token.RPAREN) {
         break;
       }
@@ -291,21 +473,23 @@ class Parser {
       if (this.tok === Token.STAR || this.tok === Token.STARSTAR) {
         const op = this.tok;
         const pos = this.nextToken();
-        let x: Expr | null = null;
+        let x: syntax.Expr | null = null;
+        //@ts-ignore
         if (op === Token.STARSTAR || this.tok === Token.IDENT) {
           x = this.parseIdent();
         }
-        params.push(new UnaryExpr(pos, op, x));
+        params.push(new syntax.UnaryExpr(pos, op, x));
         continue;
       }
 
       // IDENT
       // IDENT = test
       const id = this.parseIdent();
-      if (this.tok === Token.EQ) { // default value
+      if (this.tok === Token.EQ) {
+        // default value
         const eq = this.nextToken();
         const dflt = this.parseTest();
-        params.push(new BinaryExpr(id, eq, Token.EQ, dflt));
+        params.push(new syntax.BinaryExpr(id, eq, Token.EQ, dflt));
         continue;
       }
 
@@ -319,27 +503,27 @@ class Parser {
   //
   // In many cases we must use parseTest to avoid ambiguity such as
   // f(x, y) vs. f((x, y)).
-  parseExpr(inParens: boolean): Expr {
-    const x: Expr = this.parseTest();
+  parseExpr(inParens: boolean): syntax.Expr {
+    const x: syntax.Expr = this.parseTest();
     if (this.tok !== Token.COMMA) {
       return x;
     }
 
     // tuple
-    const exprs: Expr[] = this.parseExprs([x], inParens);
-    return new TupleExpr(exprs);
+    const exprs: syntax.Expr[] = this.parseExprs([x], inParens);
+    return new syntax.TupleExpr(exprs);
   }
 
   // parseExprs parses a comma-separated list of expressions, starting with the comma.
   // It is used to parse tuples and list elements.
   // expr_list = (',' expr)* ','?
-  parseExprs(exprs: Expr[], allowTrailingComma: boolean): Expr[] {
+  parseExprs(exprs: syntax.Expr[], allowTrailingComma: boolean): syntax.Expr[] {
     while (this.tok === Token.COMMA) {
-      const pos = this.pos();
+      const pos = this.nextToken();
       this.nextToken();
       if (terminatesExprList(this.tok)) {
         if (!allowTrailingComma) {
-          this.error(pos, "unparenthesized tuple with trailing comma");
+          this.input.error(pos, "unparenthesized tuple with trailing comma");
         }
         break;
       }
@@ -349,7 +533,7 @@ class Parser {
   }
 
   // parseTest parses a 'test', a single-component expression.
-  parseTest(): Expr {
+  parseTest(): syntax.Expr {
     let p = this;
     if (p.tok === Token.LAMBDA) {
       return p.parseLambda(true);
@@ -360,20 +544,14 @@ class Parser {
     // conditional expression (t IF cond ELSE f)
     if (p.tok === Token.IF) {
       const ifpos = p.nextToken();
-      const cond = parseTestPrec(0);
+      const cond = this.parseTestPrec(0);
+      //@ts-ignore
       if (p.tok !== Token.ELSE) {
         p.input.error(ifpos, "conditional expression without else clause");
       }
       const elsepos = p.nextToken();
-      const else_ = this.sparseTest();
-      return {
-        type: "CondExpr",
-        If: ifpos,
-        Cond: cond,
-        True: x,
-        ElsePos: elsepos,
-        False: else_,
-      };
+      const else_ = this.parseTest();
+      return new syntax.CondExpr(ifpos, cond, x, elsepos, else_);
     }
 
     return x;
@@ -383,7 +561,7 @@ class Parser {
    * parseTestNoCond parses a a single-component expression without
    * consuming a trailing 'if expr else expr'.
    */
-  parseTestNoCond(): Expr {
+  parseTestNoCond(): syntax.Expr {
     if (this.tok === Token.LAMBDA) {
       return this.parseLambda(false);
     }
@@ -392,52 +570,48 @@ class Parser {
 
   // parseLambda parses a lambda expression.
   // The allowCond flag allows the body to be an 'a if b else c' conditional.
-  parseLambda(allowCond: boolean): Expr {
+  parseLambda(allowCond: boolean): syntax.Expr {
     const lambda = this.nextToken();
-    let params: Expr[] = [];
-    if (this.tok !== Token..Colon) {
+    let params: syntax.Expr[] = [];
+    if (this.tok !== Token.COLON) {
       params = this.parseParams();
     }
-    this.consume(Token.Colon);
+    this.consume(Token.COLON);
 
-    let body: Expr;
+    let body: syntax.Expr;
     if (allowCond) {
       body = this.parseTest();
     } else {
       body = this.parseTestNoCond();
     }
 
-    return new LambdaExpr(lambda, params, body);
+    return new syntax.LambdaExpr(lambda, params, body);
   }
 
-  parseTestPrec(prec: number): Expr {
+  parseTestPrec(prec: number): syntax.Expr {
     let p = this;
     if (prec >= precLevels.length) {
-      return parsePrimaryWithSuffix(p);
+      return this.parsePrimaryWithSuffix();
     }
 
     // expr = NOT expr
-    if (p.tok === NOT && prec === precedence.NOT) {
+    if (p.tok === Token.NOT && prec === precedence[Token.NOT]) {
       const pos = p.nextToken();
       const x = this.parseTestPrec(prec);
-      return {
-        kind: "UnaryExpr",
-        opPos: pos,
-        op: NOT,
-        x,
-      };
+      return new syntax.UnaryExpr(pos, Token.NOT, x);
     }
 
     return this.parseBinopExpr(prec);
   }
 
-  parseBinopExpr(prec: number): Expr {
+  parseBinopExpr(prec: number): syntax.Expr {
     let x = this.parseTestPrec(prec + 1);
     let first = true;
 
     while (true) {
       if (this.tok === Token.NOT) {
         this.nextToken();
+        //@ts-ignore
         if (this.tok !== Token.IN) {
           this.input.error(this.input.pos, `got ${this.tok}, want in`);
         }
@@ -450,31 +624,34 @@ class Parser {
       }
 
       if (!first && opprec === precedence[Token.EQL]) {
-        this.input.errorf(this.input.pos, `${(x as BinaryExpr).Op} does not associate with ${this.tok} (use parens)`);
+        this.input.error(
+          this.input.pos,
+          `${(x as syntax.BinaryExpr).Op} does not associate with ${
+            this.tok
+          } (use parens)`
+        );
       }
 
       const op = this.tok;
       const pos = this.nextToken();
       const y = this.parseTestPrec(opprec + 1);
-      x = new BinaryExpr(pos, op, x, y);
+      x = new syntax.BinaryExpr(x, pos, op, y);
       first = false;
     }
   }
-
-  // TODO: missing something
 
   // primary_with_suffix = primary
   //                     | primary '.' IDENT
   //                     | primary slice_suffix
   //                     | primary call_suffix
-  parsePrimaryWithSuffix(): Expr {
+  parsePrimaryWithSuffix(): syntax.Expr {
     let x = this.parsePrimary();
     while (true) {
       switch (this.tok) {
         case Token.DOT:
           const dot = this.nextToken();
           const id = this.parseIdent();
-          x = { kind: "DotExpr", dot: dot, x: x, name: id };
+          x = new syntax.DotExpr(x, dot, null, id);
           break;
         case Token.LBRACK:
           x = this.parseSliceSuffix(x);
@@ -489,16 +666,19 @@ class Parser {
   }
 
   // slice_suffix = '[' expr? ':' expr?  ':' expr? ']'
-  parseSliceSuffix(x: Expr): Expr {
+  parseSliceSuffix(x: syntax.Expr): syntax.Expr {
     const lbrack = this.consume(Token.LBRACK);
-    let lo: Expr = null, hi: Expr = null, step: Expr = null;
+    let lo: syntax.Expr | null = null;
+    let hi: syntax.Expr | null = null;
+    let step: syntax.Expr | null = null;
+
     if (this.tok !== Token.COLON) {
       const y = this.parseExpr(false);
 
       // index x[y]
       if (this.tok === Token.RBRACK) {
         const rbrack = this.nextToken();
-        return new IndexExpr(x, lbrack, y, rbrack);
+        return new syntax.IndexExpr(x, lbrack, y, rbrack);
       }
 
       lo = y;
@@ -513,31 +693,39 @@ class Parser {
     }
     if (this.tok === Token.COLON) {
       this.nextToken();
+      //@ts-ignore
       if (this.tok !== Token.RBRACK) {
         step = this.parseTest();
       }
     }
     const rbrack = this.consume(Token.RBRACK);
-    return new SliceExpr(x, lbrack, lo, hi, step, rbrack);
+    return new syntax.SliceExpr(x, lbrack, lo, hi, step, rbrack);
   }
 
   // call_suffix = '(' arg_list? ')'
-  parseCallSuffix(fn: Expr): Expr {
-    const lparen = this.expectToken(Token.LPAREN);
-    let args: Expr[] = [];
-    if (this.speekToken().type !== Token.RPAREN) {
+  parseCallSuffix(fn: syntax.Expr): syntax.Expr {
+    let lparen = this.consume(Token.LPAREN);
+    let rparen: Position;
+
+    let args: syntax.Expr[] = [];
+
+    if (this.tok == Token.RPAREN) {
+      rparen = this.nextToken();
+    } else {
       args = this.parseArgs();
+      rparen = this.consume(Token.RPAREN);
     }
-    const rparen = this.expectToken(Token.RPAREN);
-    return new CallExpr(fn, lparen.pos, args, rparen.pos);
+    return new syntax.CallExpr(fn, lparen, args, rparen);
   }
 
-  parseArgs(): Expr[] {
-    const args: Expr[] = [];
+  parseArgs(): syntax.Expr[] {
+    const args: syntax.Expr[] = [];
     while (this.tok !== Token.RPAREN && this.tok !== Token.EOF) {
       if (args.length > 0) {
         this.consume(Token.COMMA);
       }
+
+      //@ts-ignore
       if (this.tok === Token.RPAREN) {
         break;
       }
@@ -547,12 +735,7 @@ class Parser {
         const op = this.tok;
         const pos = this.nextToken();
         const x = this.parseTest();
-        args.push({
-          kind: "UnaryExpr",
-          opPos: pos,
-          op: op,
-          x: x,
-        });
+        args.push(new syntax.UnaryExpr(pos, op, x));
         continue;
       }
 
@@ -563,18 +746,12 @@ class Parser {
 
       if (this.tok === Token.EQ) {
         // name = value
-        if (x.kind !== "Ident") {
+        if (!(x instanceof syntax.Ident)) {
           throw new Error("keyword argument must have form name=expr");
         }
         const eq = this.nextToken();
         const y = this.parseTest();
-        x = {
-          kind: "BinaryExpr",
-          x: x,
-          opPos: eq,
-          op: Token.EQ,
-          y: y,
-        };
+        x = new syntax.BinaryExpr(x, eq, Token.EQ, y);
       }
 
       args.push(x);
@@ -588,8 +765,10 @@ class Parser {
   //          | '{' ...                    // dict literal or comprehension
   //          | '(' ...                    // tuple or parenthesized expression
   //          | ('-'|'+'|'~') primary_with_suffix
+  parsePrimary(): syntax.Expr {
+    var tok = this.tok;
+    var pos: Position;
 
-  parsePrimary(): Expr {
     switch (this.tok) {
       case Token.IDENT:
         return this.parseIdent();
@@ -599,10 +778,13 @@ class Parser {
       case Token.STRING:
       case Token.BYTES:
         let val: number | string | bigint | undefined;
-        const tok = this.tok;
+        tok = this.tok;
         switch (tok) {
           case Token.INT:
-            val = this.tokval.bigInt !== null ? this.tokval.bigInt : this.tokval.int;
+            val =
+              this.tokval.bigInt !== null
+                ? this.tokval.bigInt
+                : this.tokval.int;
             break;
           case Token.FLOAT:
             val = this.tokval.float;
@@ -613,8 +795,8 @@ class Parser {
             break;
         }
         const raw = this.tokval.raw;
-        const pos = this.nextToken();
-        return new Literal(tok, pos, raw, val);
+        pos = this.nextToken();
+        return new syntax.Literal(tok, pos, raw, val);
 
       case Token.LBRACK:
         return this.parseList();
@@ -624,22 +806,23 @@ class Parser {
 
       case Token.LPAREN:
         const lparen = this.nextToken();
+        //@ts-ignore
         if (this.tok === Token.RPAREN) {
           // empty tuple
           const rparen = this.nextToken();
-          return new TupleExpr(lparen, rparen);
+          return new syntax.TupleExpr([], lparen, rparen);
         }
         const e = this.parseExpr(true); // allow trailing comma
-        const rparen = this.consume(RPAREN);
-        return new ParenExpr(lparen, e, rparen);
+        const rparen = this.consume(Token.RPAREN);
+        return new syntax.ParenExpr(lparen, e, rparen);
 
       case Token.MINUS:
       case Token.PLUS:
       case Token.TILDE: // unary
-        const tok = this.tok;
-        const pos = this.nextToken();
+        tok = this.tok;
+        pos = this.nextToken();
         const x = this.parsePrimaryWithSuffix();
-        return new UnaryExpr(pos, tok, x);
+        return new syntax.UnaryExpr(pos, tok, x);
     }
     throw new Error(`got ${this.tok}, want primary expression`);
   }
@@ -648,13 +831,12 @@ class Parser {
   //      | '[' expr ']'
   //      | '[' expr expr_list ']'
   //      | '[' expr (FOR loop_variables IN expr)+ ']'
-
-  parseList(): Expr {
+  parseList(): syntax.Expr {
     const lbrack = this.nextToken();
     if (this.tok === Token.RBRACK) {
       // empty List
       const rbrack = this.nextToken();
-      return { type: 'ListExpr', Lbrack: lbrack, Rbrack: rbrack };
+      return new syntax.ListExpr(lbrack, [], rbrack);
     }
 
     const x = this.parseTest();
@@ -671,19 +853,19 @@ class Parser {
     }
 
     const rbrack = this.consume(Token.RBRACK);
-    return { type: 'ListExpr', Lbrack: lbrack, List: exprs, Rbrack: rbrack };
+    return new syntax.ListExpr(lbrack, exprs, rbrack);
   }
 
   // dict = '{' '}'
   //      | '{' dict_entry_list '}'
   //      | '{' dict_entry FOR loop_variables IN expr '}'
 
-  parseDict(): Expr {
+  parseDict(): syntax.Expr {
     const lbrace = this.nextToken();
     if (this.tok === Token.RBRACE) {
       // empty dict
       const rbrace = this.nextToken();
-      return new DictExpr({ lbrace, rbrace });
+      return new syntax.DictExpr(lbrace, [], rbrace);
     }
 
     const x = this.parseDictEntry();
@@ -696,6 +878,7 @@ class Parser {
     const entries = [x];
     while (this.tok === Token.COMMA) {
       this.nextToken();
+      //@ts-ignore
       if (this.tok === Token.RBRACE) {
         break;
       }
@@ -703,15 +886,15 @@ class Parser {
     }
 
     const rbrace = this.consume(Token.RBRACE);
-    return new DictExpr({ lbrace, list: entries, rbrace });
+    return new syntax.DictExpr(lbrace, entries, rbrace);
   }
 
   // dict_entry = test ':' test
-  parseDictEntry(): DictEntry {
+  parseDictEntry(): syntax.DictEntry {
     const key = this.parseTest();
     const colon = this.consume(Token.COLON);
     const value = this.parseTest();
-    return new DictEntry(key, value);
+    return new syntax.DictEntry(key, colon, value);
   }
 
   // comp_suffix = FOR loopvars IN expr comp_suffix
@@ -720,8 +903,12 @@ class Parser {
   //
   // There can be multiple FOR/IF clauses; the first is always a FOR.
 
-  private parseComprehensionSuffix(lbrace: Position, body: Expr, endBrace: Token): Expr {
-    const clauses: Node[] = [];
+  parseComprehensionSuffix(
+    lbrace: Position,
+    body: syntax.Expr,
+    endBrace: Token
+  ): syntax.Expr {
+    const clauses: syntax.Node[] = [];
     while (this.tok !== endBrace) {
       if (this.tok === Token.FOR) {
         const pos = this.nextToken();
@@ -734,18 +921,155 @@ class Parser {
         // - a lambda expression
         // - an unparenthesized tuple.
         const x = this.parseTestPrec(0);
-        clauses.push(new ForClause(pos, vars, inToken, x));
+        clauses.push(new syntax.ForClause(pos, vars, inToken, x));
       } else if (this.tok === Token.IF) {
         const pos = this.nextToken();
         const cond = this.parseTestNoCond();
-        clauses.push(new IfClause(pos, cond));
+        clauses.push(new syntax.IfClause(pos, cond));
       } else {
-        this.input.errorf(this.input.pos, `got ${this.tok}, want ${endBrace}, for, or if`);
+        this.input.error(
+          this.input.pos,
+          `got ${this.tok}, want ${endBrace}, for, or if`
+        );
       }
     }
     const rbrace = this.nextToken();
 
-    return new Comprehension(endBrace === Token.RBRACE, lbrace, body, clauses, rbrace);
+    return new syntax.Comprehension(
+      endBrace === Token.RBRACE,
+      lbrace,
+      body,
+      clauses,
+      rbrace
+    );
   }
 
+  // assignComments attaches comments to nearby syntax.
+  assignComments(n: syntax.Node): void {
+    // Leave early if there are no comments
+    if (
+      this.input.lineComments.length + this.input.suffixComments.length ==
+      0
+    ) {
+      return;
+    }
+
+    const [pre, post] = flattenAST(n);
+
+    // Assign line comments to syntax immediately following.
+    let line = this.input.lineComments;
+    for (const x of pre) {
+      const [start] = x.span();
+
+      if (x instanceof File) {
+        continue;
+      }
+
+      while (line.length > 0 && !start.isBefore(line[0].start)) {
+        x.allocComments();
+        x.comments()?.before.push(line[0]);
+        line = line.slice(1);
+      }
+    }
+
+    // Remaining line comments go at end of file.
+    if (line.length > 0) {
+      n.allocComments();
+      n.comments()?.after.push(...line);
+    }
+
+    // Assign suffix comments to syntax immediately before.
+    let suffix = this.input.suffixComments;
+    for (let i = post.length - 1; i >= 0; i--) {
+      const x = post[i];
+
+      // Do not assign suffix comments to file
+      if (x instanceof File) {
+        continue;
+      }
+
+      const [, end] = x.span();
+      if (suffix.length > 0 && end.isBefore(suffix[suffix.length - 1].start)) {
+        x.allocComments();
+        x.comments()?.suffix.push(suffix[suffix.length - 1]);
+        suffix = suffix.slice(0, -1);
+      }
+    }
+  }
+}
+
+function terminatesExprList(tok: Token): boolean {
+  switch (tok) {
+    case Token.EOF:
+    case Token.NEWLINE:
+    case Token.EQ:
+    case Token.RBRACE:
+    case Token.RBRACK:
+    case Token.RPAREN:
+    case Token.SEMI:
+      return true;
+
+    default:
+      return false;
+  }
+}
+
+// BUG: hashmap?
+var precedence = new Array(64).fill(-1);
+// BUG: hashmap?
+
+const precLevels: Token[][] = [
+  [Token.OR], // or
+  [Token.AND], // and
+  [Token.NOT], // not (unary)
+  [
+    Token.EQL,
+    Token.NEQ,
+    Token.LT,
+    Token.GT,
+    Token.LE,
+    Token.GE,
+    Token.IN,
+    Token.NOT_IN,
+  ], // == != < > <= >= in not in
+  [Token.PIPE], // |
+  [Token.CIRCUMFLEX], // ^
+  [Token.AMP], // &
+  [Token.LTLT, Token.GTGT], // << >>
+  [Token.MINUS, Token.PLUS], // -
+  [Token.STAR, Token.PERCENT, Token.SLASH, Token.SLASHSLASH], // * % / //
+];
+
+for (let i = 0; i < precLevels.length; i++) {
+  let tokens = precLevels[i];
+  for (var tok of tokens) {
+    precedence[tok] = i;
+  }
+}
+
+// Comment assignment.
+// We build two lists of all subnodes, preorder and postorder.
+// The preorder list is ordered by start location, with outer nodes first.
+// The postorder list is ordered by end location, with outer nodes last.
+// We use the preorder list to assign each whole-line comment to the syntax
+// immediately following it, and we use the postorder list to assign each
+// end-of-line comment to the syntax immediately preceding it.
+
+// flattenAST returns the list of AST nodes, both in prefix order and in postfix
+// order.
+function flattenAST(root: syntax.Node): [syntax.Node[], syntax.Node[]] {
+  const pre: syntax.Node[] = [];
+  const post: syntax.Node[] = [];
+  const stack: syntax.Node[] = [];
+  Walk(root, (n: syntax.Node): boolean => {
+    if (n !== null) {
+      pre.push(n);
+      stack.push(n);
+    } else {
+      post.push(stack[stack.length - 1]);
+      stack.pop();
+    }
+    return true;
+  });
+  return [pre, post];
 }

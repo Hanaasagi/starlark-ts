@@ -35,7 +35,7 @@ function walkStmts(stmts: Stmt[], f: (node: Node) => boolean): void {
   }
 }
 
-function Walk(n: Node, f: (n: Node) => boolean): void {
+export function Walk(n: Node, f: (n: Node) => boolean): void {
   if (n === null) {
     throw new Error("nil");
   }
