@@ -10,7 +10,7 @@ const debug = false; // make code generation verbose, for debugging the compiler
 export const Version = 13;
 const variableStackEffect = 0x7f;
 
-enum Opcode {
+export enum Opcode {
   NOP,
   DUP,
   DUP2,
