@@ -1,7 +1,8 @@
-import { Comment } from "./syntax";
+import { Comment } from "./syntax.js";
+import { readFileSync } from "fs";
 
 // A Token represents a Starlark lexical token.
-export const enum Token {
+export enum Token {
   // illegal token
   ILLEGAL = "illegal token",
   // end of file
@@ -177,12 +178,19 @@ const keywordToken: Record<string, Token> = {
 };
 
 // tokenValue records the position and value associated with each token.
+// @ts-ignore
 export class TokenValue {
+  // @ts-ignore
   raw: string; // raw text of token
+  // @ts-ignore
   int: number; // decoded int
+  // @ts-ignore
   bigInt: bigint | null; // decoded integers > int64
+  // @ts-ignore
   float: number; // decoded float
+  // @ts-ignore
   string: string; // decoded string or bytes
+  // @ts-ignore
   pos: Position; // start position of token
 }
 
@@ -261,25 +269,25 @@ class ScannerError extends Error {
 
 export class Scanner {
   // rest of input (in REPL, a line of input)
-  rest: Uint8Array;
+  rest: string = "";
   // token being thisanned
-  token: Uint8Array;
+  token: string = "";
   // current input position
   pos: Position;
   // nesting of [ ] { } ( )
-  depth: number;
+  depth: number = 0;
   // stack of indentation levels
-  indentstk: number[];
+  indentstk: number[] = [];
   // number of saved INDENT (>0) or OUTDENT (<0) tokens to return
-  dents: number;
+  dents: number = 0;
   // after NEWLINE; convert spaces to indentation tokens
-  lineStart: boolean;
+  lineStart: boolean = false;
   // accumulate comments in slice
-  keepComments: boolean;
+  keepComments: boolean = false;
   // list of full line comments (if keepComments)
-  lineComments: Comment[];
+  lineComments: Comment[] = [];
   // list of suffix comments (if keepComments)
-  suffixComments: Comment[];
+  suffixComments: Comment[] = [];
   // read next line of input (REPL only)
   readline?: () => Promise<Uint8Array>;
 
@@ -299,8 +307,9 @@ export class Scanner {
     if (typeof src === "function") {
       this.readline = src as () => Promise<Uint8Array>;
     } else {
-      // const data = readSource(filename, src) as Uint8Array;
-      // this.rest = data;
+      // BUG:
+      const data = readFileSync(filename, "utf8");
+      this.rest = data;
     }
   }
 
@@ -334,9 +343,10 @@ export class Scanner {
   readLine(): boolean {
     if (this.readline != null) {
       try {
-        this.rest = await this.readline();
+        // TODO:
+        // this.rest = await this.readline();
       } catch (err) {
-        this.error(this.pos, err.toString()); // EOF or ErrInterrupt
+        this.error(this.pos, (err as Error).toString()); // EOF or ErrInterrupt
       }
       return this.rest.length > 0;
     }
@@ -352,22 +362,25 @@ export class Scanner {
       return "\0";
     }
 
+    // BUG:
+    return this.rest[0];
+
     // fast path: ASCII
 
-    // BUG: stream encoding utf-8
-    const b = this.rest[0];
-    if (b < 0x80) {
-      if (b === 0x0d) {
-        return "\n";
-      }
-      return this.rest[0].toString();
-    }
+    // // BUG: stream encoding utf-8
+    // const b = this.rest[0];
+    // if (b < 0x80) {
+    //   if (b === 0x0d) {
+    //     return "\n";
+    //   }
+    //   return this.rest[0].toString();
+    // }
 
-    // Use the textDecoder object to decode the rest of the byte sequence
-    const textDecoder = new TextDecoder();
-    const result = textDecoder.decode(this.rest.slice(0, 4), { stream: true });
-    const r = result[0];
-    return r;
+    // // Use the textDecoder object to decode the rest of the byte sequence
+    // const textDecoder = new TextDecoder();
+    // const result = textDecoder.decode(this.rest.slice(0, 4), { stream: true });
+    // const r = result[0];
+    // return r;
   }
 
   // readRune consumes and returns the next rune in the input.
@@ -381,32 +394,36 @@ export class Scanner {
 
     // fast path: AthisII
     const b = this.rest[0];
-    if (b < 0x80) {
-      let r = this.rest[0].toString();
-      this.rest = this.rest.slice(1);
-      if (r === "\r") {
-        if (this.rest.length > 0 && this.rest[0].toString() === "\n") {
-          this.rest = this.rest.slice(1);
-        }
-        r = "\n";
-      }
-      if (r === "\n") {
-        this.pos.line++;
-        this.pos.col = 1;
-      } else {
-        this.pos.col++;
-      }
-      return r;
-    }
+    this.rest = this.rest.slice(1);
+    return b;
 
-    // Use the textDecoder object to decode the rest of the byte sequence
-    const textDecoder = new TextDecoder();
-    const result = textDecoder.decode(this.rest.slice(0, 4), { stream: true });
-    const r = result[0];
-    const size = result.length;
-    this.rest = this.rest.slice(size);
-    this.pos.col++;
-    return r;
+    // BUG: fix me
+    // if (b < 0x80) {
+    //   let r = this.rest[0].toString();
+    //   this.rest = this.rest.slice(1);
+    //   if (r === "\r") {
+    //     if (this.rest.length > 0 && this.rest[0].toString() === "\n") {
+    //       this.rest = this.rest.slice(1);
+    //     }
+    //     r = "\n";
+    //   }
+    //   if (r === "\n") {
+    //     this.pos.line++;
+    //     this.pos.col = 1;
+    //   } else {
+    //     this.pos.col++;
+    //   }
+    //   return r;
+    // }
+
+    // // Use the textDecoder object to decode the rest of the byte sequence
+    // const textDecoder = new TextDecoder();
+    // const result = textDecoder.decode(this.rest.slice(0, 4), { stream: true });
+    // const r = result[0];
+    // const size = result.length;
+    // this.rest = this.rest.slice(size);
+    // this.pos.col++;
+    // return r;
   }
 
   // startToken marks the beginning of the next input token.
@@ -509,7 +526,6 @@ export class Scanner {
         }
       }
     }
-
     // Return saved indentation tokens.
     if (this.dents !== 0) {
       this.startToken(val);
@@ -634,8 +650,7 @@ export class Scanner {
       if (
         (c === "r" || c === "b") &&
         this.rest.length > 1 &&
-        (this.rest[1] === '"'.charCodeAt(0) ||
-          this.rest[1] === "'".charCodeAt(0))
+        (this.rest[1] === '"' || this.rest[1] === "'")
       ) {
         //  r"..."
         //  b"..."
@@ -645,9 +660,8 @@ export class Scanner {
       } else if (
         c === "r" &&
         this.rest.length > 2 &&
-        this.rest[1] === "b".charCodeAt(0) &&
-        (this.rest[2] === '"'.charCodeAt(0) ||
-          this.rest[2] === "'".charCodeAt(0))
+        this.rest[1] === "b" &&
+        (this.rest[2] === '"' || this.rest[2] === "'")
       ) {
         // rb"..."
         this.readRune();
@@ -846,6 +860,8 @@ export class Scanner {
     const start = this.pos;
     const triple =
       this.rest.length >= 3 &&
+      //BUG:
+      //@ts-ignore
       this.rest[0] === quote &&
       this.rest[1] === quote &&
       this.rest[2] === quote;
@@ -919,10 +935,11 @@ export class Scanner {
     val.raw = raw.toString();
 
     // BUG:
-    const { s, isByte, err } = unquote(val.raw);
-    if (err) {
-      this.error(start, err.message);
-    }
+    // const { s, isByte, err } = unquote(val.raw);
+    const [s, isByte, err] = [val.raw, false, null];
+    // if (err) {
+    //   this.error(start, err.message);
+    // }
     val.string = s;
     return isByte ? Token.BYTES : Token.STRING;
   }

@@ -1,4 +1,4 @@
-import { Node, Stmt } from "./syntax";
+import { Node, Stmt } from "./syntax.js";
 import {
   isFile,
   isExprStmt,
@@ -27,7 +27,7 @@ import {
   isDotExpr,
   isCallExpr,
   isLambdaExpr,
-} from "./syntax";
+} from "./syntax.js";
 
 function walkStmts(stmts: Stmt[], f: (node: Node) => boolean): void {
   for (const stmt of stmts) {

@@ -1,12 +1,12 @@
-import { TokenValue, Scanner, Token, Position } from "./scan";
-import * as syntax from "./syntax";
-import { Walk } from "./walk";
+import { TokenValue, Scanner, Token, Position } from "./scan.js";
+import * as syntax from "./syntax.js";
+import { Walk } from "./walk.js";
 
 // A Mode value is a set of flags (or 0) that controls optional parser functionality.
 type Mode = number;
 
 // Enable this flag to print the token stream and log.Fatal on the first error.
-const debug = false;
+export const debug = true;
 
 const RetainComments: Mode = 1 << 0; // retain comments in AST; see Node.Comments
 
@@ -17,7 +17,7 @@ const RetainComments: Mode = 1 << 0; // retain comments in AST; see Node.Comment
 // The type of the argument for the src parameter must be string,
 // []byte, io.Reader, or FilePortion.
 // If src == nil, ParseFile parses the file specified by filename.
-function parse(
+export function parse(
   filename: string,
   src: any,
   mode: Mode
@@ -38,7 +38,7 @@ function parse(
     return [f, null];
   } catch (e) {
     p.input.recover(e);
-    return [null, e];
+    return [null, e as Error];
   }
 }
 
@@ -84,14 +84,14 @@ function ParseCompoundStmt(
     let f = new syntax.File(filename, stmts, null);
     return [f, null];
   } catch (e) {
-    err = e;
+    err = e as Error;
     p.input.recover(err);
 
     if (err) {
       throw err;
     }
-  } finally {
   }
+  return [null, null];
 }
 
 // ParseExpr parses a Starlark expression.
@@ -102,10 +102,10 @@ function ParseExpr(
   src: unknown,
   mode: Mode
 ): [syntax.Expr | null, Error | null] {
-  let [input, err] = new Scanner(filename, src, (mode & RetainComments) !== 0);
-  if (err !== null) {
-    return [null, err];
-  }
+  let input = new Scanner(filename, src, (mode & RetainComments) !== 0);
+  // if (err !== null) {
+  //   return [null, err];
+  // }
 
   let p: Parser = new Parser(input);
 
@@ -123,7 +123,7 @@ function ParseExpr(
     p.assignComments(expr);
     return [expr, null];
   } catch (e) {
-    return [null, e];
+    return [null, e as Error];
   }
 }
 
@@ -134,6 +134,8 @@ class Parser {
 
   constructor(input: Scanner) {
     this.input = input;
+    this.tok = Token.ILLEGAL;
+    this.tokval = new TokenValue();
   }
 
   // nextToken advances the scanner and returns the position of the
@@ -248,7 +250,7 @@ class Parser {
       }
       list.push(this.parsePrimaryWithSuffix());
     }
-    return new syntax.TupleExpr(list);
+    return new syntax.TupleExpr(list, null, null);
   }
 
   parseSimpleStmt(stmts: syntax.Stmt[], consumeNL: boolean): syntax.Stmt[] {
@@ -511,7 +513,7 @@ class Parser {
 
     // tuple
     const exprs: syntax.Expr[] = this.parseExprs([x], inParens);
-    return new syntax.TupleExpr(exprs);
+    return new syntax.TupleExpr(exprs, null, null);
   }
 
   // parseExprs parses a comma-separated list of expressions, starting with the comma.
@@ -595,7 +597,8 @@ class Parser {
     }
 
     // expr = NOT expr
-    if (p.tok === Token.NOT && prec === precedence[Token.NOT]) {
+    let idx = Object.keys(Token).indexOf(Token.NOT.toString());
+    if (p.tok === Token.NOT && prec === precedence[idx]) {
       const pos = p.nextToken();
       const x = this.parseTestPrec(prec);
       return new syntax.UnaryExpr(pos, Token.NOT, x);
@@ -618,16 +621,21 @@ class Parser {
         this.tok = Token.NOT_IN;
       }
 
-      let opprec = precedence[this.tok];
+      //@ts-ignore
+      let idx = Object.values(Token).indexOf(this.tok.toString());
+
+      let opprec = precedence[idx];
+      // console.log(opprec, this.tok, idx, precedence);
       if (opprec < prec) {
         return x;
       }
 
-      if (!first && opprec === precedence[Token.EQL]) {
+      //@ts-ignore
+      idx = Object.values(Token).indexOf(Token.EQL.toString());
+      if (!first && opprec === precedence[idx]) {
         this.input.error(
           this.input.pos,
-          `${(x as syntax.BinaryExpr).Op} does not associate with ${
-            this.tok
+          `${(x as syntax.BinaryExpr).Op} does not associate with ${this.tok
           } (use parens)`
         );
       }
@@ -961,7 +969,7 @@ class Parser {
     for (const x of pre) {
       const [start] = x.span();
 
-      if (x instanceof File) {
+      if (x instanceof syntax.File) {
         continue;
       }
 
@@ -984,7 +992,7 @@ class Parser {
       const x = post[i];
 
       // Do not assign suffix comments to file
-      if (x instanceof File) {
+      if (x instanceof syntax.File) {
         continue;
       }
 
@@ -1015,10 +1023,9 @@ function terminatesExprList(tok: Token): boolean {
 }
 
 // BUG: hashmap?
-var precedence = new Array(64).fill(-1);
-// BUG: hashmap?
+var precedence: Array<number> = new Array(128).fill(-1);
 
-const precLevels: Token[][] = [
+var precLevels: Token[][] = [
   [Token.OR], // or
   [Token.AND], // and
   [Token.NOT], // not (unary)
@@ -1040,10 +1047,13 @@ const precLevels: Token[][] = [
   [Token.STAR, Token.PERCENT, Token.SLASH, Token.SLASHSLASH], // * % / //
 ];
 
+// console.log(Object.keys(Token));
 for (let i = 0; i < precLevels.length; i++) {
   let tokens = precLevels[i];
   for (var tok of tokens) {
-    precedence[tok] = i;
+    //@ts-ignore
+    let idx = Object.values(Token).indexOf(tok.toString());
+    precedence[idx] = i;
   }
 }
 
