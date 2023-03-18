@@ -71,7 +71,7 @@ export class CommentsRef {
 }
 
 // A File represents a Starlark file.
-export class File {
+export class File implements Node {
   private commentsRef: any;
   public Path: string;
   public Stmts: Stmt[];
@@ -92,6 +92,13 @@ export class File {
     const start = this.Stmts[0].span()[0];
     const end = this.Stmts[this.Stmts.length - 1].span()[1];
     return [start, end];
+  }
+
+  public comments(): Comments | null {
+    return this.commentsRef.comments();
+  }
+  public allocComments(): void {
+    this.commentsRef.allocComments();
   }
 }
 
@@ -190,10 +197,10 @@ export class ExprStmt implements Stmt {
 class IfStmt implements Stmt {
   private commentsRef: CommentsRef;
   private ifPos: Position; // IF or ELIF
-  private cond: Expr;
-  private trueBody: Stmt[];
+  public cond: Expr;
+  public trueBody: Stmt[];
   private elsePos: Position; // ELSE or ELIF
-  private falseBody: Stmt[]; // optional
+  public falseBody: Stmt[]; // optional
 
   constructor(
     ifPos: Position,
@@ -397,7 +404,7 @@ class Literal implements Expr {
 class ParenExpr implements Expr {
   private commentsRef: CommentsRef;
   private lparen: Position;
-  private x: Expr;
+  public x: Expr;
   private rparen: Position;
 
   constructor(lparen: Position, x: Expr, rparen: Position) {
@@ -451,10 +458,10 @@ class CallExpr implements Expr {
 // A DotExpr represents a field or method selector: X.Name.
 class DotExpr implements Expr {
   private commentsRef: CommentsRef;
-  private X: Expr;
+  public X: Expr;
   private Dot: Position;
   private NamePos: Position;
-  private Name: Ident;
+  public Name: Ident;
 
   constructor(X: Expr, Dot: Position, NamePos: Position, Name: Ident) {
     this.commentsRef = new CommentsRef();
@@ -574,7 +581,7 @@ class WhileStmt implements Stmt {
 }
 
 // A ForClause represents a for clause in a list comprehension: for Vars in X.
-class ForClause {
+class ForClause implements Node {
   private commentsRef: CommentsRef;
   public forPos: Position;
   public vars: Expr;
@@ -589,14 +596,21 @@ class ForClause {
     this.x = x;
   }
 
-  public Span(): [Position, Position] {
+  public span(): [Position, Position] {
     let [_, end] = this.x.span();
     return [this.forPos, end];
+  }
+
+  public comments(): Comments | null {
+    return this.commentsRef.comments();
+  }
+  public allocComments(): void {
+    this.commentsRef.allocComments();
   }
 }
 
 // TypeScript equivalent of IfClause
-class IfClause {
+class IfClause implements Node {
   private commentsRef: any;
   public If: Position;
   public Cond: Expr;
@@ -610,6 +624,12 @@ class IfClause {
   span(): [Position, Position] {
     const [, end] = this.Cond.span();
     return [this.If, end];
+  }
+  public comments(): Comments | null {
+    return this.commentsRef.comments();
+  }
+  public allocComments(): void {
+    this.commentsRef.allocComments();
   }
 }
 
@@ -672,8 +692,8 @@ class DictEntry implements Expr {
 class LambdaExpr implements Expr {
   private commentsRef: CommentsRef;
   private lambda: Position;
-  private params: Expr[]; // param = ident | ident=expr | * | *ident | **ident
-  private body: Expr;
+  public params: Expr[]; // param = ident | ident=expr | * | *ident | **ident
+  public body: Expr;
   private _function: any; // a *resolve.Function, set by resolver
 
   constructor(lambda: Position, params: Expr[], body: Expr) {
@@ -700,7 +720,7 @@ class LambdaExpr implements Expr {
 class ListExpr implements Expr {
   private commentsRef: CommentsRef;
   private lbrack: Position;
-  private list: Expr[];
+  public list: Expr[];
   private rbrack: Position;
 
   constructor(lbrack: Position, list: Expr[], rbrack: Position) {
@@ -726,10 +746,10 @@ class ListExpr implements Expr {
 class CondExpr implements Expr {
   private commentsRef: CommentsRef;
   private If: Position;
-  private Cond: Expr;
-  private True: Expr;
+  public Cond: Expr;
+  public True: Expr;
   private ElsePos: any;
-  private False: Expr;
+  public False: Expr;
 
   constructor(
     commentsRef: any,
@@ -765,7 +785,7 @@ class CondExpr implements Expr {
 class TupleExpr implements Expr {
   private commentsRef: CommentsRef;
   private Lparen: Position; // optional (e.g. in x, y = 0, 1), but required if List is empty
-  private List: Expr[];
+  public List: Expr[];
   private Rparen: Position;
 
   constructor(
@@ -842,10 +862,10 @@ class UnaryExpr implements Expr {
 // def f(param=default).
 class BinaryExpr implements Expr {
   private commentsRef: CommentsRef;
-  private X: Expr;
+  public X: Expr;
   private OpPos: Position;
   private Op: Token;
-  private Y: Expr;
+  public Y: Expr;
 
   constructor(X: Expr, OpPos: Position, Op: Token, Y: Expr) {
     this.commentsRef = new CommentsRef();
@@ -936,4 +956,112 @@ class IndexExpr implements Expr {
   public allocComments(): void {
     this.commentsRef.allocComments();
   }
+}
+
+export function isFile(n: Node): n is File {
+  return n instanceof File;
+}
+
+export function isExprStmt(n: Node): n is ExprStmt {
+  return n instanceof ExprStmt;
+}
+
+export function isBranchStmt(n: Node): n is BranchStmt {
+  return n instanceof BranchStmt;
+}
+
+export function isIfStmt(n: Node): n is IfStmt {
+  return n instanceof IfStmt;
+}
+
+export function isAssignStmt(n: Node): n is AssignStmt {
+  return n instanceof AssignStmt;
+}
+
+export function isDefStmt(n: Node): n is DefStmt {
+  return n instanceof DefStmt;
+}
+
+export function isForStmt(n: Node): n is ForStmt {
+  return n instanceof ForStmt;
+}
+
+export function isReturnStmt(n: Node): n is ReturnStmt {
+  return n instanceof ReturnStmt;
+}
+
+export function isLoadStmt(n: Node): n is LoadStmt {
+  return n instanceof LoadStmt;
+}
+
+export function isIdent(n: Node) {
+  return n instanceof Ident;
+}
+
+export function isLiteral(n: Node): n is Literal {
+  return n instanceof Literal;
+}
+
+export function isListExpr(n: Node): n is ListExpr {
+  return n instanceof ListExpr;
+}
+
+export function isParenExpr(n: Node): n is ParenExpr {
+  return n instanceof ParenExpr;
+}
+
+export function isCondExpr(n: Node): n is CondExpr {
+  return n instanceof CondExpr;
+}
+
+export function isIndexExpr(n: Node): n is IndexExpr {
+  return n instanceof IndexExpr;
+}
+
+export function isDictEntry(n: Node): n is DictEntry {
+  return n instanceof DictEntry;
+}
+
+export function isSliceExpr(n: Node): n is SliceExpr {
+  return n instanceof SliceExpr;
+}
+
+export function isComprehension(n: Node): n is Comprehension {
+  return n instanceof Comprehension;
+}
+
+export function isIfClause(n: Node): n is IfClause {
+  return n instanceof IfClause;
+}
+
+export function isForClause(n: Node): n is ForClause {
+  return n instanceof ForClause;
+}
+
+export function isTupleExpr(n: Node): n is TupleExpr {
+  return n instanceof TupleExpr;
+}
+
+export function isDictExpr(n: Node): n is DictExpr {
+  return n instanceof DictExpr;
+}
+
+export function isUnaryExpr(n: Node): n is UnaryExpr {
+  return n instanceof UnaryExpr;
+}
+
+export function isBinaryExpr(n: Node): n is BinaryExpr {
+  return n instanceof BinaryExpr;
+}
+
+export function isDotExpr(n: Node): n is DotExpr {
+  return n instanceof DotExpr;
+}
+
+export function isCallExpr(n: Node): n is CallExpr {
+  return n instanceof CallExpr;
+}
+
+export function isLambdaExpr(n: Node): n is LambdaExpr {
+  return n instanceof LambdaExpr;
 }
