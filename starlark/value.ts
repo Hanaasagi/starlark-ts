@@ -5,7 +5,8 @@ import { Thread } from "./eval";
 import { signum } from "./eval";
 import { StringDict } from "./eval";
 import * as compile from "../internal/compile/compile";
-import { hashString } from "./hash";
+import { hashString, Hashtable } from "./hashtable";
+import { dictMethods, listMethods } from "./library";
 
 // Starlark values are represented by the Value interface.
 // The following built-in Value types are known to the evaluator:
@@ -874,13 +875,16 @@ class Builtin implements Value {
   }
 }
 
-// A Dict represents a dictionary in TypeScript.
+// A *Dict represents a Starlark dictionary.
+// The zero value of Dict is a valid empty dictionary.
+// If you know the exact final number of entries,
+// it is more efficient to call NewDict.
 class Dict implements Value {
-  private ht: HashTable;
+  ht: Hashtable;
 
   // NewDict returns a new empty dictionary.
-  constructor(size: number) {
-    let ht = new HashTable(size);
+  constructor(size?: number) {
+    let ht = new Hashtable(size);
     this.ht = ht;
   }
 
@@ -890,28 +894,28 @@ class Dict implements Value {
   }
 
   // delete removes an element from the dictionary.
-  public delete(k: Value): [Value, boolean] {
+  public delete(k: Value): [Value | null, boolean, Error | null] {
     return this.ht.delete(k);
   }
 
   // get retrieves the value associated with a key.
-  public get(k: Value): [Value, boolean] {
+  public get(k: Value): [Value | null, boolean, Error | null] {
     return this.ht.lookup(k);
   }
 
   // items returns a list of key-value pairs.
-  public items(): Array<[Value, Value]> {
+  public items(): Tuple[] {
     return this.ht.items();
   }
 
   // keys returns a list of all keys.
-  public keys(): Array<Value> {
+  public keys(): Value[] {
     return this.ht.keys();
   }
 
   // len returns the number of elements in the dictionary.
   public len(): number {
-    return this.ht.length();
+    return this.ht.len;
   }
 
   // set sets the value associated with a key.
@@ -919,35 +923,34 @@ class Dict implements Value {
     this.ht.insert(k, v);
   }
 
-  // toString returns the string representation of the dictionary.
-  public toString(): string {
+  // String returns the string representation of the dictionary.
+  public String(): string {
     return this.ht.toString();
   }
 
   // type returns the string "dict".
-  public type(): string {
+  public Type(): string {
     return "dict";
   }
 
   // freeze makes the dictionary immutable.
-  public freeze(): void {
+  public Freeze(): void {
     this.ht.freeze();
   }
 
   // truth returns true if the dictionary is not empty.
-  public truth(): boolean {
-    return this.len() > 0;
+  public Truth(): Bool {
+    return new Bool(this.len() > 0);
   }
 
   // hash returns an error because dictionaries are not hashable.
-  public hash(): [number, string] {
-    return [0, "unhashable type: dict"];
+  public Hash(): [number, Error | null] {
+    return [0, new Error("unhashable type: dict")];
   }
 
   // union returns a new dictionary that is the union of two dictionaries.
   public union(other: Dict): Dict {
-    const result = new Dict();
-    result.ht.init(this.len()); // a lower bound
+    const result = new Dict(this.len());
     result.ht.addAll(this.ht); // can't fail
     result.ht.addAll(other.ht); // can't fail
     return result;
@@ -968,10 +971,10 @@ class Dict implements Value {
   ): [boolean, Error | null] {
     const yDict = y as Dict;
     switch (op) {
-      case syntax.EQL:
+      case syntax.Token.EQL:
         const [ok, err] = dictsEqual(this, yDict, depth);
         return [ok, err];
-      case syntax.NEQ:
+      case syntax.Token.NEQ:
         const [notEqual, error] = dictsEqual(this, yDict, depth);
         return [!notEqual, error];
       default:
@@ -986,32 +989,34 @@ class Dict implements Value {
 // Given two dictionaries, return whether or not they are equal,
 // up to a certain depth.
 function dictsEqual(x: Dict, y: Dict, depth: number): [boolean, Error | null] {
-  if (Object.keys(x).length !== Object.keys(y).length) {
+  if (x.len() != y.len()) {
     return [false, null];
   }
-  for (const key in x) {
-    if (!(key in y)) {
+
+  let e = x.ht.head;
+  while (e != null) {
+    let key = e.key;
+    let xval = e.value;
+
+    let [yval, found, _] = y.get(key);
+    if (!found) {
       return [false, null];
     }
-    const xval = x[key];
-    const yval = y[key];
-    if (depth <= 0) {
-      if (xval !== yval) {
-        return [false, null];
-      }
-    } else {
-      const [eq, err] = dictsEqual(xval, yval, depth - 1);
-      if (err !== null) {
-        return [false, err];
-      } else if (!eq) {
-        return [false, null];
-      }
+
+    let [eq, err] = EqualDepth(xval, yval!, depth - 1);
+    if (err != null) {
+      return [false, err];
     }
+    if (!eq) {
+      return [false, null];
+    }
+    e = e.next;
   }
   return [true, null];
 }
 
-class List {
+// A *List represents a Starlark list value.
+class List implements Value {
   private elems: Value[];
   private frozen: boolean;
   private itercount: number; // number of active iterators (ignored if frozen)
@@ -1049,11 +1054,11 @@ class List {
   public Type(): string {
     return "list";
   }
-  public Hash(): { hash: number; err: Error } {
-    return { hash: 0, err: new Error("unhashable type: list") };
+  public Hash(): [number, Error | null] {
+    return [0, new Error("unhashable type: list")];
   }
-  public Truth(): boolean {
-    return this.Len() > 0;
+  public Truth(): Bool {
+    return new Bool(this.Len() > 0);
   }
   public Len(): number {
     return this.elems.length;
@@ -1069,7 +1074,7 @@ class List {
     }
 
     const sign = signum(step);
-    const list = [];
+    let list = new Array();
     for (let i = start; signum(end - i) == sign; i += step) {
       list.push(this.elems[i]);
     }
@@ -1095,7 +1100,7 @@ class List {
     op: syntax.Token,
     y_: Value,
     depth: number
-  ): [boolean, Error] {
+  ): [boolean, Error | null] {
     const y = y_ as List;
     // It's tempting to check x == y as an optimization here,
     // but wrong because a list containing NaN is not equal to itself.
@@ -1134,7 +1139,7 @@ function sliceCompare(
   return [threeway(op, x.length - y.length), null];
 }
 
-class listIterator {
+class ListIterator implements Iterator {
   private l: List;
   private i: number;
 
@@ -1143,7 +1148,7 @@ class listIterator {
     this.i = 0;
   }
 
-  public Next(p: Value): boolean {
+  public next(p: Value): boolean {
     if (this.i < this.l.Len()) {
       p = this.l.elems[this.i];
       this.i++;
@@ -1152,7 +1157,7 @@ class listIterator {
     return false;
   }
 
-  public Done() {
+  public done() {
     if (!this.l.frozen) {
       this.l.itercount--;
     }

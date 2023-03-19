@@ -51,7 +51,7 @@ class Entry {
 // in the order the entries were inserted.
 //
 // Initialized instances of hashtable must not be copied.
-class Hashtable {
+export class Hashtable {
   table: Bucket[]; // len is zero or a power of two
   bucket0: Bucket[]; // inline allocation for small maps.
   len: number;
@@ -62,7 +62,7 @@ class Hashtable {
 
   _noCopy: noCopy; // triggers vet copylock check on this type.
 
-  constructor() {
+  constructor(size?: number) {
     this.table = [];
     this.bucket0 = [new Bucket()];
     this.len = 0;
@@ -72,6 +72,8 @@ class Hashtable {
     this.frozen = false;
 
     this._noCopy = new noCopy();
+
+    this.init(size || bucketSize);
   }
 
   private init(size: number): void {
@@ -420,7 +422,7 @@ class keyIterator {
 
 // TODO(adonovan): use go1.19's maphash.String.
 // hashString computes the hash of s.
-function hashString(s: string): number {
+export function hashString(s: string): number {
   // TODO:
   // if len(s) >= 12 {
   //   // Call the Go runtime's optimized hash implementation,
