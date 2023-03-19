@@ -330,7 +330,7 @@ export class Scanner {
   //   }
   // }
 
-  recover(err: any) {}
+  recover(err: any) { }
 
   // eof reports whether the input has reached end of file.
   isEof(): boolean {
@@ -393,28 +393,24 @@ export class Scanner {
     }
 
     // fast path: AthisII
-    const b = this.rest[0];
-    this.rest = this.rest.slice(1);
-    return b;
+    // const b = this.rest[0];
+    // this.rest = this.rest.slice(1);
 
-    // BUG: fix me
-    // if (b < 0x80) {
-    //   let r = this.rest[0].toString();
-    //   this.rest = this.rest.slice(1);
-    //   if (r === "\r") {
-    //     if (this.rest.length > 0 && this.rest[0].toString() === "\n") {
-    //       this.rest = this.rest.slice(1);
-    //     }
-    //     r = "\n";
-    //   }
-    //   if (r === "\n") {
-    //     this.pos.line++;
-    //     this.pos.col = 1;
-    //   } else {
-    //     this.pos.col++;
-    //   }
-    //   return r;
-    // }
+    let r = this.rest[0].toString();
+    this.rest = this.rest.slice(1);
+    if (r === "\r") {
+      if (this.rest.length > 0 && this.rest[0].toString() === "\n") {
+        this.rest = this.rest.slice(1);
+      }
+      r = "\n";
+    }
+    if (r === "\n") {
+      this.pos.line++;
+      this.pos.col = 1;
+    } else {
+      this.pos.col++;
+    }
+    return r;
 
     // // Use the textDecoder object to decode the rest of the byte sequence
     // const textDecoder = new TextDecoder();
