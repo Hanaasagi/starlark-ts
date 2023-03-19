@@ -7,7 +7,7 @@ import { MakePosition } from "../syntax/scan"
 // A Thread contains the state of a Starlark thread,
 // such as its call stack and thread-local storage.
 // The Thread is threaded throughout the evaluator.
-class Thread {
+export class Thread {
   // Name is an optional name that describes the thread, for debugging.
   constructor(public Name?: string) { }
 
@@ -104,7 +104,8 @@ class Thread {
 
 }
 
-class StringDict {
+// BUG:
+export class StringDict {
   [name: string]: Value;
 
   keys(): string[] {
@@ -880,11 +881,11 @@ function slice(x: Value, lo: Value, hi: Value, step_: Value): [Value, Error] {
 }
 
 // From Hacker's Delight, section 2.8.
-function signum64(x: number): number {
+export function signum64(x: number): number {
   return Number(BigInt.asUintN(64, BigInt(x >> 63)) | BigInt(-x) >> 63n);
 }
 
-function signum(x: number): number {
+export function signum(x: number): number {
   return signum64(BigInt(x));
 }
 

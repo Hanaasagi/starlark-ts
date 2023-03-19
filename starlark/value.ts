@@ -1,7 +1,74 @@
-import syntax = require("../syntax");
+// import syntax = require("../syntax");
+// BUG:
+import * as syntax from "../syntax/index";
+import { Thread } from "./eval";
+import { signum } from "./eval";
+import { StringDict } from "./eval";
+import * as compile from "../internal/compile/compile";
+import { hashString } from "./hash";
+
+// Starlark values are represented by the Value interface.
+// The following built-in Value types are known to the evaluator:
+//
+//      NoneType        -- NoneType
+//      Bool            -- bool
+//      Bytes           -- bytes
+//      Int             -- int
+//      Float           -- float
+//      String          -- string
+//      *List           -- list
+//      Tuple           -- tuple
+//      *Dict           -- dict
+//      *Set            -- set
+//      *Function       -- function (implemented in Starlark)
+//      *Builtin        -- builtin_function_or_method (function or method implemented in Go)
+//
+// Client applications may define new data types that satisfy at least
+// the Value interface.  Such types may provide additional operations by
+// implementing any of these optional interfaces:
+//
+//      Callable        -- value is callable like a function
+//      Comparable      -- value defines its own comparison operations
+//      Iterable        -- value is iterable using 'for' loops
+//      Sequence        -- value is iterable sequence of known length
+//      Indexable       -- value is sequence with efficient random access
+//      Mapping         -- value maps from keys to values, like a dictionary
+//      HasBinary       -- value defines binary operations such as * and +
+//      HasAttrs        -- value has readable fields or methods x.f
+//      HasSetField     -- value has settable fields x.f
+//      HasSetIndex     -- value supports element update using x[i]=y
+//      HasSetKey       -- value supports map update using x[k]=v
+//      HasUnary        -- value defines unary operations such as + and -
+//
+// Client applications may also define domain-specific functions in Go
+// and make them available to Starlark programs.  Use NewBuiltin to
+// construct a built-in value that wraps a Go function.  The
+// implementation of the Go function may use UnpackArgs to make sense of
+// the positional and keyword arguments provided by the caller.
+//
+// Starlark's None value is not equal to Go's nil. Go's nil is not a legal
+// Starlark value, but the compiler will not stop you from converting nil
+// to Value. Be careful to avoid allowing Go nil values to leak into
+// Starlark data structures.
+//
+// The Compare operation requires two arguments of the same
+// type, but this constraint cannot be expressed in Go's type system.
+// (This is the classic "binary method problem".)
+// So, each Value type's CompareSameType method is a partial function
+// that compares a value only against others of the same type.
+// Use the package's standalone Compare (or Equal) function to compare
+// an arbitrary pair of values.
+//
+// To parse and evaluate a Starlark source file, use ExecFile.  The Eval
+// function evaluates a single expression.  All evaluator functions
+// require a Thread parameter which defines the "thread-local storage"
+// of a Starlark thread and may be used to plumb application state
+// through Starlark code and into callbacks.  When evaluation fails it
+// returns an EvalError from which the application may obtain a
+// backtrace of active Starlark calls.
 
 // Value is a value in the Starlark interpreter.
-interface Value {
+export interface Value {
   // String returns the string representation of the value.
   // Starlark string values are quoted as if by Python's repr.
   String(): string;
@@ -18,13 +85,13 @@ interface Value {
   Freeze(): void;
 
   // Truth returns the truth value of an object.
-  Truth(): boolean;
+  Truth(): Bool;
 
   // Hash returns a function of x such that Equals(x, y) => Hash(x) == Hash(y).
   // Hash may fail if the value's type is not hashable, or if the value
   // contains a non-hashable value. The hash is used only by dictionaries and
   // is not exposed to the Starlark program.
-  Hash(): [number, Error];
+  Hash(): [number, Error | null];
 }
 
 // A Comparable is a value that defines its own equivalence relation and
@@ -59,12 +126,284 @@ interface Callable extends Value {
     thread: Thread,
     args: Tuple,
     kwargs: Tuple[]
-  ): Value | Promise<Value>;
+  ): [Value, Error | null];
 }
 
-// Define a new interface callableWithPosition that extends the Callable interface with an additional method, Position(), which returns the syntax.Position of the callable value.
 interface callableWithPosition extends Callable {
-  Position(): syntax.Position;
+  position(): syntax.Position;
+}
+
+// An Iterator provides a sequence of values to the caller.
+//
+// The caller must call Done when the iterator is no longer needed.
+// Operations that modify a sequence will fail if it has active iterators.
+//
+// Example usage:
+//
+// 	iter := iterable.Iterator()
+//	defer iter.Done()
+//	var x Value
+//	for iter.Next(&x) {
+//		...
+//	}
+//
+interface Iterator {
+  next(p: Value): boolean;
+  done(): void;
+}
+
+// An Iterable abstracts a sequence of values.
+// An iterable value may be iterated over by a 'for' loop or used where
+// any other Starlark iterable is allowed.  Unlike a Sequence, the length
+// of an Iterable is not necessarily known in advance of iteration.
+interface Iterable extends Value {
+  iterate(): Iterator;
+}
+
+// A Sequence is a sequence of values of known length.
+interface Sequence extends Iterable {
+  len(): number;
+}
+
+// An Indexable is a sequence of known length that supports efficient random access.
+// It is not necessarily iterable.
+interface Indexable extends Value {
+  index(i: number): Value;
+  len(): number;
+}
+
+// A Sliceable is a sequence that can be cut into pieces with the slice operator (x[i:j:step]).
+//
+// All native indexable objects are sliceable.
+// This is a separate interface for backwards-compatibility.
+interface Sliceable extends Indexable {
+  // For positive strides (step > 0), 0 <= start <= end <= n.
+  // For negative strides (step < 0), -1 <= end <= start < n.
+  // The caller must ensure that the start and end indices are valid
+  // and that step is non-zero.
+  slice(start: number, end: number, step: number): Value;
+}
+
+// A HasSetIndex is an Indexable value whose elements may be assigned (x[i] = y).
+//
+// The implementation should not add Len to a negative index as the
+// evaluator does this before the call.
+interface HasSetIndex extends Indexable {
+  setIndex(index: number, v: Value): Error;
+}
+
+// A Mapping is a mapping from keys to values, such as a dictionary.
+//
+// If a type satisfies both Mapping and Iterable, the iterator yields
+// the keys of the mapping.
+interface Mapping extends Value {
+  // Get returns the value corresponding to the specified key,
+  // or !found if the mapping does not contain the key.
+  //
+  // Get also defines the behavior of "v in mapping".
+  // The 'in' operator reports the 'found' component, ignoring errors.
+  // BUG:
+  get(v: Value): [Value, boolean, Error];
+}
+
+// An IterableMapping is a mapping that supports key enumeration.
+interface IterableMapping extends Mapping {
+  iterate(): Iterator;
+  items(): Tuple[];
+}
+
+// A HasSetKey supports map update using x[k]=v syntax, like a dictionary.
+interface HasSetKey extends Mapping {
+  setkey(k: Value, v: Value): Error;
+}
+
+type Side = boolean;
+const Left: Side = false;
+const Rigth: Side = true;
+// A HasBinary value may be used as either operand of these binary operators:
+//     +   -   *   /   //   %   in   not in   |   &   ^   <<   >>
+//
+// The Side argument indicates whether the receiver is the left or right operand.
+//
+// An implementation may decline to handle an operation by returning (nil, nil).
+// For this reason, clients should always call the standalone Binary(op, x, y)
+// function rather than calling the method directly.
+interface hasBinary extends Value {
+  binary(op: syntax.Token, y: Value, side: Side): [Value, Error | null];
+}
+
+// A HasUnary value may be used as the operand of these unary operators:
+//     +   -   ~
+//
+// An implementation may decline to handle an operation by returning (nil, nil).
+// For this reason, clients should always call the standalone Unary(op, x)
+// function rather than calling the method directly.
+interface HasUnary extends Value {
+  unary(op: syntax.Token): [Value, Error | null];
+}
+
+// A HasAttrs value has fields or methods that may be read by a dot expression (y = x.f).
+// Attribute names may be listed using the built-in 'dir' function.
+//
+// For implementation convenience, a result of (nil, nil) from Attr is
+// interpreted as a "no such field or method" error. Implementations are
+// free to return a more precise error.
+interface HasAttrs extends Value {
+  attr(name: string): [Value, Error | null];
+  attrNames(): string[];
+}
+
+// A HasSetField value has fields that may be written by a dot expression (x.f = y).
+//
+// An implementation of SetField may return a NoSuchAttrError,
+// in which case the runtime may augment the error message to
+// warn of possible misspelling.
+interface HasSetField extends HasAttrs {
+  setField(name: string, val: Value): Error;
+}
+
+// TODO: NoSuchAttrError
+
+// NoneType is the type of None.  Its only legal value is None.
+// (We represent it as a number, not struct{}, so that None may be constant.)
+class NoneType implements Value {
+  constructor() { }
+
+  String(): string {
+    return "None";
+  }
+  Type(): string {
+    return "NoneType";
+  }
+
+  Freeze() { }
+  Truth(): Bool {
+    return False;
+  }
+
+  Hash(): [number, Error | null] {
+    return [0, null];
+  }
+}
+export const None = new NoneType();
+
+// Bool is the type of a Starlark bool.
+class Bool implements Comparable {
+  val: boolean;
+  constructor(val: boolean) {
+    this.val = val;
+  }
+
+  String(): string {
+    if (this.val) {
+      return "True";
+    }
+    return "False";
+  }
+
+  Type(): string {
+    return "bool";
+  }
+
+  Freeze() { }
+
+  Truth(): Bool {
+    return this;
+  }
+
+  Hash(): [number, Error | null] {
+    // BUG:
+    return [0, null];
+  }
+
+  CompareSameType(op: syntax.Token, y: Value, depth: number): [boolean, Error] {
+    // BUG:
+    return [false, new Error()];
+  }
+}
+
+const False: Bool = new Bool(false);
+const True: Bool = new Bool(true);
+
+class Float implements Comparable {
+  val: number;
+  constructor(val: number) {
+    this.val = val;
+  }
+
+  String(): string {
+    return this.val.toString();
+  }
+
+  Type(): string {
+    return "float";
+  }
+
+  Freeze() { }
+
+  Truth(): Bool {
+    return new Bool(this.val !== 0.0);
+  }
+
+  Hash(): [number, Error | null] {
+    // BUG:
+    return [0, null];
+  }
+
+  // TODO: format
+
+  floor(): Float {
+    return new Float(Math.floor(this.val));
+  }
+
+  // isFinite reports whether f represents a finite rational value.
+  // It is equivalent to !math.IsNan(f) && !math.IsInf(f, 0).
+  isFinite(): boolean {
+    return isFinite(this.val);
+  }
+
+  // TODO:
+  // rational()
+
+  CompareSameType(op: syntax.Token, y: Value, depth: number): [boolean, Error] {
+    // BUG:
+    return [false, new Error()];
+  }
+}
+
+// BUG:
+// floatCmp performs a three-valued comparison on floats,
+// which are totally ordered with NaN > +Inf.
+function floatCmp(x: Float, y: Float): number {
+  if (x.val > y.val) {
+    return 1;
+  } else if (x.val < y.val) {
+    return -1;
+  } else {
+    return 0;
+  }
+
+  // At least one operand is NaN.
+  if (x.val == x.val) {
+    return -1; // y is NaN
+  } else if (y.val == y.val) {
+    return +1; // x is NaN
+  }
+  return 0; // both NaN
+}
+
+// AsFloat returns the float64 value closest to x.
+// The f result is undefined if x is not a float or Int.
+// The result may be infinite if x is a very large Int.
+function AsFloat(x: Value): [number, boolean] {
+  if (x instanceof Float) {
+    return [x.val, true];
+  }
+  if (x instanceof Int) {
+    return [x.Float(), true];
+  }
+
+  return [0, false];
 }
 
 // String is the type of a Starlark text string.
@@ -86,9 +425,78 @@ interface callableWithPosition extends Callable {
 // so s.String() or fmt.Sprintf("%s", s) returns a quoted string.
 // Use string(s) or s.GoString() or fmt.Sprintf("%#v", s) to obtain the raw contents
 // of a Starlark string as a Go string.
-// TODO: string line: 522
+class String implements Comparable, HasAttrs {
+  val: string;
+
+  constructor(val: string) {
+    this.val = val;
+  }
+
+  String(): string {
+    // BUG:
+    // func (s String) String() string        { return syntax.Quote(string(s), false) }
+    return this.val;
+  }
+
+  GoString(): string {
+    return this.val;
+  }
+
+  Type(): string {
+    return "string";
+  }
+
+  Freeze() { }
+
+  Truth(): Bool {
+    return new Bool(this.val.length > 0);
+  }
+
+  Hash(): [number, Error | null] {
+    // BUG:
+    return [0, null];
+  }
+
+  Len(): number {
+    return this.val.length;
+  }
+
+  Index(i: number): String {
+    return new String(this.val[i]);
+  }
+
+  Slice(start: number, end: number, step: number): String {
+    if (step == 1) {
+      return new String(this.val.slice(start, end));
+    }
+
+    let sign = signum(step);
+
+    let buf = new Array();
+
+    for (let i = start; signum(end - i) == sign; i += step) {
+      buf.push(this.val[i]);
+    }
+
+    return new String(buf.join(""));
+  }
+
+  Attr(name: string): [Value, Error] {
+    return builtinAttr(this, name, stringMethods);
+  }
+
+  AttrNames(): string[] {
+    return builtinAttrNames(stringMethods);
+  }
+
+  CompareSameType(op: syntax.Token, y: Value, depth: number): [boolean, Error] {
+    // BUG:
+    return [false, new Error()];
+  }
+}
 
 function AsString(x: Value): [string, boolean] {
+  // BUG:
   if (typeof x === "string") {
     return [x, true];
   }
@@ -138,11 +546,14 @@ class StringElems {
   }
 
   Index(i: number): Value {
-    if (this.ords) {
-      return MakeInt(this.s.charCodeAt(i));
-    } else {
-      return this.s[i];
-    }
+    // BUG:
+    // if (this.ords) {
+    //   return MakeInt(this.s.charCodeAt(i));
+    // } else {
+    //   return this.s[i];
+    // }
+
+    return new String(this.s[i]);
   }
 }
 
@@ -155,7 +566,7 @@ class StringElemsIterator implements Iterator {
     this.i = i;
   }
 
-  Next(p: Value): boolean {
+  next(p: Value): boolean {
     if (this.i == this.si.Len()) {
       return false;
     }
@@ -165,7 +576,7 @@ class StringElemsIterator implements Iterator {
     return true;
   }
 
-  Done(): void { }
+  done(): void { }
 }
 
 // A stringCodepoints is an iterable whose iterator yields a sequence of
@@ -204,13 +615,13 @@ class stringCodepoints {
   }
 
   Hash(): [number, Error] {
-    return [0, new Error(unhashable: ${ this.Type() })];
+    return [0, new Error(`unhashable: ${this.Type()}`)];
   }
 }
 
 // TODO: stringCodepointsIterator
 
-class stringCodepointsIterator implements Iterator<Value> {
+class stringCodepointsIterator implements Iterator {
   si: stringCodepoints;
   i: number;
 
@@ -219,33 +630,34 @@ class stringCodepointsIterator implements Iterator<Value> {
     this.i = i;
   }
 
-  next(): IteratorResult<Value> {
-    let s = this.si.s.slice(this.i);
-    if (s === "") {
-      return { done: true, value: undefined };
-    }
-    let [r, sz] = utf8DecodeRuneInString(s);
-    let p: Value;
-    if (!this.si.ords) {
-      if (r === utf8.RuneError) {
-        p = new String(r);
-      } else {
-        p = new String(s.slice(0, sz));
-      }
-    } else {
-      p = new Int(r);
-    }
-    this.i += sz;
-    return { done: false, value: p };
+  next(p: Value): boolean {
+    // BUG:
+    return false;
+    // let s = this.si.s.slice(this.i);
+    // if (s === "") {
+    //   return { done: true, value: undefined };
+    // }
+    // let [r, sz] = utf8DecodeRuneInString(s);
+    // if (!this.si.ords) {
+    //   if (r === utf8.RuneError) {
+    //     p = new String(r);
+    //   } else {
+    //     p = new String(s.slice(0, sz));
+    //   }
+    // } else {
+    //   p = new Int(r);
+    // }
+    // this.i += sz;
+    // return { done: false, value: p };
   }
 
-  Done(): void { }
+  done(): void { }
 }
 
 // A Function is a function defined by a Starlark def statement or lambda expression.
 // The initialization behavior of a Starlark module is also represented by a Function.
-class Function {
-  funcode: Funcode;
+class Function implements Value {
+  funcode: compile.Funcode;
   module: Module;
   defaults: Tuple;
   freevars: Tuple;
@@ -263,16 +675,16 @@ class Function {
   }
 
   Name(): string {
-    return this.funcode.Name;
+    return this.funcode.name;
   }
 
   Doc(): string {
-    return this.funcode.Doc;
+    return this.funcode.doc;
   }
 
   // BUG:
-  Hash(): [number, undefined] {
-    return [hashString(this.funcode.Name), undefined];
+  Hash(): [number, Error | null] {
+    return [hashString(this.funcode.name), null];
   }
 
   Freeze(): void {
@@ -288,43 +700,43 @@ class Function {
     return "function";
   }
 
-  Truth(): boolean {
-    return true;
+  Truth(): Bool {
+    return True;
   }
 
   // Globals returns a new, unfrozen StringDict containing all global
   // variables so far defined in the function's module.
   Globals(): StringDict {
-    return makeGlobalDict(this.module);
+    return this.module.makeGlobalDict();
   }
 
   Position(): syntax.Position {
-    return this.funcode.Pos;
+    return this.funcode.pos;
   }
 
   NumParams(): number {
-    return this.funcode.NumParams;
+    return this.funcode.numParams;
   }
 
   NumKwonlyParams(): number {
-    return this.funcode.NumKwonlyParams;
+    return this.funcode.numKwonlyParams;
   }
 
   // Param returns the name and position of the ith parameter,
   // where 0 <= i < NumParams().
   // The *args and **kwargs parameters are at the end
   // even if there were optional parameters after *args.
-  public Param(i: number): [string, syntax.Position] {
+  Param(i: number): [string, syntax.Position] {
     if (i >= this.NumParams()) {
       throw new Error(i.toString());
     }
-    const id: LocalIdentifier = this.funcode.Locals[i];
-    return [id.Name, id.Pos];
+    const id = this.funcode.locals[i];
+    return [id.name, id.pos];
   }
 
   // ParamDefault returns the default value of the specified parameter
   // (0 <= i < NumParams()), or null if the parameter is not optional.
-  public ParamDefault(i: number): Value {
+  ParamDefault(i: number): Value | null {
     if (i < 0 || i >= this.NumParams()) {
       throw new Error(i.toString());
     }
@@ -349,19 +761,19 @@ class Function {
     return dflt;
   }
 
-  public HasVarargs(): boolean {
-    return this.funcode.HasVarargs;
+  HasVarargs(): boolean {
+    return this.funcode.hasVarargs;
   }
 
-  public HasKwargs(): boolean {
-    return this.funcode.HasKwargs;
+  HasKwargs(): boolean {
+    return this.funcode.hasKwargs;
   }
 }
 
 // A module is the dynamic counterpart to a Program.
 // All functions in the same program share a module.
 class Module {
-  program: Program;
+  program: compile.Program;
   predeclared: StringDict;
   globals: Value[];
   constants: Value[];
@@ -369,11 +781,12 @@ class Module {
   // makeGlobalDict returns a new, unfrozen StringDict containing all global
   // variables so far defined in the module.
   makeGlobalDict(): StringDict {
-    const r: StringDict = {};
-    for (let i = 0; i < this.program.Globals.length; i++) {
-      const id = this.program.Globals[i];
+    const r: StringDict = new StringDict();
+    for (let i = 0; i < this.program.globals.length; i++) {
+      const id = this.program.globals[i];
       if (this.globals[i] !== null && this.globals[i] !== undefined) {
-        r[id.Name] = this.globals[i];
+        // BUG:
+        r[id.name] = this.globals[i];
       }
     }
     return r;
@@ -416,7 +829,7 @@ class Builtin implements Value {
     }
   }
 
-  Hash(): [number, Error] {
+  Hash(): [number, Error | null] {
     let h = hashString(this.name);
     if (this.recv !== null) {
       h ^= 5521;
@@ -441,7 +854,7 @@ class Builtin implements Value {
   }
 
   Truth(): Bool {
-    return Bool.True;
+    return True;
   }
   // BindReceiver returns a new Builtin value representing a method
   // closure, that is, a built-in function bound to a receiver value.
@@ -457,31 +870,19 @@ class Builtin implements Value {
   // "abc".index("a")
   //
   BindReceiver(recv: Value): Builtin {
-    return { name: this.name, fn: this.fn, recv };
+    return new Builtin(this.name, this.fn, this.recv);
   }
 }
 
-// NewBuiltin returns a new 'builtin_function_or_method' value with the specified name
-// and implementation. It compares unequal with all other values.
-// TODO: duplicate
-function NewBuiltin(
-  name: string,
-  fn: (
-    thread: Thread,
-    fn: Builtin,
-    args: Tuple,
-    kwargs: Tuple[]
-  ) => [Value, Error]
-): Builtin {
-  return new Builtin(name, fn, null);
-}
-
 // A Dict represents a dictionary in TypeScript.
-class Dict {
-  private ht: HashTable = new HashTable();
+class Dict implements Value {
+  private ht: HashTable;
 
   // NewDict returns a new empty dictionary.
-  constructor() { }
+  constructor(size: number) {
+    let ht = new HashTable(size);
+    this.ht = ht;
+  }
 
   // clear removes all elements from the dictionary.
   public clear(): void {
@@ -759,7 +1160,7 @@ class listIterator {
 }
 
 // A Tuple represents a Starlark tuple value.
-class Tuple implements Value {
+export class Tuple implements Value {
   constructor(public elems: Value[]) { }
 
   get length(): number {
@@ -818,7 +1219,7 @@ class Tuple implements Value {
   }
 }
 
-class TupleIterator implements Iterator {
+export class TupleIterator implements Iterator {
   private elems: Tuple;
 
   constructor(elems: Tuple) {
@@ -1022,14 +1423,14 @@ function writeValue(out: string[], x: Value, path: Value[]): void {
       break;
 
     case Function:
-      out.push(`<function ${x.Name()}>`);
+      out.push(`< function ${x.Name()} > `);
       break;
 
     case Builtin:
       if (x.recv !== null) {
-        out.push(`<built-in method ${x.Name()} of ${x.recv.Type()} value>`);
+        out.push(`< built -in method ${x.Name()} of ${x.recv.Type()} value > `);
       } else {
-        out.push(`<built-in function ${x.Name()}>`);
+        out.push(`< built -in function ${x.Name()} > `);
       }
       break;
 
@@ -1081,7 +1482,7 @@ function pathContains(path: Value[], x: Value): boolean {
 var CompareLimit = 10;
 
 // Equal reports whether two Starlark values are equal.
-function Equal(x: Value, y: Value): [boolean, Error | null] {
+export function Equal(x: Value, y: Value): [boolean, Error | null] {
   // BUG: error type
   if (x instanceof String) {
     return [x == y, null]; // fast path for an important special case
