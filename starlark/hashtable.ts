@@ -392,6 +392,14 @@ export class Hashtable {
   //     }
   //   }
   // }
+
+  iterate(): keyIterator {
+    if (!this.frozen) {
+      this.itercount++;
+    }
+
+    return new keyIterator(this, this.head!);
+  }
 }
 
 class keyIterator {

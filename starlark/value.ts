@@ -6,7 +6,14 @@ import { signum } from "./eval";
 import { StringDict } from "./eval";
 import * as compile from "../internal/compile/compile";
 import { hashString, Hashtable } from "./hashtable";
-import { dictMethods, listMethods } from "./library";
+import {
+  dictMethods,
+  listMethods,
+  setMethods,
+  bytesMethods,
+  stringMethods,
+} from "./library";
+import { builtinAttr, builtinAttrNames } from "./library";
 
 // Starlark values are represented by the Value interface.
 // The following built-in Value types are known to the evaluator:
@@ -268,7 +275,7 @@ interface HasSetField extends HasAttrs {
 // NoneType is the type of None.  Its only legal value is None.
 // (We represent it as a number, not struct{}, so that None may be constant.)
 class NoneType implements Value {
-  constructor() { }
+  constructor() {}
 
   String(): string {
     return "None";
@@ -277,7 +284,7 @@ class NoneType implements Value {
     return "NoneType";
   }
 
-  Freeze() { }
+  Freeze() {}
   Truth(): Bool {
     return False;
   }
@@ -306,7 +313,7 @@ class Bool implements Comparable {
     return "bool";
   }
 
-  Freeze() { }
+  Freeze() {}
 
   Truth(): Bool {
     return this;
@@ -340,7 +347,7 @@ class Float implements Comparable {
     return "float";
   }
 
-  Freeze() { }
+  Freeze() {}
 
   Truth(): Bool {
     return new Bool(this.val !== 0.0);
@@ -401,7 +408,7 @@ function AsFloat(x: Value): [number, boolean] {
     return [x.val, true];
   }
   if (x instanceof Int) {
-    return [x.Float(), true];
+    return [x.val, true];
   }
 
   return [0, false];
@@ -447,7 +454,7 @@ class String implements Comparable, HasAttrs {
     return "string";
   }
 
-  Freeze() { }
+  Freeze() {}
 
   Truth(): Bool {
     return new Bool(this.val.length > 0);
@@ -482,11 +489,11 @@ class String implements Comparable, HasAttrs {
     return new String(buf.join(""));
   }
 
-  Attr(name: string): [Value, Error] {
+  attr(name: string): [Value, Error] {
     return builtinAttr(this, name, stringMethods);
   }
 
-  AttrNames(): string[] {
+  attrNames(): string[] {
     return builtinAttrNames(stringMethods);
   }
 
@@ -528,7 +535,7 @@ class StringElems {
     return "string.elems";
   }
 
-  Freeze(): void { } // immutable
+  Freeze(): void {} // immutable
 
   Truth(): Bool {
     return True;
@@ -577,7 +584,7 @@ class StringElemsIterator implements Iterator {
     return true;
   }
 
-  done(): void { }
+  done(): void {}
 }
 
 // A stringCodepoints is an iterable whose iterator yields a sequence of
@@ -609,7 +616,7 @@ class stringCodepoints {
     return "string.codepoints";
   }
 
-  Freeze(): void { } // immutable
+  Freeze(): void {} // immutable
 
   Truth(): Bool {
     return True;
@@ -652,7 +659,7 @@ class stringCodepointsIterator implements Iterator {
     // return { done: false, value: p };
   }
 
-  done(): void { }
+  done(): void {}
 }
 
 // A Function is a function defined by a Starlark def statement or lambda expression.
@@ -665,7 +672,7 @@ class Function implements Value {
 
   constructor(
     funcode: compile.Funcode,
-    module: module,
+    module: Module,
     defaults: Tuple,
     freevars: Tuple
   ) {
@@ -1017,9 +1024,9 @@ function dictsEqual(x: Dict, y: Dict, depth: number): [boolean, Error | null] {
 
 // A *List represents a Starlark list value.
 class List implements Value {
-  private elems: Value[];
-  private frozen: boolean;
-  private itercount: number; // number of active iterators (ignored if frozen)
+  elems: Value[];
+  frozen: boolean;
+  itercount: number; // number of active iterators (ignored if frozen)
 
   constructor(elems: Value[]) {
     this.elems = elems;
@@ -1106,6 +1113,36 @@ class List implements Value {
     // but wrong because a list containing NaN is not equal to itself.
     return sliceCompare(op, this.elems, y.elems, depth);
   }
+
+  public SetIndex(i: number, v: Value): Error | null {
+    const err = this.checkMutable("assign to element of");
+    if (err !== null) {
+      return err;
+    }
+    this.elems[i] = v;
+    return null;
+  }
+
+  public Append(v: Value): Error | null {
+    const err = this.checkMutable("append to");
+    if (err !== null) {
+      return err;
+    }
+    this.elems.push(v);
+    return null;
+  }
+
+  public Clear(): Error | null {
+    const err = this.checkMutable("clear");
+    if (err !== null) {
+      return err;
+    }
+    for (let i = 0; i < this.elems.length; i++) {
+      this.elems[i] = null; // aid GC
+    }
+    this.elems = [];
+    return null;
+  }
 }
 
 function sliceCompare(
@@ -1115,20 +1152,24 @@ function sliceCompare(
   depth: number
 ): [boolean, Error | null] {
   // Fast path: check length.
-  if (x.length !== y.length && (op === syntax.EQL || op === syntax.NEQ)) {
-    return [op === syntax.NEQ, null];
+  if (
+    x.length !== y.length &&
+    (op === syntax.Token.EQL || op === syntax.Token.NEQ)
+  ) {
+    return [op === syntax.Token.NEQ, null];
   }
 
   // Find first element that is not equal in both lists.
   for (let i = 0; i < x.length && i < y.length; i++) {
-    const [eq, err] = EqualDepth(x[i], y[i], depth - 1);
-    if (err) {
+    let [eq, err] = EqualDepth(x[i], y[i], depth - 1);
+    if (err != null) {
       return [false, err];
-    } else if (!eq) {
+    }
+    if (!eq) {
       switch (op) {
-        case syntax.EQL:
+        case syntax.Token.EQL:
           return [false, null];
-        case syntax.NEQ:
+        case syntax.Token.NEQ:
           return [true, null];
         default:
           return CompareDepth(op, x[i], y[i], depth - 1);
@@ -1166,9 +1207,13 @@ class ListIterator implements Iterator {
 
 // A Tuple represents a Starlark tuple value.
 export class Tuple implements Value {
-  constructor(public elems: Value[]) { }
+  elems: Value[];
 
-  get length(): number {
+  constructor(elems: Value[]) {
+    this.elems = elems;
+  }
+
+  Len(): number {
     return this.elems.length;
   }
 
@@ -1181,46 +1226,53 @@ export class Tuple implements Value {
       return new Tuple(this.elems.slice(start, end));
     }
 
-    javascript;
-
-    const sign = Math.sign(step);
-    const tuple = [];
-    for (let i = start; Math.sign(end - i) === sign; i += step) {
+    const sign = signum(step);
+    let tuple: Value[] = new Array();
+    for (let i = start; signum(end - i) === sign; i += step) {
       tuple.push(this.elems[i]);
     }
     return new Tuple(tuple);
   }
 
-  // FIXME:
-  // Symbol.iterator: IterableIterator<Value> {
-  //   return this.elems.values();
-  // }
+  Freeze() {
+    for (var elem of this.elems) {
+      elem.Freeze();
+    }
+  }
 
-  toString(): string {
+  Iterate(): Iterator {
+    return new TupleIterator(this);
+  }
+
+  String(): string {
     return toString(this);
   }
 
-  type(): string {
+  Type(): string {
     return "tuple";
   }
 
-  truth(): boolean {
-    return this.elems.length > 0;
+  Truth(): Bool {
+    return new Bool(this.elems.length > 0);
   }
 
-  compareSameType(op: syntax.Token, y: Tuple, depth: number): boolean | Error {
-    return sliceCompare(op, this, y, depth);
+  compareSameType(
+    op: syntax.Token,
+    y: Tuple,
+    depth: number
+  ): [boolean, Error | null] {
+    return sliceCompare(op, this.elems, y.elems, depth);
   }
 
-  async hash(): Promise<number> {
-    let x = 0x345678,
-      mult = 1000003;
+  Hash(): [number, Error | null] {
+    let x: number = 0x345678;
+    let mult: number = 1000003;
     for (const elem of this.elems) {
-      const y = await elem.hash();
+      let [y, _] = elem.Hash();
       x = x ^ (y * mult);
       mult += 82520 + this.elems.length + this.elems.length;
     }
-    return x;
+    return [x, null];
   }
 }
 
@@ -1231,22 +1283,23 @@ export class TupleIterator implements Iterator {
     this.elems = elems;
   }
 
-  Next(p: Value): boolean {
-    if (this.elems.length > 0) {
+  next(p: Value): boolean {
+    if (this.elems.Len() > 0) {
       p = this.elems[0];
-      this.elems = this.elems.slice(1);
+      // TODO: shitcode
+      this.elems = new Tuple(this.elems.elems.slice(1));
       return true;
     }
     return false;
   }
 
-  Done(): void { }
+  done(): void {}
 }
 
 // A Set represents a TypeScript set value.
 // The zero value of Set is a valid empty set.
-class Set {
-  private ht: Hashtable; // values are all None
+class Set implements Value {
+  ht: Hashtable; // values are all None
 
   // NewSet returns a dictionary with initial space for
   // at least size insertions before rehashing.
@@ -1254,37 +1307,37 @@ class Set {
     this.ht = new Hashtable(size);
   }
 
-  delete(k: Value): [found: boolean, err?: Error] {
+  delete(k: Value): [boolean, Error | null] {
     const [_, found, err] = this.ht.delete(k);
     return [found, err];
   }
 
-  clear(): Error | undefined {
+  clear(): Error | null {
     return this.ht.clear();
   }
 
-  has(k: Value): [found: boolean, err?: Error] {
+  has(k: Value): [boolean, Error | null] {
     const [_, found, err] = this.ht.lookup(k);
     return [found, err];
   }
 
-  insert(k: Value): Error | undefined {
+  insert(k: Value): Error | null {
     return this.ht.insert(k, None);
   }
 
-  get length(): number {
+  Len(): number {
     return this.ht.len;
   }
 
-  iterate(): Iterator {
+  Iterate(): Iterator {
     return this.ht.iterate();
   }
 
-  toString(): string {
+  String(): string {
     return toString(this);
   }
 
-  get type(): string {
+  Type(): string {
     return "set";
   }
 
@@ -1292,23 +1345,23 @@ class Set {
     return this.ht.keys();
   }
 
-  freeze(): void {
+  Freeze(): void {
     this.ht.freeze();
   }
 
-  hash(): [uint32: number, err?: Error] {
+  Hash(): [number, Error | null] {
     return [0, new Error("unhashable type: set")];
   }
 
-  truth(): Bool {
-    return this.length > 0;
+  Truth(): Bool {
+    return new Bool(this.Len() > 0);
   }
 
-  attr(name: string): [value: Value, err?: Error] {
+  Attr(name: string): [value: Value, err?: Error] {
     return builtinAttr(this, name, setMethods);
   }
 
-  attrNames(): string[] {
+  AttrNames(): string[] {
     return builtinAttrNames(setMethods);
   }
 
@@ -1318,47 +1371,48 @@ class Set {
     depth: number
   ): [result: boolean, err?: Error] {
     switch (op) {
-      case syntax.EQL:
+      case syntax.Token.EQL:
         const [ok, err] = [setsEqual(this, y, depth), undefined];
         return [ok, err];
-      case syntax.NEQ:
+      case syntax.Token.NEQ:
         const [ok2, err2] = [setsEqual(this, y, depth), undefined];
         return [!ok2, err2];
       default:
         return [
           false,
-          new Error(`${this.type} ${op} ${y.type} not implemented`),
+          new Error(`${this.Type()} ${op} ${y.Type()} not implemented`),
         ];
     }
   }
 
   union(iter: Iterator): Set {
-    const set = new Set();
-    for (const elem of this.elems()) {
-      set.insert(elem);
-    }
-    let x: Value;
-    while (iter.next(x)) {
-      if (set.insert(x) !== null) {
-        return null;
-      }
-    }
+    const set = new Set(8);
+    // BUG:
+    // for (const elem of this.elems()) {
+    //   set.insert(elem);
+    // }
+    // let x: Value;
+    // while (iter.next(x)) {
+    //   if (set.insert(x) !== null) {
+    //     return null;
+    //   }
+    // }
     return set;
   }
 }
 
 // BUG: change return type
-function setsEqual(x: Set, y: Set, depth: number): boolean {
-  if (x.size !== y.size) {
-    return false;
+function setsEqual(x: Set, y: Set, depth: number): [boolean, Error | null] {
+  if (x.Len() !== y.Len()) {
+    return [false, null];
   }
   for (const elem of x.elems()) {
     const [found, _] = y.has(elem);
     if (!found) {
-      return false;
+      return [false, null];
     }
   }
-  return true;
+  return [true, null];
 }
 
 // toString returns the string form of value v.
@@ -1377,101 +1431,108 @@ function toString(v: Value): string {
 // Callers should generally pass nil for path.
 // It is safe to re-use the same path slice for multiple calls.
 function writeValue(out: string[], x: Value, path: Value[]): void {
-  switch (x.constructor) {
-    case NoneType:
-      out.push("None");
-      break;
-
-    case Int:
-      out.push(x.toString());
-      break;
-
-    case Bool:
-      if (x) {
-        out.push("True");
-      } else {
-        out.push("False");
-      }
-      break;
-
-    case String:
-      out.push(syntax.Quote(String(x), false));
-      break;
-
-    case List:
-      out.push("[");
-      if (pathContains(path, x)) {
-        out.push("..."); // list contains itself
-      } else {
-        for (let i = 0; i < x.elems.length; i++) {
-          if (i > 0) {
-            out.push(", ");
-          }
-          writeValue(out, x.elems[i], path.concat(x));
-        }
-      }
-      out.push("]");
-      break;
-
-    case Tuple:
-      out.push("(");
-      for (let i = 0; i < x.length; i++) {
-        if (i > 0) {
-          out.push(", ");
-        }
-        writeValue(out, x[i], path);
-      }
-      if (x.length === 1) {
-        out.push(",");
-      }
-      out.push(")");
-      break;
-
-    case Function:
-      out.push(`< function ${x.Name()} > `);
-      break;
-
-    case Builtin:
-      if (x.recv !== null) {
-        out.push(`< built -in method ${x.Name()} of ${x.recv.Type()} value > `);
-      } else {
-        out.push(`< built -in function ${x.Name()} > `);
-      }
-      break;
-
-    case Dict:
-      out.push("{");
-      if (pathContains(path, x)) {
-        out.push("..."); // dict contains itself
-      } else {
-        let sep = "";
-        for (let e = x.ht.head; e !== null; e = e.next) {
-          let k = e.key;
-          let v = e.value;
-          out.push(sep);
-          writeValue(out, k, path);
-          out.push(": ");
-          writeValue(out, v, path.concat(x)); // cycle check
-          sep = ", ";
-        }
-      }
-      out.push("}");
-      break;
-
-    case Set:
-      out.push("set([");
-      for (let i = 0; i < x.elems().length; i++) {
-        if (i > 0) {
-          out.push(", ");
-        }
-        writeValue(out, x.elems()[i], path);
-      }
-      out.push("])");
-      break;
-
-    default:
-      out.push(x.toString());
+  if (x instanceof NoneType) {
+    out.push("None");
+    return;
   }
+
+  if (x instanceof Int) {
+    out.push(x.toString());
+    return;
+  }
+  if (x instanceof Bool) {
+    if (x.val) {
+      out.push("True");
+    } else {
+      out.push("False");
+    }
+
+    return;
+  }
+
+  if (x instanceof String) {
+    // TODO quote
+    out.push(x.String());
+    return;
+  }
+
+  if (x instanceof List) {
+    out.push("[");
+    if (pathContains(path, x)) {
+      out.push("..."); // list contains itself
+    } else {
+      for (let i = 0; i < x.elems.length; i++) {
+        if (i > 0) {
+          out.push(", ");
+        }
+        writeValue(out, x.elems[i], path.concat(x));
+      }
+    }
+    out.push("]");
+    return;
+  }
+
+  if (x instanceof Tuple) {
+    out.push("(");
+    for (let i = 0; i < x.Len(); i++) {
+      if (i > 0) {
+        out.push(", ");
+      }
+      writeValue(out, x[i], path);
+    }
+    if (x.Len() === 1) {
+      out.push(",");
+    }
+    out.push(")");
+    return;
+  }
+
+  if (x instanceof Function) {
+    out.push(`< function ${x.Name()} > `);
+  }
+
+  if (x instanceof Builtin) {
+    if (x.recv !== null) {
+      out.push(`< built -in method ${x.Name()} of ${x.recv.Type()} value > `);
+    } else {
+      out.push(`< built -in function ${x.Name()} > `);
+    }
+    return;
+  }
+
+  if (x instanceof Dict) {
+    out.push("{");
+    if (pathContains(path, x)) {
+      out.push("..."); // dict contains itself
+    } else {
+      let sep = "";
+      for (let e = x.ht.head; e !== null; e = e.next) {
+        let k = e.key;
+        let v = e.value;
+        out.push(sep);
+        writeValue(out, k, path);
+        out.push(": ");
+        writeValue(out, v, path.concat(x)); // cycle check
+        sep = ", ";
+      }
+    }
+    out.push("}");
+    return;
+  }
+
+  if (x instanceof Set) {
+    out.push("set([");
+    for (let i = 0; i < x.elems().length; i++) {
+      if (i > 0) {
+        out.push(", ");
+      }
+      writeValue(out, x.elems()[i], path);
+    }
+    out.push("])");
+    return;
+  }
+
+  out.push(x.toString());
 }
 
 function pathContains(path: Value[], x: Value): boolean {
@@ -1482,6 +1543,7 @@ function pathContains(path: Value[], x: Value): boolean {
   }
   return false;
 }
+
 // CompareLimit is the depth limit on recursive comparison operations such as == and <.
 // Comparison of data structures deeper than this limit may fail.
 var CompareLimit = 10;
@@ -1504,7 +1566,7 @@ function EqualDepth(
   y: Value,
   depth: number
 ): [boolean, Error | null] {
-  return CompareDepth(syntax.EQL, x, y, depth);
+  return CompareDepth(syntax.Token.EQL, x, y, depth);
 }
 
 // Compare compares two Starlark values.
@@ -1530,66 +1592,67 @@ export function CompareDepth(
   x: Value,
   y: Value,
   depth: number
-): [boolean, Error] {
+): [boolean, Error | null] {
   if (depth < 1) {
     return [false, new Error("comparison exceeded maximum recursion depth")];
   }
   if (sameType(x, y)) {
-    if (isComparable(x)) {
-      return x.CompareSameType(op, y, depth);
+    // TODO:?
+    if ("CompareSameType" in x) {
+      return (x as Comparable).CompareSameType(op, y, depth);
     }
 
     // use identity comparison
     switch (op) {
-      case syntax.EQL:
+      case syntax.Token.EQL:
         return [x === y, null];
-      case syntax.NEQ:
+      case syntax.Token.NEQ:
         return [x !== y, null];
     }
     return [false, new Error(`${x.Type()} ${op} ${y.Type()} not implemented`)];
   }
 
-  // different types
-
   // int/float ordered comparisons
-  switch (x.constructor) {
-    case Int:
-      if (y instanceof Float) {
-        let cmp: number;
-        if (Number.isNaN(y)) {
-          cmp = -1; // y is NaN
-        } else if (!math.isInf(y, 0)) {
-          cmp = x.rational().cmp(y.rational()); // y is finite
-        } else if (y > 0) {
-          cmp = -1; // y is +Inf
-        } else {
-          cmp = +1; // y is -Inf
-        }
-        return [threeway(op, cmp), null];
+  if (x instanceof Int) {
+    if (y instanceof Float) {
+      let cmp: number;
+      if (Number.isNaN(y)) {
+        cmp = -1; // y is NaN
+      } else if (isFinite(y.val)) {
+        // BUG:
+        cmp = 1;
+        // cmp = x.rational().cmp(y.rational()); // y is finite
+      } else if (y.val > 0) {
+        cmp = -1; // y is +Inf
+      } else {
+        cmp = +1; // y is -Inf
       }
-      break;
-    case Float:
-      if (y instanceof Int) {
-        let cmp: number;
-        if (Number.isNaN(x)) {
-          cmp = +1; // x is NaN
-        } else if (!math.isInf(x, 0)) {
-          cmp = x.rational().cmp(y.rational()); // x is finite
-        } else if (x > 0) {
-          cmp = +1; // x is +Inf
-        } else {
-          cmp = -1; // x is -Inf
-        }
-        return [threeway(op, cmp), null];
+      return [threeway(op, cmp), null];
+    }
+  }
+  if (x instanceof Float) {
+    if (y instanceof Int) {
+      let cmp: number;
+      if (Number.isNaN(x)) {
+        cmp = +1; // x is NaN
+      } else if (isFinite(x.val)) {
+        // BUG:
+        cmp = 1;
+        // cmp = x.rational().cmp(y.rational()); // x is finite
+      } else if (x.val > 0) {
+        cmp = +1; // x is +Inf
+      } else {
+        cmp = -1; // x is -Inf
       }
-      break;
+      return [threeway(op, cmp), null];
+    }
   }
 
   // All other values of different types compare unequal.
   switch (op) {
-    case syntax.EQL:
+    case syntax.Token.EQL:
       return [false, null];
-    case syntax.NEQ:
+    case syntax.Token.NEQ:
       return [true, null];
   }
   return [false, new Error(`${x.Type()} ${op} ${y.Type()} not implemented`)];
@@ -1604,17 +1667,17 @@ function sameType(x: Value, y: Value): boolean {
 // as a boolean comparison (e.g. x < y).
 function threeway(op: syntax.Token, cmp: number): boolean {
   switch (op) {
-    case syntax.EQL:
+    case syntax.Token.EQL:
       return cmp === 0;
-    case syntax.NEQ:
+    case syntax.Token.NEQ:
       return cmp !== 0;
-    case syntax.LE:
+    case syntax.Token.LE:
       return cmp <= 0;
-    case syntax.LT:
+    case syntax.Token.LT:
       return cmp < 0;
-    case syntax.GE:
+    case syntax.Token.GE:
       return cmp >= 0;
-    case syntax.GT:
+    case syntax.Token.GT:
       return cmp > 0;
     default:
       throw new Error(op);
@@ -1630,11 +1693,8 @@ function b2i(b: boolean): number {
 }
 
 function Len(x: Value): number {
-  if (typeof x === "string") {
-    return x.length;
-  } else if (x instanceof Indexable) {
-    return x.Len();
-  } else if (x instanceof Sequence) {
+  if ("Len" in x) {
+    // @ts-ignore
     return x.Len();
   }
   return -1;
@@ -1646,7 +1706,8 @@ function Len(x: Value): number {
 // Warning: Iterate(x) != nil does not imply Len(x) >= 0.
 // Some iterables may have unknown length.
 export function Iterate(x: Value): Iterator | null {
-  if (x instanceof Iterable) {
+  if ("Iterate" in x) {
+    //@ts-ignore
     return x.Iterate();
   }
   return null;
@@ -1665,41 +1726,42 @@ class Bytes implements Value, Comparable, Sliceable, Indexable {
     this.value = value;
   }
 
-  public toString(): string {
-    return syntax.Quote(this.value, true);
+  String(): string {
+    return this.value;
+    // return syntax.Quote(this.value, true);
   }
 
-  public type(): string {
+  Type(): string {
     return "bytes";
   }
 
-  public freeze(): void { } // immutable
+  Freeze(): void {} // immutable
 
-  public truth(): boolean {
-    return this.value.length > 0;
+  Truth(): Bool {
+    return new Bool(this.value.length > 0);
   }
 
-  public hash(): number {
-    return new String(this.value).hash();
+  Hash(): [number, Error | null] {
+    return [new String(this.value).Hash()[0], null];
   }
 
-  public len(): number {
+  len(): number {
     return this.value.length;
   }
 
-  public index(i: number): Value {
+  index(i: number): Value {
     return new Bytes(this.value[i]);
   }
 
-  public attr(name: string): Value | None {
+  Attr(name: string): [Value, Error] {
     return builtinAttr(this, name, bytesMethods);
   }
 
-  public attrNames(): string[] {
+  AttrNames(): string[] {
     return builtinAttrNames(bytesMethods);
   }
 
-  public slice(start: number, end: number, step: number): Value {
+  slice(start: number, end: number, step: number): Value {
     if (step === 1) {
       return new Bytes(this.value.slice(start, end));
     }
@@ -1712,13 +1774,11 @@ class Bytes implements Value, Comparable, Sliceable, Indexable {
     return new Bytes(str);
   }
 
-  public compareSameType(
-    op: syntax.Token,
-    y: Value,
-    depth: number
-  ): [boolean, Error] {
-    const valueY = y as Bytes;
-    const result = threeway(op, stringCompare(this.value, valueY.value));
-    return [result, null];
+  CompareSameType(op: syntax.Token, y: Value, depth: number): [boolean, Error] {
+    return [false, new Error()];
+    // TODO:
+    // const valueY = y as Bytes;
+    // const result = threeway(op, stringCompare(this.value, valueY.value));
+    // return [result, null];
   }
 }
