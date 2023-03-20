@@ -130,7 +130,7 @@ interface Comparable extends Value {
 // A Callable value f may be the operand of a function call, f(x).
 //
 // Clients should use the call() function, never the callInternal() method.
-interface Callable extends Value {
+export interface Callable extends Value {
   name(): string;
   callInternal(
     thread: Thread,
@@ -139,7 +139,7 @@ interface Callable extends Value {
   ): [Value, Error | null];
 }
 
-interface callableWithPosition extends Callable {
+export interface callableWithPosition extends Callable {
   position(): syntax.Position;
 }
 
@@ -166,18 +166,18 @@ export interface Iterator {
 // An iterable value may be iterated over by a 'for' loop or used where
 // any other Starlark iterable is allowed.  Unlike a Sequence, the length
 // of an Iterable is not necessarily known in advance of iteration.
-interface Iterable extends Value {
+export interface Iterable extends Value {
   iterate(): Iterator;
 }
 
 // A Sequence is a sequence of values of known length.
-interface Sequence extends Iterable {
+export interface Sequence extends Iterable {
   len(): number;
 }
 
 // An Indexable is a sequence of known length that supports efficient random access.
 // It is not necessarily iterable.
-interface Indexable extends Value {
+export interface Indexable extends Value {
   index(i: number): Value;
   len(): number;
 }
