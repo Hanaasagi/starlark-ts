@@ -288,7 +288,7 @@ export class Int {
 // --- high-level accessors ---
 
 // MakeInt returns a Starlark int for the specified signed integer.
-function MakeInt(x: number): Int {
+export function MakeInt(x: number): Int {
   return MakeInt64(BigInt(x));
 }
 
@@ -342,6 +342,10 @@ function Unary(i: Int, op: syntax.Token): [Value | null, Error | null] {
       return [i.Not(), null];
   }
   return [null, null];
+}
+
+export function AsInt32(n: Int): number {
+  return 0;
 }
 
 //   private BigInt(): bigInt.BigInteger {

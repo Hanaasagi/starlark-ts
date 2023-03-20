@@ -6,10 +6,10 @@ import { Tuple } from "./value";
 // noCopy is zero-sized type that triggers vet's copylock check.
 // See https://github.com/golang/go/issues/8005#issuecomment-190753527.
 class noCopy {
-  constructor() { }
+  constructor() {}
 
-  Lock(): void { }
-  Unlock(): void { }
+  Lock(): void {}
+  Unlock(): void {}
 }
 
 const bucketSize = 8;
@@ -411,7 +411,7 @@ class keyIterator {
     this.e = e;
   }
 
-  public Next(k: Value): boolean {
+  public next(k: Value): boolean {
     if (this.e != null) {
       // BUG::
       k = this.e.key;
@@ -421,7 +421,7 @@ class keyIterator {
     return false;
   }
 
-  public Done(): void {
+  public done(): void {
     if (!this.ht.frozen) {
       this.ht.itercount--;
     }

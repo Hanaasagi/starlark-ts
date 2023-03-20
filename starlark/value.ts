@@ -6,6 +6,7 @@ import { signum } from "./eval";
 import { StringDict } from "./eval";
 import * as compile from "../internal/compile/compile";
 import { hashString, Hashtable } from "./hashtable";
+import { mandatory } from "./interpreter";
 import {
   dictMethods,
   listMethods,
@@ -14,6 +15,7 @@ import {
   stringMethods,
 } from "./library";
 import { builtinAttr, builtinAttrNames } from "./library";
+import { Int } from "./int";
 
 // Starlark values are represented by the Value interface.
 // The following built-in Value types are known to the evaluator:
@@ -275,7 +277,7 @@ interface HasSetField extends HasAttrs {
 // NoneType is the type of None.  Its only legal value is None.
 // (We represent it as a number, not struct{}, so that None may be constant.)
 class NoneType implements Value {
-  constructor() {}
+  constructor() { }
 
   String(): string {
     return "None";
@@ -284,7 +286,7 @@ class NoneType implements Value {
     return "NoneType";
   }
 
-  Freeze() {}
+  Freeze() { }
   Truth(): Bool {
     return False;
   }
@@ -313,7 +315,7 @@ export class Bool implements Comparable {
     return "bool";
   }
 
-  Freeze() {}
+  Freeze() { }
 
   Truth(): Bool {
     return this;
@@ -347,7 +349,7 @@ class Float implements Comparable {
     return "float";
   }
 
-  Freeze() {}
+  Freeze() { }
 
   Truth(): Bool {
     return new Bool(this.val !== 0.0);
@@ -408,7 +410,9 @@ function AsFloat(x: Value): [number, boolean] {
     return [x.val, true];
   }
   if (x instanceof Int) {
-    return [x.val, true];
+    // BUG:
+    return [0, true];
+    // return [x.val, true];
   }
 
   return [0, false];
@@ -454,7 +458,7 @@ class String implements Comparable, HasAttrs {
     return "string";
   }
 
-  Freeze() {}
+  Freeze() { }
 
   Truth(): Bool {
     return new Bool(this.val.length > 0);
@@ -489,7 +493,7 @@ class String implements Comparable, HasAttrs {
     return new String(buf.join(""));
   }
 
-  attr(name: string): [Value, Error] {
+  attr(name: string): [Value, Error | null] {
     return builtinAttr(this, name, stringMethods);
   }
 
@@ -535,7 +539,7 @@ class StringElems {
     return "string.elems";
   }
 
-  Freeze(): void {} // immutable
+  Freeze(): void { } // immutable
 
   Truth(): Bool {
     return True;
@@ -584,7 +588,7 @@ class StringElemsIterator implements Iterator {
     return true;
   }
 
-  done(): void {}
+  done(): void { }
 }
 
 // A stringCodepoints is an iterable whose iterator yields a sequence of
@@ -616,7 +620,7 @@ class stringCodepoints {
     return "string.codepoints";
   }
 
-  Freeze(): void {} // immutable
+  Freeze(): void { } // immutable
 
   Truth(): Bool {
     return True;
@@ -659,7 +663,7 @@ class stringCodepointsIterator implements Iterator {
     // return { done: false, value: p };
   }
 
-  done(): void {}
+  done(): void { }
 }
 
 // A Function is a function defined by a Starlark def statement or lambda expression.
@@ -751,14 +755,14 @@ class Function implements Value {
 
     // this.defaults omits all required params up to the first optional param. It
     // also does not include *args or **kwargs at the end.
-    let firstOptIdx: number = this.NumParams() - this.defaults.length;
+    let firstOptIdx: number = this.NumParams() - this.defaults.Len();
     if (this.HasVarargs()) {
       firstOptIdx--;
     }
     if (this.HasKwargs()) {
       firstOptIdx--;
     }
-    if (i < firstOptIdx || i >= firstOptIdx + this.defaults.length) {
+    if (i < firstOptIdx || i >= firstOptIdx + this.defaults.Len()) {
       return null;
     }
 
@@ -963,7 +967,7 @@ class Dict implements Value {
     return result;
   }
 
-  Attr(name: string): [Value, Error] {
+  Attr(name: string): [Value, Error | null] {
     return builtinAttr(this, name, dictMethods);
   }
 
@@ -1088,7 +1092,7 @@ class List implements Value {
     return new List(list);
   }
 
-  Attr(name: string): [Value, Error] {
+  Attr(name: string): [Value, Error | null] {
     return builtinAttr(this, name, listMethods);
   }
 
@@ -1138,7 +1142,8 @@ class List implements Value {
       return err;
     }
     for (let i = 0; i < this.elems.length; i++) {
-      this.elems[i] = null; // aid GC
+      // FIXME:
+      // this.elems[i] = null; // aid GC
     }
     this.elems = [];
     return null;
@@ -1293,7 +1298,7 @@ export class TupleIterator implements Iterator {
     return false;
   }
 
-  done(): void {}
+  done(): void { }
 }
 
 // A Set represents a TypeScript set value.
@@ -1357,7 +1362,7 @@ class Set implements Value {
     return new Bool(this.Len() > 0);
   }
 
-  Attr(name: string): [value: Value, err?: Error] {
+  Attr(name: string): [Value, Error | null] {
     return builtinAttr(this, name, setMethods);
   }
 
@@ -1369,13 +1374,13 @@ class Set implements Value {
     op: syntax.Token,
     y: Set,
     depth: number
-  ): [result: boolean, err?: Error] {
+  ): [boolean, Error | null] {
     switch (op) {
       case syntax.Token.EQL:
-        const [ok, err] = [setsEqual(this, y, depth), undefined];
+        let [ok, err] = setsEqual(this, y, depth);
         return [ok, err];
       case syntax.Token.NEQ:
-        const [ok2, err2] = [setsEqual(this, y, depth), undefined];
+        let [ok2, err2] = setsEqual(this, y, depth);
         return [!ok2, err2];
       default:
         return [
@@ -1576,7 +1581,11 @@ function EqualDepth(
 //
 // Recursive comparisons by implementations of Value.CompareSameType
 // should use CompareDepth to prevent infinite recursion.
-function Compare(op: syntax.Token, x: Value, y: Value): [boolean, Error] {
+function Compare(
+  op: syntax.Token,
+  x: Value,
+  y: Value
+): [boolean, Error | null] {
   return CompareDepth(op, x, y, CompareLimit);
 }
 
@@ -1735,7 +1744,7 @@ class Bytes implements Value, Comparable, Sliceable, Indexable {
     return "bytes";
   }
 
-  Freeze(): void {} // immutable
+  Freeze(): void { } // immutable
 
   Truth(): Bool {
     return new Bool(this.value.length > 0);
@@ -1753,7 +1762,7 @@ class Bytes implements Value, Comparable, Sliceable, Indexable {
     return new Bytes(this.value[i]);
   }
 
-  Attr(name: string): [Value, Error] {
+  Attr(name: string): [Value, Error | null] {
     return builtinAttr(this, name, bytesMethods);
   }
 

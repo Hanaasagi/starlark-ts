@@ -6,16 +6,17 @@ import { Bool } from "./value";
 import { Builtin, Iterator } from "./value";
 import { hashString } from "./hashtable";
 import { toString } from "./value";
+import { AsInt32, MakeInt, Int } from "./int";
 import * as syntax from "../syntax/index";
 
 export var Universe: StringDict;
 // TODO: Universe and StringDict
 
-export var bytesMethods = new Map([
+export var bytesMethods: Map<string, Builtin> = new Map([
   // ["elems", new Builtin("elems", bytes_elems)]
 ]);
 
-export var dictMethods = new Map([
+export var dictMethods: Map<string, Builtin> = new Map([
   // ["clear", new Builtin("clear", dict_clear)],
   // ["get", new Builtin("get", dict_get)],
   // ["items", new Builtin("items", dict_items)],
@@ -27,7 +28,7 @@ export var dictMethods = new Map([
   // ["values", new Builtin("values", dict_values)],
 ]);
 
-export var listMethods = new Map([
+export var listMethods: Map<string, Builtin> = new Map([
   // ["append", new Builtin("append", list_append)],
   // ["clear", new Builtin("clear", list_clear)],
   // ["extend", new Builtin("extend", list_extend)],
@@ -37,7 +38,7 @@ export var listMethods = new Map([
   // ["remove", new Builtin("remove", list_remove)],
 ]);
 
-export var stringMethods = new Map([
+export var stringMethods: Map<string, Builtin> = new Map([
   // ["capitalize", new Builtin("capitalize", string_capitalize)],
   // ["codepoint_ords", new Builtin("codepoint_ords", string_iterable)],
   // ["codepoints", new Builtin("codepoints", string_iterable)],
@@ -75,25 +76,23 @@ export var stringMethods = new Map([
   // ["upper", new Builtin("upper", string_upper)],
 ]);
 
-export var setMethods = new Map([
+export var setMethods: Map<string, Builtin> = new Map([
   // ["union", new Builtin("union", set_union)]
 ]);
 
 export function builtinAttr(
   recv: Value,
   name: string,
-  methods: { [name: string]: Builtin }
-): [Value | null, Error | null] {
-  const b: Builtin | undefined = methods[name];
+  methods: Map<string, Builtin>
+): [Value, Error | null] {
+  const b: Builtin = methods[name];
   if (!b) {
-    return [null, null]; // no such method
+    return [b, null]; // no such method
   }
   return [b.BindReceiver(recv), null];
 }
 
-export function builtinAttrNames(methods: {
-  [name: string]: Builtin;
-}): string[] {
+export function builtinAttrNames(methods: Map<string, Builtin>): string[] {
   const names: string[] = Object.keys(methods);
   names.sort();
   return names;
@@ -107,35 +106,37 @@ function print(
   b: Builtin,
   args: Tuple,
   kwargs: Tuple[]
-): [Value, Error] {
-  let sep = " ";
-  const err = UnpackArgs("print", null, kwargs, "sep?", sep);
-  if (err) {
-    return [null, err];
-  }
-  const buf = new StringBuilder();
-  for (let i = 0; i < args.length; i++) {
-    const v = args[i];
-    if (i > 0) {
-      buf.WriteString(sep);
-    }
-    const s = AsString(v);
-    if (s !== undefined) {
-      buf.WriteString(s);
-    } else if (v instanceof Bytes) {
-      buf.WriteString(String(v));
-    } else {
-      writeValue(buf, v, null);
-    }
-  }
+): [Value, Error | null] {
+  console.log("print is not impl");
+  return [b, null];
+  // let sep = " ";
+  // const err = UnpackArgs("print", null, kwargs, "sep?", sep);
+  // if (err) {
+  //   return [null, err];
+  // }
+  // const buf = new StringBuilder();
+  // for (let i = 0; i < args.length; i++) {
+  //   const v = args[i];
+  //   if (i > 0) {
+  //     buf.WriteString(sep);
+  //   }
+  //   const s = AsString(v);
+  //   if (s !== undefined) {
+  //     buf.WriteString(s);
+  //   } else if (v instanceof Bytes) {
+  //     buf.WriteString(String(v));
+  //   } else {
+  //     writeValue(buf, v, null);
+  //   }
+  // }
 
-  const s = buf.String();
-  if (thread.Print !== null) {
-    thread.Print(thread, s);
-  } else {
-    console.log(s);
-  }
-  return [None, null];
+  // const s = buf.String();
+  // if (thread.Print !== null) {
+  //   thread.Print(thread, s);
+  // } else {
+  //   console.log(s);
+  // }
+  // return [None, null];
 }
 
 // A rangeValue is a comparable, immutable, indexable sequence of integers
@@ -163,7 +164,7 @@ class RangeValue implements Value {
   }
 
   Iterate(): Iterator {
-    return new RangeIterator(this, 0);
+    return new RangeIterator(this);
   }
 
   Slice(start: number, end: number, step: number): RangeValue {
