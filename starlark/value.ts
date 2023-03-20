@@ -155,7 +155,7 @@ interface callableWithPosition extends Callable {
 //		...
 //	}
 //
-interface Iterator {
+export interface Iterator {
   next(p: Value): boolean;
   done(): void;
 }
@@ -296,7 +296,7 @@ class NoneType implements Value {
 export const None = new NoneType();
 
 // Bool is the type of a Starlark bool.
-class Bool implements Comparable {
+export class Bool implements Comparable {
   val: boolean;
   constructor(val: boolean) {
     this.val = val;
@@ -802,7 +802,7 @@ class Module {
 }
 
 // A Builtin is a function implemented in TypeScript.
-class Builtin implements Value {
+export class Builtin implements Value {
   name: string;
   fn: (
     thread: Thread,
@@ -810,7 +810,7 @@ class Builtin implements Value {
     args: Tuple,
     kwargs: Tuple[]
   ) => [Value, Error];
-  recv: Value;
+  recv: Value | null;
 
   constructor(
     name: string,
@@ -820,7 +820,7 @@ class Builtin implements Value {
       args: Tuple,
       kwargs: Tuple[]
     ) => [Value, Error],
-    recv: Value
+    recv: Value | null = null
   ) {
     this.name = name;
     this.fn = fn;
@@ -845,7 +845,7 @@ class Builtin implements Value {
     return [h, null];
   }
 
-  Receiver(): Value {
+  Receiver(): Value | null {
     return this.recv;
   }
 
@@ -1417,7 +1417,7 @@ function setsEqual(x: Set, y: Set, depth: number): [boolean, Error | null] {
 
 // toString returns the string form of value v.
 // It may be more efficient than v.toString() for larger values.
-function toString(v: Value): string {
+export function toString(v: Value): string {
   const buf = new Array();
   writeValue(buf, v, []);
   return buf.toString();
