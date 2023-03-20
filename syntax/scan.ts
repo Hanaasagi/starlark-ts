@@ -428,7 +428,7 @@ export class Scanner {
   startToken(val: TokenValue): void {
     this.token = this.rest;
     val.raw = "";
-    val.pos = this.pos;
+    val.pos = new Position(this.pos.file, this.pos.line, this.pos.col);
   }
 
   // endToken marks the end of an input token.
