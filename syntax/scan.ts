@@ -577,7 +577,7 @@ export class Scanner {
       // Ignore blank lines, except in the REPL,
       // where they emit OUTDENTs and NEWLINE.
       if (blank) {
-        if (this.readline === null) {
+        if (!this.readline) {
           this.readRune();
           return this.nextToken(val);
         } else if (this.indentstk.length > 1) {
