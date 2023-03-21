@@ -332,8 +332,8 @@ export class Bool implements Comparable {
   }
 }
 
-const False: Bool = new Bool(false);
-const True: Bool = new Bool(true);
+export const False: Bool = new Bool(false);
+export const True: Bool = new Bool(true);
 
 class Float implements Comparable {
   val: number;
@@ -1593,7 +1593,7 @@ function EqualDepth(
 //
 // Recursive comparisons by implementations of Value.CompareSameType
 // should use CompareDepth to prevent infinite recursion.
-function Compare(
+export function Compare(
   op: syntax.Token,
   x: Value,
   y: Value

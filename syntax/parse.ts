@@ -49,7 +49,7 @@ export function parse(
 // ParseCompoundStmt does not consume any following input.
 // The parser calls the readline function each
 // time it needs a new line of input.
-function ParseCompoundStmt(
+export function ParseCompoundStmt(
   filename: string,
   readline: () => [Uint8Array, Error]
 ): [syntax.File | null, Error | null] {
@@ -97,7 +97,7 @@ function ParseCompoundStmt(
 // ParseExpr parses a Starlark expression.
 // A comma-separated list of expressions is parsed as a tuple.
 // See Parse for explanation of parameters.
-function ParseExpr(
+export function ParseExpr(
   filename: string,
   src: unknown,
   mode: Mode

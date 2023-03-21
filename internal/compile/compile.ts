@@ -85,6 +85,9 @@ export enum Opcode {
   // OpcodeMax    = CALL_VAR_KW
 }
 
+export const OpcodeArgMin = Opcode.JMP
+export const OpcodeMax = Opcode.CALL_VAR_KW
+
 // stackEffect records the effect on the size of the operand stack of
 // each kind of instruction. For some instructions this requires computation.
 const stackEffect: { [key: string]: number } = {
@@ -160,7 +163,7 @@ const stackEffect: { [key: string]: number } = {
 type Bytes = string;
 
 // A Binding is the name and position of a binding identifier.
-class Binding {
+export class Binding {
   name: string;
   pos: syntax.Position;
 
@@ -1642,7 +1645,7 @@ function bindings(bindings: resolve.Binging[]): Binding[] {
 }
 
 // Expr compiles an expression to a program whose toplevel function evaluates it.
-function Expr(
+export function Expr(
   expr: syntax.Expr,
   name: string,
   locals: resolve.Binding[]
@@ -1653,7 +1656,7 @@ function Expr(
 }
 
 // File compiles the statements of a file into a program.
-function File(
+export function File(
   stmts: syntax.Stmt[],
   pos: syntax.Position,
   name: string,

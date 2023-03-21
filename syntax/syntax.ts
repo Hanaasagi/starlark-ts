@@ -282,8 +282,8 @@ export class LoadStmt implements Stmt {
 // A BranchStmt changes the flow of control: break, continue, pass.
 export class BranchStmt implements Stmt {
   private commentsRef: CommentsRef;
-  private token: Token; // = BREAK | CONTINUE | PASS
-  private tokenPos: Position;
+  token: Token; // = BREAK | CONTINUE | PASS
+  tokenPos: Position;
 
   constructor(token: Token, tokenPos: Position) {
     this.commentsRef = new CommentsRef();
@@ -691,10 +691,10 @@ export class DictEntry implements Expr {
 // A LambdaExpr represents an inline function abstraction.
 export class LambdaExpr implements Expr {
   private commentsRef: CommentsRef;
-  private lambda: Position;
+  public lambda: Position;
   public params: Expr[]; // param = ident | ident=expr | * | *ident | **ident
   public body: Expr;
-  private _function: any; // a *resolve.Function, set by resolver
+  public _function: any; // a *resolve.Function, set by resolver
 
   constructor(lambda: Position, params: Expr[], body: Expr) {
     this.lambda = lambda;
@@ -851,7 +851,7 @@ export class UnaryExpr implements Expr {
 export class BinaryExpr implements Expr {
   private commentsRef: CommentsRef;
   public X: Expr;
-  private OpPos: Position;
+  public OpPos: Position;
   public Op: Token;
   public Y: Expr;
 

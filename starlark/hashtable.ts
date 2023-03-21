@@ -6,10 +6,10 @@ import { Tuple } from "./value";
 // noCopy is zero-sized type that triggers vet's copylock check.
 // See https://github.com/golang/go/issues/8005#issuecomment-190753527.
 class noCopy {
-  constructor() {}
+  constructor() { }
 
-  Lock(): void {}
-  Unlock(): void {}
+  Lock(): void { }
+  Unlock(): void { }
 }
 
 const bucketSize = 8;
@@ -240,7 +240,7 @@ export class Hashtable {
     const items: Tuple[] = new Array();
     const array: Value[] = new Array(this.len * 2); // allocate a single backing array
     for (let e = this.head; e !== null; e = e.next) {
-      const pair: Tuple = [array[0], array[1]];
+      const pair: Tuple = new Tuple([array[0], array[1]]);
       array.shift(); // remove the first element
       array.shift(); // remove the second element
       pair[0] = e.key;

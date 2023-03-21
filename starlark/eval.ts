@@ -91,7 +91,7 @@ export class Thread {
     return this.frameAt(depth).asCallFrame();
   }
 
-  private frameAt(depth: number): Frame {
+  public frameAt(depth: number): Frame {
     return this.stack[this.stack.length - 1 - depth];
   }
 
@@ -232,12 +232,13 @@ class CallStack {
 
 // An EvalError is a Starlark evaluation error and
 // a copy of the thread's stack at the moment of the error.
-class EvalError {
+class EvalError extends Error {
   public Msg: string;
   public CallStack: CallStack;
   private cause: Error;
 
   constructor(msg: string, callStack: CallStack, cause: Error) {
+    super(msg);
     this.Msg = msg;
     this.CallStack = callStack;
     this.cause = cause;
@@ -743,7 +744,7 @@ function Unary(op: syntax.Token, x: Value): [Value, Error] {
 }
 
 // TODO: Binary is missing
-function Binary(op: syntax.Token, x: Value, y: Value): [Value, Error] {
+export function Binary(op: syntax.Token, x: Value, y: Value): [Value, Error] {
   return [x, new Error(`unknown binary op: ${op} ${x.Type()}`)];
 }
 
@@ -1015,7 +1016,7 @@ function asIndex(v: Value, len: number, result: number[]): Error | null {
   return null;
 }
 
-function setArgs(
+export function setArgs(
   locals: Value[],
   fn: Function,
   args: Tuple,
