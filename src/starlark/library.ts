@@ -85,8 +85,9 @@ export function builtinAttr(
   name: string,
   methods: Map<string, Builtin>
 ): [Value, Error | null] {
-  const b: Builtin = methods[name];
+  const b = methods.get(name);
   if (!b) {
+    //@ts-ignore
     return [b, null]; // no such method
   }
   return [b.BindReceiver(recv), null];

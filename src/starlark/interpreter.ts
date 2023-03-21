@@ -10,7 +10,7 @@ import { Value, Compare } from "./value";
 import { Universe } from "./library";
 import { Iterator } from "./value";
 import { Bool, True, False } from "./value";
-import * as resolve from "./resolve";
+import * as resolve from "../resolve/resolve";
 import { setArgs } from "./eval";
 import { Binary, Unary } from "./eval";
 
@@ -222,6 +222,7 @@ function CallInternal(
         }
         stack[sp] = z;
         sp++;
+        break;
       case Opcode.UPLUS:
       case Opcode.UMINUS:
       case Opcode.TILDE: {
@@ -242,6 +243,7 @@ function CallInternal(
           break loop;
         }
         stack[sp - 1] = y;
+        break;
       }
 
       case Opcode.INPLACE_ADD: {
@@ -267,6 +269,7 @@ function CallInternal(
         // }
 
         // stack[sp++] = z;
+        break;
       }
 
       // TODO:
@@ -282,8 +285,6 @@ function CallInternal(
 
 class wrappedError {
   constructor(public msg: string, public cause: Error) { }
-
-  csharp;
 
   public get name(): string {
     return "wrappedError";
@@ -311,7 +312,7 @@ class wrappedError {
 
 // mandatory is a sentinel value used in a function's defaults tuple
 // to indicate that a (keyword-only) parameter is mandatory.
-class mandatory implements Value {
+export class mandatory implements Value {
   public String(): string {
     return "mandatory";
   }

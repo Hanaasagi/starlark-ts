@@ -12,16 +12,16 @@ const doesnt = "this Starlark dialect does not ";
 // global options
 // These features are either not standard Starlark (yet), or deprecated
 // features of the BUILD language, so we put them behind flags.
-var AllowSet = false; // allow the 'set' built-in
-var AllowGlobalReassign = false; // allow reassignment to top-level names; also, allow if/for/while at top-level
-var AllowRecursion = false; // allow while statements and recursive functions
-var LoadBindsGlobally = false; // load creates global not file-local bindings (deprecated)
+export var AllowSet = false; // allow the 'set' built-in
+export var AllowGlobalReassign = false; // allow reassignment to top-level names; also, allow if/for/while at top-level
+export var AllowRecursion = false; // allow while statements and recursive functions
+export var LoadBindsGlobally = false; // load creates global not file-local bindings (deprecated)
 
 // obsolete flags for features that are now standard. No effect.
-var AllowNestedDef = true;
-var AllowLambda = true;
-var AllowFloat = true;
-var AllowBitwise = true;
+export var AllowNestedDef = true;
+export var AllowLambda = true;
+export var AllowFloat = true;
+export var AllowBitwise = true;
 
 // File resolves the specified file and records information about the
 // module in file.Module.
@@ -36,7 +36,7 @@ var AllowBitwise = true;
 // The isUniverse predicate is supplied a parameter to avoid a cyclic
 // dependency upon starlark.Universe, not because users should ever need
 // to redefine it.
-function File(
+export function File(
   file: syntax.File,
   isPredeclared: (name: string) => boolean,
   isUniversal: (name: string) => boolean
@@ -44,7 +44,7 @@ function File(
   return REPLChunk(file, null, isPredeclared, isUniversal);
 }
 
-function REPLChunk(
+export function REPLChunk(
   file: syntax.File,
   isGlobal: ((name: string) => boolean) | null,
   isPredeclared: (name: string) => boolean,
@@ -63,13 +63,13 @@ function REPLChunk(
   };
 
   if (r.errors.errors.length > 0) {
-    return r.errors[0];
+    return r.errors.errors[0];
   }
 
   return null;
 }
 
-function Expr(
+export function Expr(
   expr: syntax.Expr,
   isPredeclared: (name: string) => boolean,
   isUniversal: (name: string) => boolean
@@ -79,7 +79,7 @@ function Expr(
   r.env.resolveLocalUses();
   r.resolveNonLocalUses(r.env);
   if (r.errors.errors.length > 0) {
-    return [[], r.errors[0]];
+    return [[], r.errors.errors[0]];
   }
   return [r.moduleLocals, null];
 }
@@ -148,7 +148,7 @@ class Block {
   }
 
   bind(name: string, bind: Binding): void {
-    this.bindings[name] = bind;
+    this.bindings.set(name, bind);
   }
 
   toString(): string {
@@ -441,7 +441,7 @@ class Resolver {
 
     if (stmt instanceof syntax.ReturnStmt) {
       if (this.container().func == null) {
-        this.errorf(stmt.Return, "return statement not within a function");
+        this.errorf(stmt.Return!, "return statement not within a function");
       }
       if (stmt.Result != null) {
         this.expr(stmt.Result);
@@ -928,7 +928,7 @@ class Resolver {
 // lookupLocal looks up an identifier within its immediately enclosing function.
 function lookupLocal(use: Use): Binding | null {
   for (let env: Block | null = use.env; env !== null; env = env.parent) {
-    const bind = env.bindings[use.id.Name];
+    const bind = env.bindings.get(use.id.Name);
     if (bind !== undefined) {
       if (bind.scope === Scope.Free) {
         // shouldn't exist till later

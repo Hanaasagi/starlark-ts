@@ -6,7 +6,8 @@ import { Callable, Function, Tuple, Module } from "./value";
 import { List, Iterable } from "./value";
 import { Value } from "./value";
 import { Universe } from "./library";
-import * as resolve from "../resolve";
+import * as resolve from "../resolve/resolve";
+import * as binding from "../resolve/binding";
 // import {*} from "./value"
 
 // A Thread contains the state of a Starlark thread,
@@ -116,6 +117,13 @@ export class Thread {
 
 export class StringDict {
   val: Map<string, Value>;
+
+  set(k: string, v: Value) {
+    this.val.set(k, v);
+  }
+  get(k: string): Value | undefined {
+    return this.val.get(k);
+  }
 
   keys(): string[] {
     return [...this.val.keys()];
@@ -235,7 +243,7 @@ class CallStack {
 class EvalError extends Error {
   public Msg: string;
   public CallStack: CallStack;
-  private cause: Error;
+  public cause: Error;
 
   constructor(msg: string, callStack: CallStack, cause: Error) {
     super(msg);
@@ -285,7 +293,7 @@ export class Program {
 
   // Filename returns the name of the file from which this program was loaded.
   public Filename(): string {
-    return this.compiled.toplevel?.pos.filename();
+    return this.compiled.toplevel?.pos.filename() || "";
   }
 
   public String(): string {
@@ -394,13 +402,13 @@ function FileProgram(
     pos = new Position(f.Path, 1, 1);
   }
 
-  const module = f.Module as resolve.Module;
+  const module = f.Module as binding.Module;
   const compiled = compile.File(
     f.Stmts,
     pos,
     "<toplevel>",
-    module.Locals,
-    module.Globals
+    module.locals,
+    module.globals
   );
 
   return new Program(compiled);
@@ -423,6 +431,7 @@ function ExecREPLChunk(
   const replChunkErr = resolve.REPLChunk(f, has, predeclared.has, universeHas);
 
   if (replChunkErr !== null) {
+    //@ts-ignore
     return replChunkErr;
   }
 
@@ -433,13 +442,13 @@ function ExecREPLChunk(
     pos = new Position(f.Path, 1, 1);
   }
 
-  const module = f.Module as resolve.Module;
+  const module = f.Module as binding.Module;
   const compiled = compile.File(
     f.Stmts,
     pos,
     "<toplevel>",
-    module.Locals,
-    module.Globals
+    module.locals,
+    module.globals
   );
   const prog = new Program(compiled);
 
@@ -450,8 +459,8 @@ function ExecREPLChunk(
   // Initialize module globals from parameter.
   for (let i = 0; i < prog.compiled.globals.length; i++) {
     const id = prog.compiled.globals[i];
-    if (globals[id.name] !== null) {
-      toplevel.module.globals[i] = globals[id.name];
+    if (globals.has(id.name)) {
+      toplevel.module.globals[i] = globals.get(id.name)!;
     }
   }
 
@@ -461,7 +470,7 @@ function ExecREPLChunk(
   for (let i = 0; i < prog.compiled.globals.length; i++) {
     const id = prog.compiled.globals[i];
     if (toplevel.module.globals[i] !== null) {
-      globals[id.name] = toplevel.module.globals[i];
+      globals.set(id.name, toplevel.module.globals[i]);
     }
   }
 
@@ -572,8 +581,9 @@ function makeExprFunc(
   expr: syntax.Expr,
   env: StringDict
 ): [Function, Error | null] {
-  const [locals, err] = resolve.expr(expr, env.has, Universe.has);
+  const [locals, err] = resolve.Expr(expr, env.has, Universe.has);
   if (err instanceof Error) {
+    //@ts-ignore
     return [locals, err];
   }
   const compiled = compile.Expr(expr, "<expr>", locals);
@@ -621,7 +631,7 @@ function getAttr(x: Value, name: string): [Value | null, Error | null] {
     // if (err instanceof NoSuchAttrError) {
     //   errmsg = err.toString();
     // } else {
-    return [null, err];
+    return [null, err as Error];
     // }
   }
 
@@ -727,7 +737,7 @@ function setIndex(x: Value, y: Value, z: Value): Error | null {
   return new Error(`${x.Type()} value does not support item assignment`);
 }
 
-function Unary(op: syntax.Token, x: Value): [Value, Error] {
+export function Unary(op: syntax.Token, x: Value): [Value, Error] {
   // if (op === syntax.NOT) {
   //   return [!x.Truth(), null];
   // }
@@ -858,6 +868,7 @@ function Call(
       }
     }
 
+    //@ts-ignore
     return [result, err];
   } finally {
     // clear out any references

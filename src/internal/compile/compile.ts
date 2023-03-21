@@ -522,6 +522,7 @@ class Pcomp {
           switch (insn.op) {
             case Opcode.ITERJMP:
               isiterjmp = 1;
+              break;
             case Opcode.CJMP:
               cjmpAddr = b.insns[i].arg;
               pc += 4;
@@ -622,10 +623,10 @@ class Pcomp {
   // nameIndex returns the index of the specified name
   // within the name pool, adding it if necessary.
   nameIndex(name: string): number {
-    let index = this.names[name];
+    let index = this.names.get(name);
     if (index === undefined) {
       index = this.prog.names.length;
-      this.names[name] = index;
+      this.names.set(name, index);
       this.prog.names.push(name);
     }
     return index;
@@ -634,13 +635,14 @@ class Pcomp {
   // constantIndex returns the index of the specified constant
   // within the constant pool, adding it if necessary.
   constantIndex(v: any): number {
-    let index = this.constants[v];
+    // BUG:
+    let index = this.constants.get(v);
     if (index === undefined) {
       index = this.prog.constants.length;
-      this.constants[v] = index;
+      this.constants.set(v, index!);
       this.prog.constants.push(v);
     }
-    return index;
+    return index!;
   }
 
   // functionIndex returns the index of the specified function
@@ -1874,7 +1876,12 @@ function argLen(x: number): number {
 
 // PrintOp prints an instruction.
 // It is provided for debugging.
-function PrintOp(fn: Funcode, pc: number, op: Opcode, arg: number): void {
+export function PrintOp(
+  fn: Funcode,
+  pc: number,
+  op: Opcode,
+  arg: number
+): void {
   if (op < OpcodeArgMin) {
     console.log(`\t${pc} \t${op} `);
     return;

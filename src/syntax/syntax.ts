@@ -306,10 +306,10 @@ export class BranchStmt implements Stmt {
 // A ReturnStmt returns from a function.
 export class ReturnStmt implements Stmt {
   private commentsRef: CommentsRef;
-  public readonly Return: Position;
+  public readonly Return: Position | null;
   public readonly Result?: Expr;
 
-  constructor(Return: Position, Result?: Expr) {
+  constructor(Return: Position | null, Result?: Expr) {
     this.commentsRef = new CommentsRef();
     this.Return = Return;
     this.Result = Result;
@@ -317,10 +317,10 @@ export class ReturnStmt implements Stmt {
 
   public span(): [start: Position, end: Position] {
     if (!this.Result) {
-      return [this.Return, this.Return.add("return")];
+      return [this.Return!, this.Return!.add("return")];
     }
-    const [, end] = this.Result.span();
-    return [this.Return, end];
+    const [, end] = this.Result!.span();
+    return [this.Return!, end];
   }
   stmt() { }
   public comments(): Comments | null {
@@ -371,13 +371,13 @@ export class Ident implements Expr {
 export class Literal implements Expr {
   private commentsRef: CommentsRef;
   public token: Token; // = STRING | BYTES | INT | FLOAT
-  public tokenPos: Position;
+  public tokenPos: Position | null;
   public raw: string; // uninterpreted text
   public value: string | number | bigint | number;
 
   constructor(
     token: Token,
-    tokenPos: Position,
+    tokenPos: Position | null,
     raw: string,
     value: string | number | bigint | number
   ) {
@@ -389,7 +389,7 @@ export class Literal implements Expr {
   }
 
   public span(): [start: Position, end: Position] {
-    return [this.tokenPos, this.tokenPos.add(this.raw)];
+    return [this.tokenPos!, this.tokenPos!.add(this.raw)];
   }
   expr() { }
   public comments(): Comments | null {
@@ -459,8 +459,8 @@ export class CallExpr implements Expr {
 export class DotExpr implements Expr {
   private commentsRef: CommentsRef;
   public X: Expr;
-  private Dot: Position;
-  private NamePos: Position | null;
+  public Dot: Position;
+  public NamePos: Position | null;
   public Name: Ident;
 
   constructor(X: Expr, Dot: Position, NamePos: Position | null, Name: Ident) {
@@ -719,11 +719,11 @@ export class LambdaExpr implements Expr {
 // A ListExpr represents a list literal: [ List ].
 export class ListExpr implements Expr {
   private commentsRef: CommentsRef;
-  private lbrack: Position;
+  private lbrack: Position | null;
   public list: Expr[];
-  private rbrack: Position;
+  private rbrack: Position | null;
 
-  constructor(lbrack: Position, list: Expr[], rbrack: Position) {
+  constructor(lbrack: Position | null, list: Expr[], rbrack: Position | null) {
     this.lbrack = lbrack;
     this.list = list;
     this.rbrack = rbrack;
@@ -731,7 +731,7 @@ export class ListExpr implements Expr {
   }
 
   public span(): [Position, Position] {
-    return [this.lbrack, this.rbrack.add("]")];
+    return [this.lbrack!, this.rbrack!.add("]")];
   }
   expr() { }
   public comments(): Comments | null {

@@ -22,7 +22,7 @@ export const scopeNames = [
   "universal",
 ];
 
-namespace Scope {
+export namespace Scope {
   export function toString(val: Scope): string {
     return scopeNames[val];
   }

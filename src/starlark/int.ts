@@ -314,7 +314,7 @@ function MakeUint64(x: BigInt): Int {
 }
 
 function MakeBigInt(x: BigInt): Int {
-  if (this.isSmall(x)) {
+  if (isSmall(x)) {
     return makeSmallInt(x);
   }
   // BUG:

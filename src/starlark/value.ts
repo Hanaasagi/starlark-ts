@@ -766,7 +766,7 @@ export class Function implements Value {
       return null;
     }
 
-    const dflt: Value = this.defaults[i - firstOptIdx];
+    const dflt: Value = this.defaults.index(i - firstOptIdx);
     if (dflt instanceof mandatory) {
       return null;
     }
@@ -810,7 +810,7 @@ export class Module {
       const id = this.program.globals[i];
       if (this.globals[i] !== null && this.globals[i] !== undefined) {
         // BUG:
-        r[id.name] = this.globals[i];
+        r.set(id.name, this.globals[i]);
       }
     }
     return r;
@@ -1302,7 +1302,7 @@ export class TupleIterator implements Iterator {
 
   next(p: Value): boolean {
     if (this.elems.Len() > 0) {
-      p = this.elems[0];
+      p = this.elems.index(0);
       // TODO: shitcode
       this.elems = new Tuple(this.elems.elems.slice(1));
       return true;
@@ -1495,7 +1495,7 @@ function writeValue(out: string[], x: Value, path: Value[]): void {
       if (i > 0) {
         out.push(", ");
       }
-      writeValue(out, x[i], path);
+      writeValue(out, x.index(i), path);
     }
     if (x.Len() === 1) {
       out.push(",");

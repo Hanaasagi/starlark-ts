@@ -352,7 +352,7 @@ class Parser {
           // To name is same as original.
           const lit = this.parsePrimary() as syntax.Literal;
           const id = new syntax.Ident(
-            lit.tokenPos.add('"'),
+            lit.tokenPos!.add('"'),
             lit.value as string,
             null
           );
@@ -382,7 +382,7 @@ class Parser {
           }
           const lit = this.parsePrimary() as syntax.Literal;
           from.push(
-            new syntax.Ident(lit.tokenPos.add(`"`), lit.value as string, null)
+            new syntax.Ident(lit.tokenPos!.add(`"`), lit.value as string, null)
           );
           break;
         }
@@ -635,7 +635,8 @@ class Parser {
       if (!first && opprec === precedence[idx]) {
         this.input.error(
           this.input.pos,
-          `${(x as syntax.BinaryExpr).Op} does not associate with ${this.tok
+          `${(x as syntax.BinaryExpr).Op} does not associate with ${
+            this.tok
           } (use parens)`
         );
       }

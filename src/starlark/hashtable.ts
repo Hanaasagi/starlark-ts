@@ -130,9 +130,9 @@ export class Hashtable {
       h = 1;
     }
 
-    function insertImpl() {
+    function insertImpl(this_: Hashtable) {
       let insert: Entry | null = null;
-      let p = this.table[h & (this.table.length - 1)];
+      let p = this_.table[h & (this_.table.length - 1)];
       while (true) {
         for (let i = 0; i < p.entries.length; i++) {
           const e = p.entries[i];
@@ -157,9 +157,10 @@ export class Hashtable {
         }
         p = p.next;
       }
-      if (overloaded(this.len, this.table.length)) {
-        this.grow();
-        insertImpl();
+      if (overloaded(this_.len, this_.table.length)) {
+        this_.grow();
+        // @ts-ignore
+        insertImpl(this_);
       }
       if (insert == null) {
         const b = new Bucket();
@@ -170,14 +171,15 @@ export class Hashtable {
       insert.key = k;
       insert.value = v;
 
-      insert.prevLink = this.tailLink;
-      this.tailLink = insert;
-      this.tailLink = insert.next;
+      insert.prevLink = this_.tailLink;
+      this_.tailLink = insert;
+      this_.tailLink = insert.next;
 
-      this.len++;
+      this_.len++;
       return null;
     }
-    insertImpl();
+    // @ts-ignore
+    insertImpl(this);
     return null;
   }
 
@@ -243,8 +245,8 @@ export class Hashtable {
       const pair: Tuple = new Tuple([array[0], array[1]]);
       array.shift(); // remove the first element
       array.shift(); // remove the second element
-      pair[0] = e.key;
-      pair[1] = e.value;
+      pair.elems[0] = e.key;
+      pair.elems[1] = e.value;
       items.push(pair);
     }
     return items;
