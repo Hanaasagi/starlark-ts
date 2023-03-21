@@ -1,4 +1,34 @@
-import syntax = require("../../syntax");
+// Package compile defines the Starlark bytecode compiler.
+// It is an internal package of the Starlark interpreter and is not directly accessible to clients.
+//
+// The compiler generates byte code with optional uint32 operands for a
+// virtual machine with the following components:
+//   - a program counter, which is an index into the byte code array.
+//   - an operand stack, whose maximum size is computed for each function by the compiler.
+//   - an stack of active iterators.
+//   - an array of local variables.
+//     The number of local variables and their indices are computed by the resolver.
+//     Locals (possibly including parameters) that are shared with nested functions
+//     are 'cells': their locals array slot will contain a value of type 'cell',
+//     an indirect value in a box that is explicitly read/updated by instructions.
+//   - an array of free variables, for nested functions.
+//     Free variables are a subset of the ancestors' cell variables.
+//     As with locals and cells, these are computed by the resolver.
+//   - an array of global variables, shared among all functions in the same module.
+//     All elements are initially nil.
+//   - two maps of predeclared and universal identifiers.
+//
+// Each function has a line number table that maps each program counter
+// offset to a source position, including the column number.
+//
+// Operands, logically uint32s, are encoded using little-endian 7-bit
+// varints, the top bit indicating that more bytes follow.
+
+import * as syntax from "../../syntax";
+import { Token } from "../../syntax/scan";
+import * as resolve from "../../resolve/resolve";
+import * as binding from "../../resolve/binding";
+import { Position } from "../../syntax/scan";
 
 // Disassemble causes the assembly code for each function
 // to be printed to stderr as it is generated.
@@ -10,6 +40,11 @@ const debug = false; // make code generation verbose, for debugging the compiler
 export const Version = 13;
 const variableStackEffect = 0x7f;
 
+// "x DUP x x" is a "stack picture" that describes the state of the
+// stack before and after execution of the instruction.
+//
+// OP<index> indicates an immediate operand that is an index into the
+// specified table: locals, names, freevars, constants.
 export enum Opcode {
   NOP,
   DUP,
@@ -79,14 +114,86 @@ export enum Opcode {
   CALL_VAR,
   CALL_KW,
   CALL_VAR_KW,
-
-  // TODO
-  //  	OpcodeArgMin = JMP
-  // OpcodeMax    = CALL_VAR_KW
 }
+export const OpcodeArgMin = Opcode.JMP;
+export const OpcodeMax = Opcode.CALL_VAR_KW;
 
-export const OpcodeArgMin = Opcode.JMP
-export const OpcodeMax = Opcode.CALL_VAR_KW
+var opcodeNames = new Map<Opcode, string>([
+  [Opcode.AMP, "amp"],
+  [Opcode.APPEND, "append"],
+  [Opcode.ATTR, "attr"],
+  [Opcode.CALL, "call"],
+  [Opcode.CALL_KW, "call_kw "],
+  [Opcode.CALL_VAR, "call_var"],
+  [Opcode.CALL_VAR_KW, "call_var_kw"],
+  [Opcode.CIRCUMFLEX, "circumflex"],
+  [Opcode.CJMP, "cjmp"],
+  [Opcode.CONSTANT, "constant"],
+  [Opcode.DUP2, "dup2"],
+  [Opcode.DUP, "dup"],
+  [Opcode.EQL, "eql"],
+  [Opcode.EXCH, "exch"],
+  [Opcode.FALSE, "false"],
+  [Opcode.FREE, "free"],
+  [Opcode.FREECELL, "freecell"],
+  [Opcode.GE, "ge"],
+  [Opcode.GLOBAL, "global"],
+  [Opcode.GT, "gt"],
+  [Opcode.GTGT, "gtgt"],
+  [Opcode.IN, "in"],
+  [Opcode.INDEX, "index"],
+  [Opcode.INPLACE_ADD, "inplace_add"],
+  [Opcode.INPLACE_PIPE, "inplace_pipe"],
+  [Opcode.ITERJMP, "iterjmp"],
+  [Opcode.ITERPOP, "iterpop"],
+  [Opcode.ITERPUSH, "iterpush"],
+  [Opcode.JMP, "jmp"],
+  [Opcode.LE, "le"],
+  [Opcode.LOAD, "load"],
+  [Opcode.LOCAL, "local"],
+  [Opcode.LOCALCELL, "localcell"],
+  [Opcode.LT, "lt"],
+  [Opcode.LTLT, "ltlt"],
+  [Opcode.MAKEDICT, "makedict"],
+  [Opcode.MAKEFUNC, "makefunc"],
+  [Opcode.MAKELIST, "makelist"],
+  [Opcode.MAKETUPLE, "maketuple"],
+  [Opcode.MANDATORY, "mandatory"],
+  [Opcode.MINUS, "minus"],
+  [Opcode.NEQ, "neq"],
+  [Opcode.NONE, "none"],
+  [Opcode.NOP, "nop"],
+  [Opcode.NOT, "not"],
+  [Opcode.PERCENT, "percent"],
+  [Opcode.PIPE, "pipe"],
+  [Opcode.PLUS, "plus"],
+  [Opcode.POP, "pop"],
+  [Opcode.PREDECLARED, "predeclared"],
+  [Opcode.RETURN, "return"],
+  [Opcode.SETDICT, "setdict"],
+  [Opcode.SETDICTUNIQ, "setdictuniq"],
+  [Opcode.SETFIELD, "setfield"],
+  [Opcode.SETGLOBAL, "setglobal"],
+  [Opcode.SETINDEX, "setindex"],
+  [Opcode.SETLOCAL, "setlocal"],
+  [Opcode.SETLOCALCELL, "setlocalcell"],
+  [Opcode.SLASH, "slash"],
+  [Opcode.SLASHSLASH, "slashslash"],
+  [Opcode.SLICE, "slice"],
+  [Opcode.STAR, "star"],
+  [Opcode.TILDE, "tilde"],
+  [Opcode.TRUE, "true"],
+  [Opcode.UMINUS, "uminus"],
+  [Opcode.UNIVERSAL, "universal"],
+  [Opcode.UNPACK, "unpack"],
+  [Opcode.UPLUS, "uplus"],
+]);
+
+export namespace Opcode {
+  export function String(c: Opcode): string {
+    return opcodeNames.get(c) || "illegal op (${c})";
+  }
+}
 
 // stackEffect records the effect on the size of the operand stack of
 // each kind of instruction. For some instructions this requires computation.
@@ -165,9 +272,9 @@ type Bytes = string;
 // A Binding is the name and position of a binding identifier.
 export class Binding {
   name: string;
-  pos: syntax.Position;
+  pos: Position;
 
-  constructor(name: string, pos: syntax.Position) {
+  constructor(name: string, pos: Position) {
     this.name = name;
     this.pos = pos;
   }
@@ -185,7 +292,7 @@ class Pclinecol {
 // which must be updated whenever this declaration is changed.
 export class Funcode {
   prog: Program;
-  pos: syntax.Position;
+  pos: Position;
   name: string;
   doc: string;
   // TODO: type bytes u8
@@ -205,8 +312,24 @@ export class Funcode {
   // lntOnce: SyncOnce;
   lnt: Pclinecol[]; // TODO: define pclinecol type
 
+  constructor(
+    prog: Program,
+    pos: Position,
+    name: string,
+    doc: string,
+    locals: Binding[],
+    freevars: Binding[]
+  ) {
+    this.prog = prog;
+    this.pos = pos;
+    this.name = name;
+    this.doc = doc;
+    this.locals = locals;
+    this.freevars = freevars;
+  }
+
   // Position returns the source position for program counter pc.
-  position(pc: number): syntax.Position {
+  position(pc: number): Position {
     // BUG:
     this.decodeLNT();
 
@@ -238,7 +361,7 @@ export class Funcode {
 
   // decodeLNT decodes the line number table and populates fn.lnt.
   // It is called at most once.
-  decodeLNT(fn: Funcode): void {
+  decodeLNT(): void {
     // Conceptually the table contains rows of the form
     // (pc uint32, line int32, col int32), sorted by pc.
     // We use a delta encoding, since the differences
@@ -261,18 +384,18 @@ export class Funcode {
     // These field widths were chosen from a sample of real programs,
     // and allow >97% of rows to be encoded in a single uint16.
 
-    fn.lnt = new Array<Pclinecol>(); // a minor overapproximation
+    this.lnt = new Array<Pclinecol>(); // a minor overapproximation
     let entry: Pclinecol = {
       pc: 0,
-      line: fn.pos.line,
-      col: fn.pos.col,
+      line: this.pos.line,
+      col: this.pos.col,
     };
-    for (const x of fn.pclinetab) {
+    for (const x of this.pclinetab) {
       entry.pc += x >>> 12;
       entry.line += (x << 4) >> (16 - 5); // sign extend Δline
       entry.col += (x << 9) >> (16 - 6); // sign extend Δcol
       if ((x & 1) === 0) {
-        fn.lnt.push(entry);
+        this.lnt.push(entry);
       }
     }
   }
@@ -287,6 +410,10 @@ export class Program {
   functions: Funcode[];
   globals: Binding[];
   toplevel: Funcode | null;
+
+  constructor(globals: Binding[]) {
+    this.globals = globals;
+  }
 }
 
 // A pcomp holds the compiler state for a Program.
@@ -296,26 +423,46 @@ class Pcomp {
   constants: Map<any, number>;
   functions: Map<Funcode, number>;
 
-  function(name: string, pos: syntax.Position, stmts: syntax.Stmt[], locals: resolve.Binding[], freevars: resolve.Binding[]): Funcode {
-    const fcomp = new fcomp(
+  constructor(
+    prog: Program,
+    names: Map<string, number>,
+    constants: Map<any, number>,
+    functions: Map<Funcode, number>
+  ) {
+    this.prog = prog;
+    this.names = names;
+    this.constants = constants;
+    this.functions = functions;
+  }
+
+  func(
+    name: string,
+    pos: Position,
+    stmts: syntax.Stmt[],
+    locals: binding.Binding[],
+    freevars: binding.Binding[]
+  ): Funcode {
+    let fcomp = new Fcomp(
       this,
       pos,
       new Funcode(
-        Prog: pcomp.prog,
-        Pos: pos,
-        Name: name,
-        Doc: docStringFromBody(stmts),
-        Locals: bindings(locals),
-        Freevars: bindings(freevars),
-        Cells: []number[]
-      )
+        this.prog,
+        pos,
+        name,
+        docStringFromBody(stmts),
+        bindings(locals),
+        bindings(freevars)
+      ),
+      new Array(),
+      null
     );
 
     // Record indices of locals that require cells.
     for (let i = 0; i < locals.length; i++) {
       const local = locals[i];
-      if (local.Scope === resolve.Cell) {
-        fcomp.fn.Cells.push(i);
+      //@ts-ignore
+      if (local.Scope === binding.Scope.Cell) {
+        fcomp.fn.cells.push(i);
       }
     }
 
@@ -324,7 +471,7 @@ class Pcomp {
     }
 
     // Convert AST to a CFG of instructions.
-    const entry: Block = fcomp.newBlock();
+    const entry = fcomp.newBlock();
     fcomp.block = entry;
     fcomp.stmts(stmts);
     if (fcomp.block !== null) {
@@ -334,11 +481,13 @@ class Pcomp {
 
     let oops = false; // something bad happened
 
-    const setinitialstack = (b: block, depth: number): void => {
+    const setinitialstack = (b: Block, depth: number): void => {
       if (b.initialstack === -1) {
         b.initialstack = depth;
       } else if (b.initialstack !== depth) {
-        console.log(`${b.index}: setinitialstack: depth mismatch: ${b.initialstack} vs ${depth}`);
+        console.log(
+          `${b.index}: setinitialstack: depth mismatch: ${b.initialstack} vs ${depth}`
+        );
         oops = true;
       }
     };
@@ -347,10 +496,10 @@ class Pcomp {
     // compute order, address, and initial
     // stack depth of each reachable block.
     let pc: number = 0;
-    const blocks: block[] = [];
+    const blocks: Block[] = [];
     let maxstack: number = 0;
 
-    let visit = (b: block) => {
+    let visit = (b: Block) => {
       if (b.index >= 0) {
         return; // already visited
       }
@@ -400,23 +549,23 @@ class Pcomp {
 
       if (debug) {
         console.log(`successors of block ${b.addr} (start=${b.index}):`);
-        if (b.jmp !== null) {
+        if (b.jmp) {
           console.log(`jmp to ${b.jmp.index}`);
         }
-        if (b.cjmp !== null) {
+        if (b.cjmp) {
           console.log(`cjmp to ${b.cjmp.index}`);
         }
       }
 
       // Place the jmp block next.
-      if (b.jmp !== null) {
+      if (b.jmp) {
         // jump threading (empty cycles are impossible)
-        while (b.jmp.insns === null) {
+        while (b.jmp?.insns === null) {
           b.jmp = b.jmp.jmp;
         }
 
-        setinitialstack(b.jmp, stack + isiterjmp);
-        if (b.jmp.index < 0) {
+        setinitialstack(b.jmp!, stack + isiterjmp);
+        if (b.jmp && b.jmp.index < 0) {
           // Successor is not yet visited:
           // place it next and fall through.
           visit(b.jmp);
@@ -428,26 +577,26 @@ class Pcomp {
       }
 
       // Then the cjmp block.
-      if (b.cjmp !== null) {
+      if (b.cjmp) {
         // jump threading (empty cycles are impossible)
-        while (b.cjmp.insns === null) {
+        while (b.cjmp && b.cjmp.insns === null) {
           b.cjmp = b.cjmp.jmp;
         }
 
-        setinitialstack(b.cjmp, stack);
-        visit(b.cjmp);
+        setinitialstack(b.cjmp!, stack);
+        visit(b.cjmp!);
 
         // Patch the CJMP/ITERJMP, if present.
         if (cjmpAddr !== null) {
-          b.insns[cjmpAddr].arg = b.cjmp.addr;
+          b.insns[cjmpAddr].arg = b.cjmp!.addr;
         }
       }
-    }
-    setinitialstack(entry, 0)
-    visit(entry)
+    };
+    setinitialstack(entry, 0);
+    visit(entry);
 
     const fn = fcomp.fn;
-    fn.MaxStack = maxstack;
+    fn.maxStack = maxstack;
 
     // Emit bytecode (and position table).
     if (Disassemble) {
@@ -456,7 +605,7 @@ class Pcomp {
     fcomp.generate(blocks, pc);
 
     if (debug) {
-      console.log(`code = ${fn.Code} maxstack = ${fn.MaxStack}`);
+      console.log(`code = ${fn.code} maxstack = ${fn.maxStack}`);
     }
 
     // Don't panic until we've completed printing of the function.
@@ -475,9 +624,9 @@ class Pcomp {
   nameIndex(name: string): number {
     let index = this.names[name];
     if (index === undefined) {
-      index = this.prog.Names.length;
+      index = this.prog.names.length;
       this.names[name] = index;
-      this.prog.Names.push(name);
+      this.prog.names.push(name);
     }
     return index;
   }
@@ -487,9 +636,9 @@ class Pcomp {
   constantIndex(v: any): number {
     let index = this.constants[v];
     if (index === undefined) {
-      index = this.prog.Constants.length;
+      index = this.prog.constants.length;
       this.constants[v] = index;
-      this.prog.Constants.push(v);
+      this.prog.constants.push(v);
     }
     return index;
   }
@@ -497,52 +646,49 @@ class Pcomp {
   // functionIndex returns the index of the specified function
   // AST the nestedfun pool, adding it if necessary.
   functionIndex(fn: Funcode): number {
-    let index = this.functions[fn];
+    let index = this.functions.get(fn);
     if (index === undefined) {
-      index = this.prog.Functions.length;
-      this.functions[fn] = index;
-      this.prog.Functions.push(fn);
+      index = this.prog.functions.length;
+      this.functions.set(fn, index);
+      this.prog.functions.push(fn);
     }
     return index;
   }
-
 }
 
-class fcomp {
+class Fcomp {
   public pcomp: Pcomp;
-  public pos: syntax.Position;
+  public pos: Position;
   public fn: Funcode;
-  public loops: loop[];
-  public block: block;
+  public loops: Loop[];
+  public block: Block | null;
 
   constructor(
     pcomp: Pcomp,
-    pos: syntax.Position,
+    pos: Position,
     fn: Funcode,
-    loops: loop[],
-    block: block,
-
+    loops: Loop[],
+    block: Block | null
   ) {
-    this.pcomp = pcomp
-    this.pos = pos
-    this.fn = fn
-    this.loops = loops
-    this.block = block
-
+    this.pcomp = pcomp;
+    this.pos = pos;
+    this.fn = fn;
+    this.loops = loops;
+    this.block = block;
   }
 
-  generate(blocks: block[], codelen: number): void {
-    const code: number[] = [];
+  generate(blocks: Block[], codelen: number): void {
+    let code: number[] = [];
     let pclinetab: number[] = [];
-    let prev: pclinecol = {
+    let prev: Pclinecol = {
       pc: 0,
-      line: fn.Pos.Line,
-      col: fn.Pos.Col,
+      line: this.fn.pos.line,
+      col: this.fn.pos.col,
     };
 
     for (const b of blocks) {
       if (Disassemble) {
-        console.error(${ b.index }: );
+        console.error(`${b.index}: `);
       }
       let pc: number = b.addr;
       for (const insn of b.insns) {
@@ -559,7 +705,11 @@ class fcomp {
             prev.pc += deltapc;
 
             // Δline, int5
-            const deltaline: number = clip(insn.line - prev.line, -0x10, 0x0f)[0];
+            const deltaline: number = clip(
+              insn.line - prev.line,
+              -0x10,
+              0x0f
+            )[0];
             if (!clip(insn.line - prev.line, -0x10, 0x0f)[1]) {
               incomplete = 1;
             }
@@ -585,21 +735,23 @@ class fcomp {
           }
 
           if (Disassemble) {
-            console.error(
-              `\t\t\t\t\t; ${path.basename(fn.Pos.Filename())}:${insn.line}:${insn.col}`
-            );
+            console.log("Disassemble todo");
+            // console.error(
+            //   `\t\t\t\t\t; ${path.basename(this.fn.pos.filename())}:${insn.line
+            //   }:${insn.col}`
+            // );
           }
         }
 
         if (Disassemble) {
-          PrintOp(fn, pc, insn.op, insn.arg);
+          PrintOp(this.fn, pc, insn.op, insn.arg);
         }
 
         code.push(insn.op);
         pc++;
 
         if (insn.op >= OpcodeArgMin) {
-          if (insn.op === CJMP || insn.op === ITERJMP) {
+          if (insn.op === Opcode.CJMP || insn.op === Opcode.ITERJMP) {
             code = addUint32(code, insn.arg, 4); // pad arg to 4 bytes
           } else {
             code = addUint32(code, insn.arg, 0);
@@ -608,7 +760,7 @@ class fcomp {
         }
       }
 
-      if (b.jmp !== null && b.jmp.index !== b.index + 1) {
+      if (b.jmp && b.jmp.index !== b.index + 1) {
         const addr: number = b.jmp.addr;
         if (Disassemble) {
           console.error(`\t${pc}\tjmp\t\t${addr}\t; block ${b.jmp.index}`);
@@ -617,15 +769,14 @@ class fcomp {
         code.push(Opcode.JMP);
         code = addUint32(code, addr, 4);
       }
-
     }
 
     if (code.length !== codelen) {
       throw new Error("internal error: wrong code length");
     }
 
-    this.fn.pclinetab = pclinetab
-    this.fn.code = code
+    this.fn.pclinetab = pclinetab;
+    this.fn.code = code;
   }
 
   newBlock(): Block {
@@ -637,34 +788,35 @@ class fcomp {
       throw new Error("missing arg: " + op.toString());
     }
 
-    let insn: insn = { op: op, line: this.pos.Line, col: this.pos.Col };
-    this.block.insns.push(insn);
-    this.pos.Line = 0;
-    this.pos.Col = 0;
+    let insn: Insn = new Insn(
+      op,
+      0,
+
+      this.pos.line,
+      this.pos.col
+    );
+    this.block?.insns.push(insn);
+    this.pos.line = 0;
+    this.pos.col = 0;
   }
 
   emit1(op: Opcode, arg: number): void {
     if (op < OpcodeArgMin) {
       throw new Error("unwanted arg: " + op.toString());
     }
-    const insn: insn = {
-      op: op,
-      arg: arg,
-      line: this.pos.Line,
-      col: this.pos.Col
-    };
-    this.block.insns.push(insn);
-    this.pos.Line = 0;
-    this.pos.Col = 0;
+    const insn: Insn = new Insn(op, arg, this.pos.line, this.pos.col);
+    this.block?.insns.push(insn);
+    this.pos.line = 0;
+    this.pos.col = 0;
   }
 
   // jump emits a jump to the specified block.
   // On return, the current block is unset.
-  jump(b: block) {
+  jump(b: Block) {
     if (b === this.block) {
       throw new Error("self-jump"); // unreachable: Starlark has no arbitrary looping constructs
     }
-    this.block.jmp = b;
+    this.block!.jmp = b;
     this.block = null;
   }
 
@@ -672,12 +824,12 @@ class fcomp {
   // to the specified true/false blocks.
   // (For ITERJMP, the cases are jmp/f/ok and cjmp/t/exhausted.)
   // On return, the current block is unset.
-  condjump(op: Opcode, t: block, f: block) {
+  condjump(op: Opcode, t: Block, f: Block) {
     if (!(op === Opcode.CJMP || op === Opcode.ITERJMP)) {
       throw new Error("not a conditional jump: " + op.toString());
     }
     this.emit1(op, 0); // fill in address later
-    this.block.cjmp = t;
+    this.block!.cjmp = t;
     this.jump(f);
   }
 
@@ -689,57 +841,63 @@ class fcomp {
   // setPos sets the current source position.
   // It should be called prior to any operation that can fail dynamically.
   // All positions are assumed to belong to the same file.
-  setPos(pos: syntax.Position): void {
+  setPos(pos: Position): void {
     this.pos = pos;
   }
 
   // set emits code to store the top-of-stack value
   // to the specified local, cell, or global variable.
   set(id: syntax.Ident): void {
-    const bind: resolve.Binding = id.Binding;
+    const bind: binding.Binding = id.Binding as binding.Binding;
     switch (bind.scope) {
-      case resolve.Scope.Local:
+      case binding.Scope.Local:
         this.emit1(Opcode.SETLOCAL, bind.index);
         break;
-      case resolve.Scope.Cell:
+      case binding.Scope.Cell:
         this.emit1(Opcode.SETLOCALCELL, bind.index);
         break;
-      case resolve.Scope.Global:
+      case binding.Scope.Global:
         this.emit1(Opcode.SETGLOBAL, bind.index);
         break;
       default:
-        log.Panicf(`${id.NamePos}: set(${id.Name}): not global/local/cell (${bind.scope})`);
+        console.log("should panic here");
+        // log.Panicf(
+        //   `${id.NamePos}: set(${id.Name}): not global/local/cell (${bind.scope})`
+        // );
         break;
     }
   }
 
   // lookup emits code to push the value of the specified variable.
   lookup(id: syntax.Ident): void {
-    const bind = id.Binding as resolve.Binding;
-    if (bind.Scope !== resolve.Universal) { // (universal lookup can't fail)
+    const bind = id.Binding as binding.Binding;
+    if (bind.scope !== binding.Scope.Universal) {
+      // (universal lookup can't fail)
       this.setPos(id.NamePos);
     }
-    switch (bind.Scope) {
-      case resolve.Local:
-        this.emit1(Opcode.LOCAL, bind.Index);
+    switch (bind.scope) {
+      case binding.Scope.Local:
+        this.emit1(Opcode.LOCAL, bind.index);
         break;
-      case resolve.Free:
-        this.emit1(Opcode.FREECELL, bind.Index);
+      case binding.Scope.Free:
+        this.emit1(Opcode.FREECELL, bind.index);
         break;
-      case resolve.Cell:
-        this.emit1(Opcode.LOCALCELL, bind.Index);
+      case binding.Scope.Cell:
+        this.emit1(Opcode.LOCALCELL, bind.index);
         break;
-      case resolve.Global:
-        this.emit1(Opcode.GLOBAL, bind.Index);
+      case binding.Scope.Global:
+        this.emit1(Opcode.GLOBAL, bind.index);
         break;
-      case resolve.Predeclared:
+      case binding.Scope.Predeclared:
         this.emit1(Opcode.PREDECLARED, this.pcomp.nameIndex(id.Name));
         break;
-      case resolve.Universal:
+      case binding.Scope.Universal:
         this.emit1(Opcode.UNIVERSAL, this.pcomp.nameIndex(id.Name));
         break;
       default:
-        throw new Error(`${id.NamePos}: compiler.lookup(${id.Name}): scope = ${bind.Scope}`);
+        throw new Error(
+          `${id.NamePos}: compiler.lookup(${id.Name}): scope = ${bind.scope}`
+        );
     }
   }
 
@@ -750,265 +908,251 @@ class fcomp {
   }
 
   stmt(stmt: syntax.Stmt) {
-    switch (stmt.type) {
-      case "ExprStmt":
-        if (stmt.X.type === "Literal") {
-          // Opt: don't compile doc comments only to pop them.
-          return;
-        }
-        this.expr(stmt.X);
-        this.emit(POP);
-        break;
+    if (stmt instanceof syntax.ExprStmt) {
+      if (stmt.X instanceof syntax.Literal) {
+        // Opt: don't compile doc comments only to pop them.
+        return;
+      }
+      this.expr(stmt.X);
+      this.emit(Opcode.POP);
+      return;
+    }
 
-      case "BranchStmt":
-        // Resolver invariant: break/continue appear only within loops.
-        switch (stmt.Token) {
-          case "PASS":
-            // no-op
-            break;
-          case "BREAK":
-            const b = this.loops[this.loops.length - 1].break_;
-            this.jump(b);
-            this.block = this.newBlock(); // dead code
-            break;
-          case "CONTINUE":
-            const c = this.loops[this.loops.length - 1].continue_;
-            this.jump(c);
-            this.block = this.newBlock(); // dead code
-            break;
-        }
-        break;
+    if (stmt instanceof syntax.BranchStmt) {
+      // Resolver invariant: break/continue appear only within loops.
+      switch (stmt.token) {
+        case Token.PASS:
+          // no-op
+          break;
+        case Token.BREAK:
+          const b = this.loops[this.loops.length - 1].break_;
+          this.jump(b);
+          this.block = this.newBlock(); // dead code
+          break;
+        case Token.CONTINUE:
+          const c = this.loops[this.loops.length - 1].continue_;
+          this.jump(c);
+          this.block = this.newBlock(); // dead code
+          break;
+      }
+    }
 
-      case "IfStmt":
-        // Keep consistent with CondExpr.
-        const t = this.newBlock();
-        const f = this.newBlock();
-        const done = this.newBlock();
+    if (stmt instanceof syntax.IfStmt) {
+      // Keep consistent with CondExpr.
+      const t = this.newBlock();
+      const f = this.newBlock();
+      const done = this.newBlock();
 
-        this.ifelse(stmt.Cond, t, f);
+      this.ifelse(stmt.cond, t, f);
 
-        this.block = t;
-        this.stmts(stmt.True);
-        this.jump(done);
+      this.block = t;
+      this.stmts(stmt.trueBody);
+      this.jump(done);
 
-        this.block = f;
-        this.stmts(stmt.False);
-        this.jump(done);
+      this.block = f;
+      this.stmts(stmt.falseBody);
+      this.jump(done);
 
-        this.block = done;
-        break;
+      this.block = done;
+    }
 
-      case "AssignStmt":
-        switch (stmt.Op) {
-          case syntax.EQ:
-            // simple assignment: x = y
-            this.expr(stmt.RHS);
-            this.assign(stmt.OpPos, stmt.LHS);
-            break;
+    if (stmt instanceof syntax.AssignStmt) {
+      switch (stmt.Op) {
+        case Token.EQ:
+          // simple assignment: x = y
+          this.expr(stmt.RHS);
+          this.assign(stmt.OpPos, stmt.LHS);
+          break;
 
-          case syntax.PLUS_EQ,
-            syntax.MINUS_EQ,
-            syntax.STAR_EQ,
-            syntax.SLASH_EQ,
-            syntax.SLASHSLASH_EQ,
-            syntax.PERCENT_EQ,
-            syntax.AMP_EQ,
-            syntax.PIPE_EQ,
-            syntax.CIRCUMFLEX_EQ,
-            syntax.LTLT_EQ,
-            syntax.GTGT_EQ:
-            // augmented assignment: x += y
+        case Token.PLUS_EQ:
+        case Token.MINUS_EQ:
+        case Token.STAR_EQ:
+        case Token.SLASH_EQ:
+        case Token.SLASHSLASH_EQ:
+        case Token.PERCENT_EQ:
+        case Token.AMP_EQ:
+        case Token.PIPE_EQ:
+        case Token.CIRCUMFLEX_EQ:
+        case Token.LTLT_EQ:
+        case Token.GTGT_EQ:
+          // augmented assignment: x += y
+          let set: () => void;
 
-            let set: () => void;
-
-            // Evaluate "address" of x exactly once to avoid duplicate side-effects.
-            const lhs = unparen(stmt.LHS);
-            if (lhs.type === "Ident") {
-              // x = ...
-              this.lookup(lhs);
-              set = () => {
-                this.set(lhs);
-              };
-            } else if (lhs.type === "IndexExpr") {
-              // x[y] = ...
-              this.expr(lhs.X);
-              this.expr(lhs.Y);
-              this.emit(Opcode.DUP2);
+          // Evaluate "address" of x exactly once to avoid duplicate side-effects.
+          const lhs = unparen(stmt.LHS);
+          if (lhs instanceof syntax.Ident) {
+            // x = ...
+            this.lookup(lhs);
+            set = () => {
+              this.set(lhs);
+            };
+          } else if (lhs instanceof syntax.IndexExpr) {
+            // x[y] = ...
+            this.expr(lhs.X);
+            this.expr(lhs.Y);
+            this.emit(Opcode.DUP2);
+            this.setPos(lhs.Lbrack);
+            this.emit(Opcode.INDEX);
+            set = () => {
               this.setPos(lhs.Lbrack);
-              this.emit(Opcode.INDEX);
-              set = () => {
-                this.setPos(lhs.Lbrack);
-                this.emit(Opcode.SETINDEX);
-              };
-            } else if (lhs.type === "DotExpr") {
-              // x.f = ...
-              this.expr(lhs.X);
-              this.emit(Opcode.DUP);
-              const name = this.pcomp.nameIndex(lhs.Name.Name);
+              this.emit(Opcode.SETINDEX);
+            };
+          } else if (lhs instanceof syntax.DotExpr) {
+            // x.f = ...
+            this.expr(lhs.X);
+            this.emit(Opcode.DUP);
+            const name = this.pcomp.nameIndex(lhs.Name.Name);
+            this.setPos(lhs.Dot);
+            this.emit1(Opcode.ATTR, name);
+            set = () => {
               this.setPos(lhs.Dot);
-              this.emit1(Opcode.ATTR, name);
-              set = () => {
-                this.setPos(lhs.Dot);
-                this.emit1(Opcode.SETFIELD, name);
-              };
-            } else {
-              throw new Error(`Unexpected LHS type ${lhs.type}`);
-            }
+              this.emit1(Opcode.SETFIELD, name);
+            };
+          } else {
+            throw new Error(`Unexpected LHS type ${lhs}`);
+          }
 
-            this.expr(stmt.RHS);
+          this.expr(stmt.RHS);
 
-            switch (stmt.Op) {
-              case syntax.PLUS_EQ:
-                this.setPos(stmt.OpPos);
-                this.emit(INPLACE_ADD);
-                set();
-                break;
+          switch (stmt.Op) {
+            case Token.PLUS_EQ:
+              this.setPos(stmt.OpPos);
+              this.emit(Opcode.INPLACE_ADD);
+              set();
+              break;
 
-              case syntax.PIPE_EQ:
-                this.setPos(stmt.OpPos);
-                this.emit(INPLACE_OR);
-                set();
-                break;
+            case Token.PIPE_EQ:
+              this.setPos(stmt.OpPos);
+              this.emit(Opcode.INPLACE_PIPE);
+              set();
+              break;
 
-              default:
-                this.binop(stmt.OpPos, stmt.Op - syntax.PLUS_EQ + syntax.PLUS);
-                set();
-                break;
-            }
-        }
-      case "DefStmt":
-        this.function(stmt.Function);
-        this.set(stmt.Name);
-        break;
-
-      case "ForStmt":
-        // Keep consistent with ForClause.
-        const head = this.newBlock();
-        const body = this.newBlock();
-        const tail = this.newBlock();
-
-        this.expr(stmt.X);
-        this.setPos(stmt.For);
-        this.emit(ITERPUSH);
-        this.jump(head);
-
-        this.block = head;
-        this.condjump(ITERJMP, tail, body);
-
-        this.block = body;
-        this.assign(stmt.For, stmt.Vars);
-        this.loops.push({ break: tail, continue: head });
-        this.stmts(stmt.Body);
-        this.loops.pop();
-        this.jump(head);
-
-        this.block = tail;
-        this.emit(ITERPOP);
-        break;
-
-      case "WhileStmt":
-        const head = this.newBlock();
-        const body = this.newBlock();
-        const done = this.newBlock();
-
-        this.jump(head);
-        this.block = head;
-        this.ifelse(stmt.Cond, body, done);
-
-        this.block = body;
-        this.loops.push({ break: done, continue: head });
-        this.stmts(stmt.Body);
-        this.loops.pop();
-        this.jump(head);
-
-        this.block = done;
-        break;
-
-      case "ReturnStmt":
-        if (stmt.result !== null) {
-          this.expr(stmt.result);
-        } else {
-          this.emit(Opcode.NONE);
-        }
-        this.emit(Opcode.RETURN);
-        this.block = this.newBlock(); // dead code
-        break;
-
-      case "LoadStmt":
-        for (const name of stmt.from) {
-          this.string(name.name);
-        }
-        const module = stmt.module.value as string;
-        this.pcomp.prog.Loads.push({
-          Name: module,
-          Pos: stmt.module.tokenPos,
-        });
-        this.string(module);
-        this.setPos(stmt.load);
-        this.emit1(Opcode.LOAD, stmt.from.length);
-        for (const name of stmt.to.reverse()) {
-          this.set(name);
-        }
-        break;
-
-      default:
-        const [start, _] = stmt.span();
-        console.log(`${start}: exec: unexpected statement ${stmt.type}`);
-        break;
-
+            default:
+              // BUG:
+              // this.binop(stmt.OpPos, stmt.Op - Token.PLUS_EQ + Token.PLUS);
+              set();
+              break;
+          }
+      }
     }
 
-  }
-
-  assign(pos: syntax.Position, lhs: syntax.Expr): void {
-    switch (lhs.type) {
-      case "ParenExpr":
-        // (lhs) = rhs
-        assign(this, pos, lhs.X)
-        break
-
-        typescript
-
-      case "Ident":
-        // x = rhs
-        this.set(lhs)
-        break
-
-      case "TupleExpr":
-        // x, y = rhs
-        assignSequence(this, pos, lhs.List)
-        break
-
-      case "ListExpr":
-        // [x, y] = rhs
-        assignSequence(this, pos, lhs.List)
-        break
-
-      case "IndexExpr":
-        // x[y] = rhs
-        this.expr(lhs.X)
-        this.emit(EXCH)
-        this.expr(lhs.Y)
-        this.emit(EXCH)
-        this.setPos(lhs.Lbrack)
-        this.emit(SETINDEX)
-        break
-
-      case "DotExpr":
-        // x.f = rhs
-        this.expr(lhs.X)
-        this.emit(EXCH)
-        this.setPos(lhs.Dot)
-        this.emit1(SETFIELD, this.pcomp.nameIndex(lhs.Name.Name))
-        break
-
-      default:
-        throw new Error(`Unexpected expression type: ${lhs.type}`)
-
+    if (stmt instanceof syntax.DefStmt) {
+      this.func(stmt.Function);
+      this.set(stmt.Name);
     }
+
+    if (stmt instanceof syntax.ForStmt) {
+      // Keep consistent with ForClause.
+      const head = this.newBlock();
+      const body = this.newBlock();
+      const tail = this.newBlock();
+
+      this.expr(stmt.X);
+      this.setPos(stmt.For);
+      this.emit(Opcode.ITERPUSH);
+      this.jump(head);
+
+      this.block = head;
+      this.condjump(Opcode.ITERJMP, tail, body);
+
+      this.block = body;
+      this.assign(stmt.For, stmt.Vars);
+      this.loops.push(new Loop(tail, head));
+      this.stmts(stmt.Body);
+      this.loops.pop();
+      this.jump(head);
+
+      this.block = tail;
+      this.emit(Opcode.ITERPOP);
+    }
+
+    if (stmt instanceof syntax.WhileStmt) {
+      const head = this.newBlock();
+      const body = this.newBlock();
+      const done = this.newBlock();
+
+      this.jump(head);
+      this.block = head;
+      this.ifelse(stmt.Cond, body, done);
+
+      this.block = body;
+      this.loops.push(new Loop(done, head));
+      this.stmts(stmt.Body);
+      this.loops.pop();
+      this.jump(head);
+
+      this.block = done;
+    }
+
+    if (stmt instanceof syntax.ReturnStmt) {
+      if (stmt.Result) {
+        this.expr(stmt.Result);
+      } else {
+        this.emit(Opcode.NONE);
+      }
+      this.emit(Opcode.RETURN);
+      this.block = this.newBlock(); // dead code
+    }
+
+    if (stmt instanceof syntax.LoadStmt) {
+      for (const name of stmt.From) {
+        this.string(name.Name);
+      }
+      const module = stmt.Module.value as string;
+      this.pcomp.prog.loads.push(new Binding(module, stmt.Module.tokenPos!));
+
+      this.string(module);
+      this.setPos(stmt.Load);
+      this.emit1(Opcode.LOAD, stmt.From.length);
+      for (const name of stmt.To.reverse()) {
+        this.set(name);
+      }
+    }
+    const [start, _] = stmt.span();
+    console.log(`${start}: exec: unexpected statement ${stmt} `);
   }
 
-  assignSequence(pos: syntax.Position, lhs: syntax.Expr[]): void {
+  assign(pos: Position, lhs: syntax.Expr): void {
+    if (lhs instanceof syntax.ParenExpr) {
+      // (lhs) = rhs
+      this.assign(pos, lhs.x);
+    }
+
+    if (lhs instanceof syntax.Ident) {
+      // x = rhs
+      this.set(lhs);
+    }
+    if (lhs instanceof syntax.TupleExpr) {
+      // x, y = rhs
+      this.assignSequence(pos, lhs.List);
+    }
+
+    if (lhs instanceof syntax.ListExpr) {
+      // [x, y] = rhs
+      this.assignSequence(pos, lhs.list);
+    }
+
+    if (lhs instanceof syntax.IndexExpr) {
+      // x[y] = rhs
+      this.expr(lhs.X);
+      this.emit(Opcode.EXCH);
+      this.expr(lhs.Y);
+      this.emit(Opcode.EXCH);
+      this.setPos(lhs.Lbrack);
+      this.emit(Opcode.SETINDEX);
+    }
+
+    if (lhs instanceof syntax.DotExpr) {
+      // x.f = rhs
+      this.expr(lhs.X);
+      this.emit(Opcode.EXCH);
+      this.setPos(lhs.Dot);
+      this.emit1(Opcode.SETFIELD, this.pcomp.nameIndex(lhs.Name.Name));
+    }
+    throw new Error(`Unexpected expression type: ${lhs} `);
+  }
+
+  assignSequence(pos: Position, lhs: syntax.Expr[]): void {
     this.setPos(pos);
     this.emit1(Opcode.UNPACK, lhs.length);
     for (let i = 0; i < lhs.length; i++) {
@@ -1017,187 +1161,187 @@ class fcomp {
   }
 
   expr(e: syntax.Expr) {
-
-    switch (e) {
-      case syntax.ParenExpr:
-        this.expr(e.X);
-
-      case syntax.Ident:
-        this.lookup(e);
-
-      case syntax.Literal:
-        // e.Value is int64, float64, *bigInt, string
-        let v = e.Value;
-        if (e.Token === syntax.BYTES) {
-          v = Bytes(v as string);
-        }
-        this.emit1(Opcode.CONSTANT, this.pcomp.constantIndex(v));
-
-      case syntax.ListExpr:
-        for (let x of e.List) {
-          this.expr(x);
-        }
-        this.emit1(Opcode.MAKELIST, e.List.length);
-
-      case syntax.CondExpr:
-        // Keep consistent with IfStmt.
-        const t = this.newBlock();
-        const f = this.newBlock();
-        const done = this.newBlock();
-
-        this.ifelse(e.Cond, t, f);
-
-        this.block = t;
-        this.expr(e.True);
-        this.jump(done);
-
-        this.block = f;
-        this.expr(e.False);
-        this.jump(done);
-
-        this.block = done;
-
-      case syntax.IndexExpr:
-        this.expr(e.X);
-        this.expr(e.Y);
-        this.setPos(e.Lbrack);
-        this.emit(Opcode.INDEX);
-        break;
-
-      case syntax.SliceExpr:
-        this.setPos(e.Lbrack);
-        this.expr(e.X);
-        if (e.Lo != null) {
-          this.expr(e.Lo);
-        } else {
-          this.emit(Opcode.NONE);
-        }
-        if (e.Hi != null) {
-          this.expr(e.Hi);
-        } else {
-          this.emit(Opcode.NONE);
-        }
-        if (e.Step != null) {
-          this.expr(e.Step);
-        } else {
-          this.emit(Opcode.NONE);
-        }
-        this.emit(Opcode.SLICE);
-        break;
-
-      case syntax.Comprehension:
-        if (e.Curly) {
-          this.emit(Opcode.MAKEDICT);
-        } else {
-          this.emit1(Opcode.MAKELIST, 0);
-        }
-        this.comprehension(e, 0);
-        break;
-
-      case syntax.TupleExpr:
-        this.tuple(e.List);
-        break;
-      case syntax.Kind.DictExpr:
-        this.emit(Opcode.MAKEDICT);
-        for (const entry of e.List) {
-          const dictEntry = entry as syntax.DictEntry;
-          this.emit(Opcode.DUP);
-          this.expr(dictEntry.Key);
-          this.expr(dictEntry.Value);
-          this.setPos(dictEntry.Colon);
-          this.emit(Opcode.SETDICTUNIQ);
-        }
-        break;
-
-      case syntax.Kind.UnaryExpr:
-        this.expr(e.X);
-        this.setPos(e.OpPos);
-        switch (e.Op) {
-          case syntax.MINUS:
-            this.emit(Opcode.UMINUS);
-            break;
-          case syntax.PLUS:
-            this.emit(Opcode.UPLUS);
-            break;
-          case syntax.NOT:
-            this.emit(Opcode.NOT);
-            break;
-          case syntax.TILDE:
-            this.emit(Opcode.TILDE);
-            break;
-          default:
-            throw new Error(`${e.OpPos}: unexpected unary op: ${e.Op}`);
-        }
-        break;
-
-      case syntax.BinaryExpr:
-        switch (e.Op) {
-          case syntax.OR:
-            // x or y  =>  if x then x else y
-            const done = this.newBlock();
-            const y = this.newBlock();
-
-            this.expr(e.X);
-            this.emit(Opcode.DUP);
-            this.condjump(Opcode.CJMP, done, y);
-
-            this.block = y;
-            this.emit(Opcode.POP); // discard X
-            this.expr(e.Y);
-            this.jump(done);
-
-            this.block = done;
-            break;
-
-          case syntax.AND:
-            // x and y  =>  if x then y else x
-            const done1 = this.newBlock();
-            const y1 = this.newBlock();
-
-            this.expr(e.X);
-            this.emit(Opcode.DUP);
-            this.condjump(Opcode.CJMP, y1, done1);
-
-            this.block = y1;
-            this.emit(Opcode.POP); // discard X
-            this.expr(e.Y);
-            this.jump(done1);
-
-            this.block = done1;
-            break;
-
-          case syntax.PLUS:
-            this.plus(e);
-            break;
-
-          default:
-            // all other strict binary operator (includes comparisons)
-            this.expr(e.X);
-            this.expr(e.Y);
-            this.binop(e.OpPos, e.Op);
-            break;
-        }
-
-      case syntax.DotExpr:
-        this.expr(e.X)
-        this.setPos(e.Dot)
-        this.emit1(Opcode.ATTR, this.pcomp.nameIndex(e.Name.Name))
-        break;
-
-      case syntax.CallExpr:
-        this.call(e);
-        break;
-
-      case syntax.LambdaExpr:
-        this.function(e.Function);
-        break;
-
-      default:
-        const start = e.Span()[0];
-        console.log(`${start}: unexpected expr ${e.constructor.name}`);
-        break;
-
+    if (e instanceof syntax.ParenExpr) {
+      this.expr(e.x);
     }
+
+    if (e instanceof syntax.Ident) {
+      this.lookup(e);
+    }
+
+    if (e instanceof syntax.Literal) {
+      // e.Value is int64, float64, *bigInt, string
+      let v = e.value;
+      if (e.token === Token.BYTES) {
+        v = v as string as Bytes;
+      }
+      this.emit1(Opcode.CONSTANT, this.pcomp.constantIndex(v));
+    }
+    if (e instanceof syntax.ListExpr) {
+      for (let x of e.list) {
+        this.expr(x);
+      }
+      this.emit1(Opcode.MAKELIST, e.list.length);
+    }
+
+    if (e instanceof syntax.CondExpr) {
+      // Keep consistent with IfStmt.
+      const t = this.newBlock();
+      const f = this.newBlock();
+      const done = this.newBlock();
+
+      this.ifelse(e.Cond, t, f);
+
+      this.block = t;
+      this.expr(e.True);
+      this.jump(done);
+
+      this.block = f;
+      this.expr(e.False);
+      this.jump(done);
+
+      this.block = done;
+    }
+
+    if (e instanceof syntax.IndexExpr) {
+      this.expr(e.X);
+      this.expr(e.Y);
+      this.setPos(e.Lbrack);
+      this.emit(Opcode.INDEX);
+    }
+
+    if (e instanceof syntax.SliceExpr) {
+      this.setPos(e.Lbrack);
+      this.expr(e.X);
+      if (e.Lo != null) {
+        this.expr(e.Lo);
+      } else {
+        this.emit(Opcode.NONE);
+      }
+      if (e.Hi != null) {
+        this.expr(e.Hi);
+      } else {
+        this.emit(Opcode.NONE);
+      }
+      if (e.Step != null) {
+        this.expr(e.Step);
+      } else {
+        this.emit(Opcode.NONE);
+      }
+      this.emit(Opcode.SLICE);
+    }
+
+    if (e instanceof syntax.Comprehension) {
+      if (e.Curly) {
+        this.emit(Opcode.MAKEDICT);
+      } else {
+        this.emit1(Opcode.MAKELIST, 0);
+      }
+      this.comprehension(e, 0);
+    }
+
+    if (e instanceof syntax.TupleExpr) {
+      this.tuple(e.List);
+    }
+
+    if (e instanceof syntax.DictExpr) {
+      this.emit(Opcode.MAKEDICT);
+      for (const entry of e.List) {
+        const dictEntry = entry as syntax.DictEntry;
+        this.emit(Opcode.DUP);
+        this.expr(dictEntry.Key);
+        this.expr(dictEntry.Value);
+        this.setPos(dictEntry.Colon);
+        this.emit(Opcode.SETDICTUNIQ);
+      }
+    }
+
+    if (e instanceof syntax.UnaryExpr) {
+      this.expr(e.X!);
+      this.setPos(e.OpPos);
+      switch (e.Op) {
+        case Token.MINUS:
+          this.emit(Opcode.UMINUS);
+          break;
+        case Token.PLUS:
+          this.emit(Opcode.UPLUS);
+          break;
+        case Token.NOT:
+          this.emit(Opcode.NOT);
+          break;
+        case Token.TILDE:
+          this.emit(Opcode.TILDE);
+          break;
+        default:
+          throw new Error(`${e.OpPos}: unexpected unary op: ${e.Op} `);
+      }
+    }
+
+    if (e instanceof syntax.BinaryExpr) {
+      switch (e.Op) {
+        case Token.OR:
+          // x or y  =>  if x then x else y
+          const done = this.newBlock();
+          const y = this.newBlock();
+
+          this.expr(e.X);
+          this.emit(Opcode.DUP);
+          this.condjump(Opcode.CJMP, done, y);
+
+          this.block = y;
+          this.emit(Opcode.POP); // discard X
+          this.expr(e.Y);
+          this.jump(done);
+
+          this.block = done;
+          break;
+
+        case Token.AND:
+          // x and y  =>  if x then y else x
+          const done1 = this.newBlock();
+          const y1 = this.newBlock();
+
+          this.expr(e.X);
+          this.emit(Opcode.DUP);
+          this.condjump(Opcode.CJMP, y1, done1);
+
+          this.block = y1;
+          this.emit(Opcode.POP); // discard X
+          this.expr(e.Y);
+          this.jump(done1);
+
+          this.block = done1;
+          break;
+
+        case Token.PLUS:
+          this.plus(e);
+          break;
+
+        default:
+          // all other strict binary operator (includes comparisons)
+          this.expr(e.X);
+          this.expr(e.Y);
+          this.binop(e.OpPos, e.Op);
+          break;
+      }
+    }
+
+    if (e instanceof syntax.DotExpr) {
+      this.expr(e.X);
+      this.setPos(e.Dot);
+      this.emit1(Opcode.ATTR, this.pcomp.nameIndex(e.Name.Name));
+    }
+
+    if (e instanceof syntax.CallExpr) {
+      this.call(e);
+    }
+
+    if (e instanceof syntax.LambdaExpr) {
+      this.func(e._function);
+    }
+
+    const start = e.span()[0];
+    console.log(`${start}: unexpected expr ${e.constructor.name} `);
   }
 
   plus(e: syntax.BinaryExpr): void {
@@ -1205,10 +1349,10 @@ class fcomp {
     // A tree (((a+b)+c)+d) becomes args=[a +b +c +d].
     const args: Summand[] = [];
     for (let plus = e; ;) {
-      args.push({ x: this.unparen(plus.Y), plusPos: plus.OpPos });
-      const left = this.unparen(plus.X) as syntax.Expr;
-      if (!(left instanceof syntax.BinaryExpr) || left.Op !== syntax.PLUS) {
-        args.push({ x: left });
+      args.push(new Summand(unparen(plus.Y), plus.OpPos));
+      const left = unparen(plus.X) as syntax.Expr;
+      if (!(left instanceof syntax.BinaryExpr) || left.Op !== Token.PLUS) {
+        args.push(new Summand(left, null));
         break;
       }
       plus = left;
@@ -1220,13 +1364,15 @@ class fcomp {
     const out: Summand[] = []; // compact in situ
     for (let i = 0; i < args.length;) {
       let j = i + 1;
-      const code = this.addable(args[i].x);
+      const code = addable(args[i].x);
+      // BUG:
+      //@ts-ignore
       if (code !== 0) {
-        while (j < args.length && this.addable(args[j].x) === code) {
+        while (j < args.length && addable(args[j].x) === code) {
           j++;
         }
         if (j > i + 1) {
-          args[i].x = this.add(code, args.slice(i, j));
+          args[i].x = add(code!, args.slice(i, j));
         }
       }
       out.push(args[i]);
@@ -1239,68 +1385,69 @@ class fcomp {
     for (let i = 1; i < compactArgs.length; i++) {
       const summand = compactArgs[i];
       this.expr(summand.x);
-      this.setPos(summand.plusPos);
+      this.setPos(summand.plusPos!);
       this.emit(Opcode.PLUS);
     }
   }
 
-  binop(pos: syntax.Position, op: syntax.Token): void {
+  binop(pos: Position, op: Token): void {
     // TODO(adonovan): simplify by assuming syntax and compiler constants align.
     this.setPos(pos);
     switch (op) {
       // arithmetic
-      case syntax.PLUS:
+      case Token.PLUS:
         this.emit(Opcode.PLUS);
         break;
-      case syntax.MINUS:
+      case Token.MINUS:
         this.emit(Opcode.MINUS);
         break;
-      case syntax.STAR:
+      case Token.STAR:
         this.emit(Opcode.STAR);
         break;
-      case syntax.SLASH:
+      case Token.SLASH:
         this.emit(Opcode.SLASH);
         break;
-      case syntax.SLASHSLASH:
+      case Token.SLASHSLASH:
         this.emit(Opcode.SLASHSLASH);
         break;
-      case syntax.PERCENT:
+      case Token.PERCENT:
         this.emit(Opcode.PERCENT);
         break;
-      case syntax.AMP:
+      case Token.AMP:
         this.emit(Opcode.AMP);
         break;
-      case syntax.PIPE:
+      case Token.PIPE:
         this.emit(Opcode.PIPE);
         break;
-      case syntax.CIRCUMFLEX:
+      case Token.CIRCUMFLEX:
         this.emit(Opcode.CIRCUMFLEX);
         break;
-      case syntax.LTLT:
+      case Token.LTLT:
         this.emit(Opcode.LTLT);
         break;
-      case syntax.GTGT:
+      case Token.GTGT:
         this.emit(Opcode.GTGT);
         break;
-      case syntax.IN:
+      case Token.IN:
         this.emit(Opcode.IN);
         break;
-      case syntax.NOT_IN:
+      case Token.NOT_IN:
         this.emit(Opcode.IN);
         this.emit(Opcode.NOT);
         break;
 
       // comparisons
-      case syntax.EQL:
-      case syntax.NEQ:
-      case syntax.GT:
-      case syntax.LT:
-      case syntax.LE:
-      case syntax.GE:
-        this.emit(op - syntax.EQL + Opcode.EQL);
+      case Token.EQL:
+      case Token.NEQ:
+      case Token.GT:
+      case Token.LT:
+      case Token.LE:
+      case Token.GE:
+        // BUG:
+        // this.emit(op - syntax.EQL + Opcode.EQL);
         break;
       default:
-        console.log(`${pos}: unexpected binary op: ${op}`);
+        console.log(`${pos}: unexpected binary op: ${op} `);
         throw new Error("Unexpected binary op");
     }
   }
@@ -1324,7 +1471,7 @@ class fcomp {
     let varargs: syntax.Expr | undefined;
     let kwargs: syntax.Expr | undefined;
     for (const arg of call.Args) {
-      if (arg instanceof syntax.BinaryExpr && arg.Op === syntax.EQ) {
+      if (arg instanceof syntax.BinaryExpr && arg.Op === Token.EQ) {
         // named argument (name, value)
         // BUG: here
         // this.string(arg.X.(* syntax.Ident).Name);
@@ -1333,13 +1480,13 @@ class fcomp {
         continue;
       }
       if (arg instanceof syntax.UnaryExpr) {
-        if (arg.Op === syntax.STAR) {
+        if (arg.Op === Token.STAR) {
           callmode |= 1;
-          varargs = arg.X;
+          varargs = arg.X!;
           continue;
-        } else if (arg.Op === syntax.STARSTAR) {
+        } else if (arg.Op === Token.STARSTAR) {
           callmode |= 2;
-          kwargs = arg.X;
+          kwargs = arg.X!;
           continue;
         }
       }
@@ -1364,7 +1511,7 @@ class fcomp {
       throw new Error("too many arguments in call");
     }
 
-    return [Opcode.CALL + callmode, p << 8 | n];
+    return [Opcode.CALL + callmode, (p << 8) | n];
   }
 
   tuple(elems: syntax.Expr[]): void {
@@ -1374,72 +1521,72 @@ class fcomp {
 
   // emit a comprehension with the given syntax comprehension and clause index
   comprehension(comp: syntax.Comprehension, clauseIndex: number): void {
-    if (clauseIndex == comp.clauses.length) {
-      this.dup();
-      if (comp.curly) {
+    if (clauseIndex == comp.Clauses.length) {
+      this.emit(Opcode.DUP);
+      if (comp.Curly) {
         // dict: {k:v for ...}
         // Parser ensures that body is of form k:v.
         // Python-style set comprehensions {body for vars in x}
         // are not supported.
-        const entry = comp.body as syntax.DictEntry;
-        this.expr(entry.key);
-        this.expr(entry.value);
-        this.setDict(entry.colon);
+        const entry = comp.Body as syntax.DictEntry;
+        this.expr(entry.Key);
+        this.expr(entry.Value);
+        this.setPos(entry.Colon);
+        this.emit(Opcode.SETDICT);
       } else {
         // list: [body for vars in x]
-        this.expr(comp.body);
-        this.append();
+        this.expr(comp.Body);
+        this.emit(Opcode.APPEND);
       }
       return;
     }
 
-    const clause = comp.clauses[clauseIndex];
-    switch (clause.constructor) {
-      case syntax.IfClause:
-        const t = this.newBlock();
-        const done = this.newBlock();
-        this.ifelse((clause as syntax.IfClause).cond, t, done);
+    const clause = comp.Clauses[clauseIndex];
+    if (clause instanceof syntax.IfClause) {
+      const t = this.newBlock();
+      const done = this.newBlock();
+      this.ifelse((clause as syntax.IfClause).Cond, t, done);
 
-        this.block = t;
-        this.comprehension(comp, clauseIndex + 1);
-        this.jump(done);
+      this.block = t;
+      this.comprehension(comp, clauseIndex + 1);
+      this.jump(done);
 
-        this.block = done;
-        return;
+      this.block = done;
+      return;
+    }
+    if (clause instanceof syntax.ForClause) {
+      // Keep consistent with ForStmt.
+      const head = this.newBlock();
+      const body = this.newBlock();
+      const tail = this.newBlock();
 
-      case syntax.ForClause:
-        // Keep consistent with ForStmt.
-        const head = this.newBlock();
-        const body = this.newBlock();
-        const tail = this.newBlock();
+      this.expr(clause.x);
+      this.setPos(clause.forPos);
+      this.emit(Opcode.ITERPUSH);
 
-        this.expr(clause.X)
-        this.setPos(clause.For)
-        this.emit(Opcode.ITERPUSH)
+      this.jump(head);
 
-        this.jump(head);
+      this.block = head;
+      this.condjump(Opcode.ITERJMP, tail, body);
 
-        this.block = head;
-        this.condjump(Opcode.ITERJMP, tail, body);
+      this.block = body;
+      this.assign(clause.forPos, clause.vars); // TODO: Implement variable assignment
+      this.comprehension(comp, clauseIndex + 1);
+      this.jump(head);
 
-        this.block = body;
-        this.assign((clause as syntax.ForClause).vars, [null]); // TODO: Implement variable assignment
-        this.comprehension(comp, clauseIndex + 1);
-        this.jump(head);
-
-        this.block = tail;
-        this.emit(Opcode.ITERPOP);
-        return
+      this.block = tail;
+      this.emit(Opcode.ITERPOP);
+      return;
     }
 
-    let start, _ = clause.Span();
-    throw new Error(`${start}: unexpected comprehension clause ${clause}`)
+    let [start, _] = clause.span();
+    throw new Error(`${start}: unexpected comprehension clause ${clause} `);
   }
 
   // TypeScript equivalent of the given Golang code
-  function(f: resolve.Function): void {
+  func(f: binding.Function): void {
     // Evaluation of the defaults may fail, so record the position.
-    this.setPos(f.Pos);
+    this.setPos(f.pos);
 
     // To reduce allocation, we emit a combined tuple
     // for the defaults and the freevars.
@@ -1451,47 +1598,45 @@ class fcomp {
     // (dp2, dp3, MANDATORY, dk2, MANDATORY).
     let ndefaults = 0;
     let seenStar = false;
-    for (const param of f.Params) {
-      switch (param.type) {
-        case "BinaryExpr":
-          this.expr(param.Y);
+    for (const param of f.params) {
+      if (param instanceof syntax.BinaryExpr) {
+        this.expr(param.Y);
+        ndefaults++;
+      }
+      if (param instanceof syntax.UnaryExpr) {
+        seenStar = true; // * or *args (also **kwargs)
+      }
+      if (param instanceof syntax.Ident) {
+        if (seenStar) {
+          this.emit(Opcode.MANDATORY);
           ndefaults++;
-          break;
-        case "UnaryExpr":
-          seenStar = true; // * or *args (also **kwargs)
-          break;
-        case "Ident":
-          if (seenStar) {
-            this.emit(Opcode.MANDATORY);
-            ndefaults++;
-          }
-          break;
+        }
       }
     }
 
     // Capture the cells of the function's
     // free variables from the lexical environment.
-    for (const freevar of f.FreeVars) {
+    for (const freevar of f.freeVars) {
       // Don't call fcomp.lookup because we want
       // the cell itself, not its content.
-      switch (freevar.Scope) {
-        case resolve.Free:
-          this.emit1(Opcode.FREE, freevar.Index);
+      switch (freevar.scope) {
+        case binding.Scope.Free:
+          this.emit1(Opcode.FREE, freevar.index);
           break;
-        case resolve.Cell:
-          this.emit1(Opcode.LOCAL, freevar.Index);
+        case binding.Scope.Cell:
+          this.emit1(Opcode.LOCAL, freevar.index);
           break;
       }
     }
 
-    this.emit1(Opcode.MAKETUPLE, ndefaults + f.FreeVars.length);
+    this.emit1(Opcode.MAKETUPLE, ndefaults + f.freeVars.length);
 
-    const funcode = this.pcomp.function(
-      f.Name,
-      f.Pos,
-      f.Body,
-      f.Locals,
-      f.FreeVars
+    const funcode = this.pcomp.func(
+      f.name,
+      f.pos,
+      f.body,
+      f.locals,
+      f.freeVars
     );
 
     if (debug) {
@@ -1499,102 +1644,108 @@ class fcomp {
       // to make the log easier to read.
       // Simplify by identifying Toplevel and functionIndex 0.
       // FIXME: missing debug
-      // console.log(`resuming ${this.fn.Name} @${this.pos} `);
+      // console.log(`resuming ${ this.fn.Name } @${ this.pos } `);
     }
 
     // def f(a, *, b=1) has only 2 parameters.
-    let numParams = f.Params.length;
-    if (f.NumKwonlyParams > 0 && !f.HasVarargs) {
+    let numParams = f.params.length;
+    if (f.numKwonlyParams > 0 && !f.hasVarargs) {
       numParams--;
     }
 
     funcode.numParams = numParams;
-    funcode.numKwonlyParams = f.NumKwonlyParams;
-    funcode.hasVarargs = f.HasVarargs;
-    funcode.hasKwargs = f.HasKwargs;
+    funcode.numKwonlyParams = f.numKwonlyParams;
+    funcode.hasVarargs = f.hasVarargs;
+    funcode.hasKwargs = f.hasKwargs;
     this.emit1(Opcode.MAKEFUNC, this.pcomp.functionIndex(funcode));
   }
 
   // ifelse emits a Boolean control flow decision.
   // On return, the current block is unset.
-  ifelse(cond: syntax.Expr, t: block, f: block) {
+  ifelse(cond: syntax.Expr, t: Block, f: Block) {
     let y;
-    switch (cond.type) {
-      case "UnaryExpr":
-        if (cond.Op === "!" || cond.Op === "not") {
-          // if not x then goto t else goto f
-          // =>
-          // if x then goto f else goto t
-          this.ifelse(cond.X, f, t);
-          return;
-        }
-        break;
-      case "BinaryExpr":
-        switch (cond.Op) {
-          case "&&":
-          case "and":
-            // if x and y then goto t else goto f
-            // =>
-            // if x then ifelse(y, t, f) else goto f
-            this.expr(cond.X);
-            y = this.newBlock();
-            this.condjump(Opcode.CJMP, y, f);
-
-            this.block = y;
-            this.ifelse(cond.Y, t, f);
-            return;
-          case "||":
-          case "or":
-            // if x or y then goto t else goto f
-            //    =>
-            // if x then goto t else ifelse(y, t, f)
-            this.expr(cond.X);
-            y = this.newBlock();
-            this.condjump(Opcode.CJMP, t, y);
-
-            this.block = y;
-            this.ifelse(cond.Y, t, f);
-            return;
-          case "not in":
-            // if x not in y then goto t else goto f
-            //    =>
-            // if x in y then goto f else goto t
-            const copy = { ...cond };
-            // BUG:
-            copy.Op = syntax.IN;
-            this.expr(copy);
-            this.condjump(Opcode.CJMP, f, t);
-            return;
-        }
-        break;
-
+    if (cond instanceof syntax.UnaryExpr) {
+      if (cond.Op == Token.NOT) {
+        // if not x then goto t else goto f
+        // =>
+        // if x then goto f else goto t
+        this.ifelse(cond.X!, f, t);
+        return;
+      }
     }
+    if (cond instanceof syntax.BinaryExpr) {
+      switch (cond.Op) {
+        case Token.AND:
+          // if x and y then goto t else goto f
+          // =>
+          // if x then ifelse(y, t, f) else goto f
+          this.expr(cond.X);
+          y = this.newBlock();
+          this.condjump(Opcode.CJMP, y, f);
 
+          this.block = y;
+          this.ifelse(cond.Y, t, f);
+          return;
+        case Token.OR:
+          // if x or y then goto t else goto f
+          //    =>
+          // if x then goto t else ifelse(y, t, f)
+          this.expr(cond.X);
+          y = this.newBlock();
+          this.condjump(Opcode.CJMP, t, y);
+
+          this.block = y;
+          this.ifelse(cond.Y, t, f);
+          return;
+        case Token.NOT_IN:
+          // if x not in y then goto t else goto f
+          //    =>
+          // if x in y then goto f else goto t
+          const copy = cond;
+          // BUG:
+          copy.Op = Token.IN;
+          this.expr(copy);
+          this.condjump(Opcode.CJMP, f, t);
+          return;
+      }
+    }
     // general case
     this.expr(cond);
     this.condjump(Opcode.CJMP, t, f);
   }
 }
 
-class loop {
-  public break_: block;
-  public continue_: block;
+class Loop {
+  public break_: Block;
+  public continue_: Block;
+
+  constructor(break_: Block, continue_: Block) {
+    this.break_ = break_;
+    this.continue_ = continue_;
+  }
 }
 
-class block {
-  public insns: insn[];
-  public jmp?: block;
-  public cjmp?: block;
+class Block {
+  public insns: Insn[];
+  public jmp?: Block;
+  public cjmp?: Block;
   public initialstack: number;
   public index: number; // -1 => not encoded yet
   public addr: number;
 }
 
-class insn {
+class Insn {
   op: Opcode;
   arg: number;
   line: number;
   col: number;
+
+  constructor(op: Opcode, arg: number, line: number, col: number) {
+    this.op = op;
+    this.arg = arg;
+    this.line = line;
+    this.col = col;
+  }
 
   stackeffect(): number {
     let se: number = stackEffect[this.op];
@@ -1633,13 +1784,12 @@ class insn {
     }
     return se;
   }
-
 }
 
-function bindings(bindings: resolve.Binging[]): Binding[] {
+function bindings(bindings: binding.Binding[]): Binding[] {
   let res = new Array();
   for (var b of bindings) {
-    res.push(new Binding(b.First.Name, b.First.NamePos));
+    res.push(new Binding(b.first!.Name, b.first!.NamePos));
   }
   return res;
 }
@@ -1648,47 +1798,45 @@ function bindings(bindings: resolve.Binging[]): Binding[] {
 export function Expr(
   expr: syntax.Expr,
   name: string,
-  locals: resolve.Binding[]
+  locals: binding.Binding[]
 ): Program {
-  const pos = syntax.Start(expr);
-  const stmts: syntax.Stmt[] = [new ReturnStmt(expr)];
-  return File(stmts, pos, name, locals, null);
+  const pos = expr.span()[0];
+  const stmts: syntax.Stmt[] = [new syntax.ReturnStmt(null, expr)];
+  return File(stmts, pos, name, locals, new Array());
 }
 
 // File compiles the statements of a file into a program.
 export function File(
   stmts: syntax.Stmt[],
-  pos: syntax.Position,
+  pos: Position,
   name: string,
-  locals: resolve.Binding[],
-  globals: resolve.Binding[]
+  locals: binding.Binding[],
+  globals: binding.Binding[]
 ): Program {
-  const pcomp: Pcomp = {
-    prog: {
-      Globals: bindings(globals),
-    } as Program,
-    names: new Map(),
-    constants: new Map(),
-    functions: new Map(),
-  };
-  pcomp.prog.Toplevel = pcomp.function(name, pos, stmts, locals, null);
+  let pcomp = new Pcomp(
+    new Program(bindings(globals)),
+    new Map(),
+    new Map(),
+    new Map()
+  );
+  pcomp.prog.toplevel = pcomp.func(name, pos, stmts, locals, new Array());
 
   return pcomp.prog;
 }
 
 function docStringFromBody(body: syntax.Stmt[]): string {
   if (body.length === 0) {
-    return '';
+    return "";
   }
   const expr = body[0] as syntax.ExprStmt;
   if (!expr) {
-    return '';
+    return "";
   }
   const lit = expr.X as syntax.Literal;
-  if (!lit || lit.Token !== syntax.STRING) {
-    return '';
+  if (!lit || lit.token !== Token.STRING) {
+    return "";
   }
-  return lit.Value as string;
+  return lit.value as string;
 }
 
 function clip(x: number, min: number, max: number): [number, boolean] {
@@ -1735,40 +1883,41 @@ function PrintOp(fn: Funcode, pc: number, op: Opcode, arg: number): void {
   let comment = "";
   switch (op) {
     case Opcode.CONSTANT:
-      const constant = fn.Prog.Constants[arg];
+      const constant = fn.prog.constants[arg];
       if (typeof constant === "string") {
         comment = JSON.stringify(constant);
-      } else if (constant instanceof Bytes) {
-        comment = `b${JSON.stringify(constant.toString())} `;
+        // FIXME:
+        // } else if (constant instanceof Bytes) {
+        //   comment = `b${JSON.stringify(constant.toString())} `;
       } else {
         comment = String(constant);
       }
       break;
     case Opcode.MAKEFUNC:
-      comment = fn.Prog.Functions[arg].Name;
+      comment = fn.prog.functions[arg].name;
       break;
     case Opcode.SETLOCAL:
     case Opcode.LOCAL:
-      comment = fn.Locals[arg].Name;
+      comment = fn.locals[arg].name;
       break;
     case Opcode.SETGLOBAL:
     case Opcode.GLOBAL:
-      comment = fn.Prog.Globals[arg].Name;
+      comment = fn.prog.globals[arg].name;
       break;
     case Opcode.ATTR:
     case Opcode.SETFIELD:
     case Opcode.PREDECLARED:
     case Opcode.UNIVERSAL:
-      comment = fn.Prog.Names[arg];
+      comment = fn.prog.names[arg];
       break;
     case Opcode.FREE:
-      comment = fn.Freevars[arg].Name;
+      comment = fn.freevars[arg].name;
       break;
     case Opcode.CALL:
     case Opcode.CALL_VAR:
     case Opcode.CALL_KW:
     case Opcode.CALL_VAR_KW:
-      comment = `${(arg >> 8)} pos, ${(arg & 0xff)} named`;
+      comment = `${arg >> 8} pos, ${arg & 0xff} named`;
       break;
     default:
       // JMP, CJMP, ITERJMP, MAKETUPLE, MAKELIST, LOAD, UNPACK:
@@ -1784,29 +1933,32 @@ function PrintOp(fn: Funcode, pc: number, op: Opcode, arg: number): void {
 }
 
 class Summand {
-  x: syntax.Expr
-  plusPos: syntax.Position
+  x: syntax.Expr;
+  plusPos: Position | null;
+
+  constructor(x: syntax.Expr, plusPos: Position | null) {
+    this.x = x;
+    this.plusPos = plusPos;
+  }
 }
 
 // addable reports whether e is a statically addable
 // expression: a [s]tring, [b]ytes, [a]rray, or [t]uple.
 function addable(e: syntax.Expr): string | null {
-  switch (e.type) {
-    case "Literal": {
-      const { value, kind } = e;
-      if (kind === "STRING") {
-        return "s";
-      } else if (kind === "BYTES") {
-        return "b";
-      }
-      break;
+  if (e instanceof syntax.Literal) {
+    if (e.token === Token.STRING) {
+      return "s";
+    } else if (e.token === Token.BYTES) {
+      return "b";
     }
-    case "ArrayExpr":
-      return "a";
-    case "TupleExpr":
-      return "t";
   }
-  return null;
+  if (e instanceof syntax.ListExpr) {
+    return "l";
+  }
+  if (e instanceof syntax.TupleExpr) {
+    return "t";
+  }
+  return "";
 }
 
 // add returns an expression denoting the sum of args,
@@ -1814,36 +1966,40 @@ function addable(e: syntax.Expr): string | null {
 // The resulting syntax is degenerate, lacking position, etc.
 function add(code: string, args: Summand[]): syntax.Expr {
   switch (code) {
-    case 's':
-    case 'b': {
-      let buf = ''
+    case "s":
+    case "b": {
+      let buf = "";
       for (const arg of args) {
-        buf += arg.x instanceof syntax.Literal ? arg.x.Value : ''
+        buf += arg.x instanceof syntax.Literal ? arg.x.value : "";
       }
-      const tok = code === 'b' ? syntax.BYTES : syntax.STRING
-      return { Token: tok, Value: buf } as syntax.Literal
+      const tok = code === "b" ? Token.BYTES : Token.STRING;
+      return new syntax.Literal(tok, null, buf, buf);
     }
-    case 'l': {
-      let elems: syntax.Expr[] = []
+    case "l": {
+      let elems: syntax.Expr[] = [];
       for (const arg of args) {
-        elems = elems.concat(arg.x instanceof syntax.ListExpr ? arg.x.List : [])
+        elems = elems.concat(
+          arg.x instanceof syntax.ListExpr ? arg.x.list : []
+        );
       }
-      return { List: elems } as syntax.ListExpr
+      return new syntax.ListExpr(null, elems, null);
     }
-    case 't': {
-      let elems: syntax.Expr[] = []
+    case "t": {
+      let elems: syntax.Expr[] = [];
       for (const arg of args) {
-        elems = elems.concat(arg.x instanceof syntax.TupleExpr ? arg.x.List : [])
+        elems = elems.concat(
+          arg.x instanceof syntax.TupleExpr ? arg.x.List : []
+        );
       }
-      return { List: elems } as syntax.TupleExpr
+      return { List: elems } as syntax.TupleExpr;
     }
   }
-  throw new Error('Unsupported code: ' + code)
+  throw new Error("Unsupported code: " + code);
 }
 
 function unparen(e: syntax.Expr): syntax.Expr {
   if (e instanceof syntax.ParenExpr) {
-    return unparen(e.X);
+    return unparen(e.x);
   }
   return e;
 }
