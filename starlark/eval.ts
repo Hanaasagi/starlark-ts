@@ -1,8 +1,8 @@
 import * as compile from "../internal/compile/compile";
 import { Position } from "../syntax/scan";
 import * as syntax from "../syntax/index";
-import { parse, parseExpr } from "../syntax/parse";
-import { Callable, Function, Tuple } from "./value";
+import { parse, ParseExpr } from "../syntax/parse";
+import { Callable, Function, Tuple, Module } from "./value";
 import { List, Iterable } from "./value";
 import { Value } from "./value";
 import { Universe } from "./library";
@@ -174,7 +174,7 @@ class Frame {
   Position(): Position {
     if (this.callable instanceof Function) {
       let v = this.callable as Function;
-      return v.funcode.Position(this.pc);
+      return v.funcode.position(this.pc);
     }
     if ("position" in this.callable) {
       // If a built-in Callable defines
@@ -304,12 +304,20 @@ export class Program {
     return [id.name, id.pos];
   }
 
-  public init(thread: Thread, predeclared: StringDict): [StringDict, Error] {
+  public init(
+    thread: Thread,
+    predeclared: StringDict
+  ): [StringDict, Error | null] {
     const toplevel = makeToplevelFunction(this.compiled, predeclared);
 
-    const [_, err] = Call(thread, toplevel, null, null);
+    const [_, err] = Call(
+      thread,
+      toplevel,
+      new Tuple(new Array()),
+      new Array()
+    );
 
-    return [toplevel.globals(), err];
+    return [toplevel.Globals(), err];
   }
 }
 
@@ -404,7 +412,7 @@ function ExecREPLChunk(
   f: syntax.File,
   thread: Thread,
   globals: StringDict
-): Error {
+): Error | null {
   let predeclared: StringDict = new StringDict();
 
   // -- variant of FileProgram --
@@ -485,15 +493,12 @@ function makeToplevelFunction(
   //   constants[i] = v;
   // }
 
-  return new Function({
-    funcode: prog.toplevel,
-    module: {
-      program: prog,
-      predeclared: predeclared,
-      globals: new Array(prog.globals.length),
-      constants: constants,
-    },
-  });
+  return new Function(
+    prog.toplevel!,
+    new Module(prog, predeclared, new Array(prog.globals.length), constants),
+    new Tuple(new Array()),
+    new Tuple(new Array())
+  );
 }
 
 // Eval parses, resolves, and evaluates an expression within the
@@ -511,14 +516,14 @@ function Eval(
   filename: string,
   src: any,
   env: StringDict
-): [Value, Error | null] {
-  let [expr, err] = parseExpr(filename, src, 0);
+): [Value | null, Error | null] {
+  let [expr, err] = ParseExpr(filename, src, 0);
   if (err != null) {
-    return [expr, expr];
+    return [null, err];
   }
-  let [f, err2] = makeExprFunc(expr, env);
+  let [f, err2] = makeExprFunc(expr!, env);
   if (err2 !== null) {
-    return [f, err2];
+    return [null, err2];
   }
   return Call(thread, f, new Tuple(new Array()), new Array());
 }
@@ -553,12 +558,12 @@ function ExprFunc(
   filename: string,
   src: any,
   env: StringDict
-): [Function, Error | null] {
-  const [expr, err] = parseExpr(filename, src, 0);
+): [Function | null, Error | null] {
+  const [expr, err] = ParseExpr(filename, src, 0);
   if (err != null) {
-    return [expr, err];
+    return [null, err];
   }
-  return makeExprFunc(expr, env);
+  return makeExprFunc(expr!, env);
 }
 
 // makeExprFunc returns a no-argument function whose body is expr.
@@ -568,7 +573,7 @@ function makeExprFunc(
 ): [Function, Error | null] {
   const [locals, err] = resolve.expr(expr, env.has, Universe.has);
   if (err instanceof Error) {
-    return [null, err];
+    return [locals, err];
   }
   const compiled = compile.Expr(expr, "<expr>", locals);
   return [makeToplevelFunction(compiled, env), null];
@@ -1134,7 +1139,7 @@ function setArgs(
 
 function findParam(params: compile.Binding[], name: string): number {
   for (let i = 0; i < params.length; i++) {
-    if (params[i].Name === name) {
+    if (params[i].name === name) {
       return i;
     }
   }

@@ -668,7 +668,7 @@ class stringCodepointsIterator implements Iterator {
 
 // A Function is a function defined by a Starlark def statement or lambda expression.
 // The initialization behavior of a Starlark module is also represented by a Function.
-class Function implements Value {
+export class Function implements Value {
   funcode: compile.Funcode;
   module: Module;
   defaults: Tuple;
@@ -784,11 +784,23 @@ class Function implements Value {
 
 // A module is the dynamic counterpart to a Program.
 // All functions in the same program share a module.
-class Module {
+export class Module {
   program: compile.Program;
   predeclared: StringDict;
   globals: Value[];
   constants: Value[];
+
+  constructor(
+    program: compile.Program,
+    predeclared: StringDict,
+    globals: Value[],
+    constants: Value[]
+  ) {
+    this.program = program;
+    this.predeclared = predeclared;
+    this.globals = globals;
+    this.constants = constants;
+  }
 
   // makeGlobalDict returns a new, unfrozen StringDict containing all global
   // variables so far defined in the module.
@@ -1027,7 +1039,7 @@ function dictsEqual(x: Dict, y: Dict, depth: number): [boolean, Error | null] {
 }
 
 // A *List represents a Starlark list value.
-class List implements Value {
+export class List implements Value {
   elems: Value[];
   frozen: boolean;
   itercount: number; // number of active iterators (ignored if frozen)
