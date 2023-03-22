@@ -1,21 +1,11 @@
 // import syntax = require("../syntax");
 // BUG:
-import * as syntax from "../syntax/index";
-import { Thread } from "./eval";
+import * as syntax from "../syntax/syntax";
+import { Position } from "../syntax/scan";
 import { signum } from "./eval";
-import { StringDict } from "./eval";
 import * as compile from "../internal/compile/compile";
 import { hashString, Hashtable } from "./hashtable";
 import { mandatory } from "./interpreter";
-import {
-  dictMethods,
-  listMethods,
-  setMethods,
-  bytesMethods,
-  stringMethods,
-} from "./library";
-import { builtinAttr, builtinAttrNames } from "./library";
-import { Int } from "./int";
 
 // Starlark values are represented by the Value interface.
 // The following built-in Value types are known to the evaluator:
@@ -124,7 +114,7 @@ interface Comparable extends Value {
   // Client code should not call this method. Instead, use the
   // standalone Compare or Equals functions, which are defined for
   // all pairs of operands.
-  CompareSameType(op: syntax.Token, y: Value, depth: number): [boolean, Error];
+  CompareSameType(op: Token, y: Value, depth: number): [boolean, Error];
 }
 
 // A Callable value f may be the operand of a function call, f(x).
@@ -140,7 +130,7 @@ export interface Callable extends Value {
 }
 
 export interface callableWithPosition extends Callable {
-  position(): syntax.Position;
+  position(): Position;
 }
 
 // An Iterator provides a sequence of values to the caller.
@@ -217,7 +207,7 @@ interface Mapping extends Value {
 }
 
 // An IterableMapping is a mapping that supports key enumeration.
-interface IterableMapping extends Mapping {
+export interface IterableMapping extends Mapping {
   iterate(): Iterator;
   items(): Tuple[];
 }
@@ -239,7 +229,7 @@ const Rigth: Side = true;
 // For this reason, clients should always call the standalone Binary(op, x, y)
 // function rather than calling the method directly.
 interface hasBinary extends Value {
-  binary(op: syntax.Token, y: Value, side: Side): [Value, Error | null];
+  binary(op: Token, y: Value, side: Side): [Value, Error | null];
 }
 
 // A HasUnary value may be used as the operand of these unary operators:
@@ -249,7 +239,7 @@ interface hasBinary extends Value {
 // For this reason, clients should always call the standalone Unary(op, x)
 // function rather than calling the method directly.
 interface HasUnary extends Value {
-  unary(op: syntax.Token): [Value, Error | null];
+  unary(op: Token): [Value, Error | null];
 }
 
 // A HasAttrs value has fields or methods that may be read by a dot expression (y = x.f).
@@ -277,7 +267,7 @@ interface HasSetField extends HasAttrs {
 // NoneType is the type of None.  Its only legal value is None.
 // (We represent it as a number, not struct{}, so that None may be constant.)
 class NoneType implements Value {
-  constructor() { }
+  constructor() {}
 
   String(): string {
     return "None";
@@ -286,7 +276,7 @@ class NoneType implements Value {
     return "NoneType";
   }
 
-  Freeze() { }
+  Freeze() {}
   Truth(): Bool {
     return False;
   }
@@ -315,7 +305,7 @@ export class Bool implements Comparable {
     return "bool";
   }
 
-  Freeze() { }
+  Freeze() {}
 
   Truth(): Bool {
     return this;
@@ -326,7 +316,7 @@ export class Bool implements Comparable {
     return [0, null];
   }
 
-  CompareSameType(op: syntax.Token, y: Value, depth: number): [boolean, Error] {
+  CompareSameType(op: Token, y: Value, depth: number): [boolean, Error] {
     // BUG:
     return [false, new Error()];
   }
@@ -349,7 +339,7 @@ class Float implements Comparable {
     return "float";
   }
 
-  Freeze() { }
+  Freeze() {}
 
   Truth(): Bool {
     return new Bool(this.val !== 0.0);
@@ -375,7 +365,7 @@ class Float implements Comparable {
   // TODO:
   // rational()
 
-  CompareSameType(op: syntax.Token, y: Value, depth: number): [boolean, Error] {
+  CompareSameType(op: Token, y: Value, depth: number): [boolean, Error] {
     // BUG:
     return [false, new Error()];
   }
@@ -437,7 +427,7 @@ function AsFloat(x: Value): [number, boolean] {
 // so s.String() or fmt.Sprintf("%s", s) returns a quoted string.
 // Use string(s) or s.GoString() or fmt.Sprintf("%#v", s) to obtain the raw contents
 // of a Starlark string as a Go string.
-class String implements Comparable, HasAttrs {
+export class String implements Comparable, HasAttrs {
   val: string;
 
   constructor(val: string) {
@@ -458,7 +448,7 @@ class String implements Comparable, HasAttrs {
     return "string";
   }
 
-  Freeze() { }
+  Freeze() {}
 
   Truth(): Bool {
     return new Bool(this.val.length > 0);
@@ -501,7 +491,7 @@ class String implements Comparable, HasAttrs {
     return builtinAttrNames(stringMethods);
   }
 
-  CompareSameType(op: syntax.Token, y: Value, depth: number): [boolean, Error] {
+  CompareSameType(op: Token, y: Value, depth: number): [boolean, Error] {
     // BUG:
     return [false, new Error()];
   }
@@ -539,7 +529,7 @@ class StringElems {
     return "string.elems";
   }
 
-  Freeze(): void { } // immutable
+  Freeze(): void {} // immutable
 
   Truth(): Bool {
     return True;
@@ -588,7 +578,7 @@ class StringElemsIterator implements Iterator {
     return true;
   }
 
-  done(): void { }
+  done(): void {}
 }
 
 // A stringCodepoints is an iterable whose iterator yields a sequence of
@@ -620,7 +610,7 @@ class stringCodepoints {
     return "string.codepoints";
   }
 
-  Freeze(): void { } // immutable
+  Freeze(): void {} // immutable
 
   Truth(): Bool {
     return True;
@@ -663,7 +653,7 @@ class stringCodepointsIterator implements Iterator {
     // return { done: false, value: p };
   }
 
-  done(): void { }
+  done(): void {}
 }
 
 // A Function is a function defined by a Starlark def statement or lambda expression.
@@ -722,7 +712,7 @@ export class Function implements Value {
     return this.module.makeGlobalDict();
   }
 
-  Position(): syntax.Position {
+  Position(): Position {
     return this.funcode.pos;
   }
 
@@ -738,7 +728,7 @@ export class Function implements Value {
   // where 0 <= i < NumParams().
   // The *args and **kwargs parameters are at the end
   // even if there were optional parameters after *args.
-  Param(i: number): [string, syntax.Position] {
+  Param(i: number): [string, Position] {
     if (i >= this.NumParams()) {
       throw new Error(i.toString());
     }
@@ -825,7 +815,7 @@ export class Builtin implements Value {
     fn: Builtin,
     args: Tuple,
     kwargs: Tuple[]
-  ) => [Value, Error];
+  ) => [Value, Error | null];
   recv: Value | null;
 
   constructor(
@@ -835,7 +825,7 @@ export class Builtin implements Value {
       fn: Builtin,
       args: Tuple,
       kwargs: Tuple[]
-    ) => [Value, Error],
+    ) => [Value, Error | null],
     recv: Value | null = null
   ) {
     this.name = name;
@@ -873,7 +863,11 @@ export class Builtin implements Value {
     return "builtin_function_or_method";
   }
 
-  CallInternal(thread: Thread, args: Tuple, kwargs: Tuple[]): [Value, Error] {
+  CallInternal(
+    thread: Thread,
+    args: Tuple,
+    kwargs: Tuple[]
+  ): [Value, Error | null] {
     return this.fn(thread, this, args, kwargs);
   }
 
@@ -987,17 +981,13 @@ class Dict implements Value {
     return builtinAttrNames(dictMethods);
   }
 
-  CompareSameType(
-    op: syntax.Token,
-    y: Value,
-    depth: number
-  ): [boolean, Error | null] {
+  CompareSameType(op: Token, y: Value, depth: number): [boolean, Error | null] {
     const yDict = y as Dict;
     switch (op) {
-      case syntax.Token.EQL:
+      case Token.EQL:
         const [ok, err] = dictsEqual(this, yDict, depth);
         return [ok, err];
-      case syntax.Token.NEQ:
+      case Token.NEQ:
         const [notEqual, error] = dictsEqual(this, yDict, depth);
         return [!notEqual, error];
       default:
@@ -1120,7 +1110,7 @@ export class List implements Value {
   }
 
   CompareSameType(
-    op: syntax.Token,
+    op: Token,
     y_: Value,
     depth: number
   ): [boolean, Error | null] {
@@ -1163,17 +1153,14 @@ export class List implements Value {
 }
 
 function sliceCompare(
-  op: syntax.Token,
+  op: Token,
   x: Value[],
   y: Value[],
   depth: number
 ): [boolean, Error | null] {
   // Fast path: check length.
-  if (
-    x.length !== y.length &&
-    (op === syntax.Token.EQL || op === syntax.Token.NEQ)
-  ) {
-    return [op === syntax.Token.NEQ, null];
+  if (x.length !== y.length && (op === Token.EQL || op === Token.NEQ)) {
+    return [op === Token.NEQ, null];
   }
 
   // Find first element that is not equal in both lists.
@@ -1184,9 +1171,9 @@ function sliceCompare(
     }
     if (!eq) {
       switch (op) {
-        case syntax.Token.EQL:
+        case Token.EQL:
           return [false, null];
-        case syntax.Token.NEQ:
+        case Token.NEQ:
           return [true, null];
         default:
           return CompareDepth(op, x[i], y[i], depth - 1);
@@ -1273,11 +1260,7 @@ export class Tuple implements Value {
     return new Bool(this.elems.length > 0);
   }
 
-  compareSameType(
-    op: syntax.Token,
-    y: Tuple,
-    depth: number
-  ): [boolean, Error | null] {
+  compareSameType(op: Token, y: Tuple, depth: number): [boolean, Error | null] {
     return sliceCompare(op, this.elems, y.elems, depth);
   }
 
@@ -1310,7 +1293,7 @@ export class TupleIterator implements Iterator {
     return false;
   }
 
-  done(): void { }
+  done(): void {}
 }
 
 // A Set represents a TypeScript set value.
@@ -1382,16 +1365,12 @@ class Set implements Value {
     return builtinAttrNames(setMethods);
   }
 
-  compareSameType(
-    op: syntax.Token,
-    y: Set,
-    depth: number
-  ): [boolean, Error | null] {
+  compareSameType(op: Token, y: Set, depth: number): [boolean, Error | null] {
     switch (op) {
-      case syntax.Token.EQL:
+      case Token.EQL:
         let [ok, err] = setsEqual(this, y, depth);
         return [ok, err];
-      case syntax.Token.NEQ:
+      case Token.NEQ:
         let [ok2, err2] = setsEqual(this, y, depth);
         return [!ok2, err2];
       default:
@@ -1583,7 +1562,7 @@ function EqualDepth(
   y: Value,
   depth: number
 ): [boolean, Error | null] {
-  return CompareDepth(syntax.Token.EQL, x, y, depth);
+  return CompareDepth(Token.EQL, x, y, depth);
 }
 
 // Compare compares two Starlark values.
@@ -1594,7 +1573,7 @@ function EqualDepth(
 // Recursive comparisons by implementations of Value.CompareSameType
 // should use CompareDepth to prevent infinite recursion.
 export function Compare(
-  op: syntax.Token,
+  op: Token,
   x: Value,
   y: Value
 ): [boolean, Error | null] {
@@ -1609,7 +1588,7 @@ export function Compare(
 // The depth parameter limits the maximum depth of recursion
 // in cyclic data structures.
 export function CompareDepth(
-  op: syntax.Token,
+  op: Token,
   x: Value,
   y: Value,
   depth: number
@@ -1625,9 +1604,9 @@ export function CompareDepth(
 
     // use identity comparison
     switch (op) {
-      case syntax.Token.EQL:
+      case Token.EQL:
         return [x === y, null];
-      case syntax.Token.NEQ:
+      case Token.NEQ:
         return [x !== y, null];
     }
     return [false, new Error(`${x.Type()} ${op} ${y.Type()} not implemented`)];
@@ -1671,9 +1650,9 @@ export function CompareDepth(
 
   // All other values of different types compare unequal.
   switch (op) {
-    case syntax.Token.EQL:
+    case Token.EQL:
       return [false, null];
-    case syntax.Token.NEQ:
+    case Token.NEQ:
       return [true, null];
   }
   return [false, new Error(`${x.Type()} ${op} ${y.Type()} not implemented`)];
@@ -1686,19 +1665,19 @@ function sameType(x: Value, y: Value): boolean {
 
 // threeway interprets a three-way comparison value cmp (-1, 0, +1)
 // as a boolean comparison (e.g. x < y).
-function threeway(op: syntax.Token, cmp: number): boolean {
+function threeway(op: Token, cmp: number): boolean {
   switch (op) {
-    case syntax.Token.EQL:
+    case Token.EQL:
       return cmp === 0;
-    case syntax.Token.NEQ:
+    case Token.NEQ:
       return cmp !== 0;
-    case syntax.Token.LE:
+    case Token.LE:
       return cmp <= 0;
-    case syntax.Token.LT:
+    case Token.LT:
       return cmp < 0;
-    case syntax.Token.GE:
+    case Token.GE:
       return cmp >= 0;
-    case syntax.Token.GT:
+    case Token.GT:
       return cmp > 0;
     default:
       throw new Error(op);
@@ -1756,7 +1735,7 @@ class Bytes implements Value, Comparable, Sliceable, Indexable {
     return "bytes";
   }
 
-  Freeze(): void { } // immutable
+  Freeze(): void {} // immutable
 
   Truth(): Bool {
     return new Bool(this.value.length > 0);
@@ -1795,7 +1774,7 @@ class Bytes implements Value, Comparable, Sliceable, Indexable {
     return new Bytes(str);
   }
 
-  CompareSameType(op: syntax.Token, y: Value, depth: number): [boolean, Error] {
+  CompareSameType(op: Token, y: Value, depth: number): [boolean, Error] {
     return [false, new Error()];
     // TODO:
     // const valueY = y as Bytes;
@@ -1803,3 +1782,340 @@ class Bytes implements Value, Comparable, Sliceable, Indexable {
     // return [result, null];
   }
 }
+
+// ------------------------------------------------------
+// ------------------------Library
+// ------------------------------------------------------
+import { Thread } from "./eval";
+import { Token } from "../syntax/scan";
+// import { hashString } from "./hashtable";
+// import { toString } from "./value";
+import { AsInt32, MakeInt, Int } from "./int";
+// import * as syntax from "../syntax/syntax";
+
+export var bytesMethods: Map<string, Builtin> = new Map([
+  // ["elems", new Builtin("elems", bytes_elems)]
+]);
+
+export var dictMethods: Map<string, Builtin> = new Map([
+  // ["clear", new Builtin("clear", dict_clear)],
+  // ["get", new Builtin("get", dict_get)],
+  // ["items", new Builtin("items", dict_items)],
+  // ["keys", new Builtin("keys", dict_keys)],
+  // ["pop", new Builtin("pop", dict_pop)],
+  // ["popitem", new Builtin("popitem", dict_popitem)],
+  // ["setdefault", new Builtin("setdefault", dict_setdefault)],
+  // ["update", new Builtin("update", dict_update)],
+  // ["values", new Builtin("values", dict_values)],
+]);
+
+export var listMethods: Map<string, Builtin> = new Map([
+  // ["append", new Builtin("append", list_append)],
+  // ["clear", new Builtin("clear", list_clear)],
+  // ["extend", new Builtin("extend", list_extend)],
+  // ["index", new Builtin("index", list_index)],
+  // ["insert", new Builtin("insert", list_insert)],
+  // ["pop", new Builtin("pop", list_pop)],
+  // ["remove", new Builtin("remove", list_remove)],
+]);
+
+export var stringMethods: Map<string, Builtin> = new Map([
+  // ["capitalize", new Builtin("capitalize", string_capitalize)],
+  // ["codepoint_ords", new Builtin("codepoint_ords", string_iterable)],
+  // ["codepoints", new Builtin("codepoints", string_iterable)],
+  // ["count", new Builtin("count", string_count)],
+  // ["elem_ords", new Builtin("elem_ords", string_iterable)],
+  // ["elems", new Builtin("elems", string_iterable)],
+  // ["endswith", new Builtin("endswith", string_startswith)],
+  // ["find", new Builtin("find", string_find)],
+  // ["format", new Builtin("format", string_format)],
+  // ["index", new Builtin("index", string_index)],
+  // ["isalnum", new Builtin("isalnum", string_isalnum)],
+  // ["isalpha", new Builtin("isalpha", string_isalpha)],
+  // ["isdigit", new Builtin("isdigit", string_isdigit)],
+  // ["islower", new Builtin("islower", string_islower)],
+  // ["isspace", new Builtin("isspace", string_isspace)],
+  // ["istitle", new Builtin("istitle", string_istitle)],
+  // ["isupper", new Builtin("isupper", string_isupper)],
+  // ["join", new Builtin("join", string_join)],
+  // ["lower", new Builtin("lower", string_lower)],
+  // ["lstrip", new Builtin("lstrip", string_strip)],
+  // ["partition", new Builtin("partition", string_partition)],
+  // ["removeprefix", new Builtin("removeprefix", string_removefix)],
+  // ["removesuffix", new Builtin("removesuffix", string_removefix)],
+  // ["replace", new Builtin("replace", string_replace)],
+  // ["rfind", new Builtin("rfind", string_rfind)],
+  // ["rindex", new Builtin("rindex", string_rindex)],
+  // ["rpartition", new Builtin("rpartition", string_partition)],
+  // ["rsplit", new Builtin("rsplit", string_split)],
+  // ["rstrip", new Builtin("rstrip", string_strip)],
+  // ["split", new Builtin("split", string_split)],
+  // ["splitlines", new Builtin("splitlines", string_splitlines)],
+  // ["startswith", new Builtin("startswith", string_startswith)],
+  // ["strip", new Builtin("strip", string_strip)],
+  // ["title", new Builtin("title", string_title)],
+  // ["upper", new Builtin("upper", string_upper)],
+]);
+
+export var setMethods: Map<string, Builtin> = new Map([
+  // ["union", new Builtin("union", set_union)]
+]);
+
+export function builtinAttr(
+  recv: Value,
+  name: string,
+  methods: Map<string, Builtin>
+): [Value, Error | null] {
+  const b = methods.get(name);
+  if (!b) {
+    //@ts-ignore
+    return [b, null]; // no such method
+  }
+  return [b.BindReceiver(recv), null];
+}
+
+export function builtinAttrNames(methods: Map<string, Builtin>): string[] {
+  const names: string[] = Object.keys(methods);
+  names.sort();
+  return names;
+}
+
+// ---- built-in functions ----
+
+// https://github.com/google/starlark-go/blob/master/doc/spec.md#print
+function print(
+  thread: Thread,
+  b: Builtin,
+  args: Tuple,
+  kwargs: Tuple[]
+): [Value, Error | null] {
+  console.log("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
+  console.log("<<<< print is not impl but i can give you", args);
+  console.log("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
+  return [b, null];
+  // let sep = " ";
+  // const err = UnpackArgs("print", null, kwargs, "sep?", sep);
+  // if (err) {
+  //   return [null, err];
+  // }
+  // const buf = new StringBuilder();
+  // for (let i = 0; i < args.length; i++) {
+  //   const v = args[i];
+  //   if (i > 0) {
+  //     buf.WriteString(sep);
+  //   }
+  //   const s = AsString(v);
+  //   if (s !== undefined) {
+  //     buf.WriteString(s);
+  //   } else if (v instanceof Bytes) {
+  //     buf.WriteString(String(v));
+  //   } else {
+  //     writeValue(buf, v, null);
+  //   }
+  // }
+
+  // const s = buf.String();
+  // if (thread.Print !== null) {
+  //   thread.Print(thread, s);
+  // } else {
+  //   console.log(s);
+  // }
+  // return [None, null];
+}
+
+// A rangeValue is a comparable, immutable, indexable sequence of integers
+// defined by the three parameters to a range(...) call.
+// Invariant: step != 0.
+class RangeValue implements Value {
+  public start: number;
+  public stop: number;
+  public step: number;
+  public len: number;
+
+  constructor(start: number, stop: number, step: number, len: number) {
+    this.start = start;
+    this.stop = stop;
+    this.step = step;
+    this.len = len;
+  }
+
+  Len(): number {
+    return this.len;
+  }
+
+  Index(i: number): Value {
+    return MakeInt(this.start + i * this.step);
+  }
+
+  Iterate(): Iterator {
+    return new RangeIterator(this);
+  }
+
+  Slice(start: number, end: number, step: number): RangeValue {
+    const newStart = this.start + this.step * start;
+    const newStop = this.start + this.step * end;
+    const newStep = this.step * step;
+    return new RangeValue(
+      newStart,
+      newStop,
+      newStep,
+      rangeLen(newStart, newStop, newStep)
+    );
+  }
+
+  Freeze(): void {} // immutable
+
+  String(): string {
+    if (this.step !== 1) {
+      return `${this.start}, ${this.stop}, ${this.step}`;
+    } else if (this.start !== 0) {
+      return `${this.start}, ${this.stop}`;
+    } else {
+      return `${this.stop}`;
+    }
+  }
+
+  Type(): string {
+    return "range";
+  }
+
+  Truth(): Bool {
+    return new Bool(this.len > 0);
+  }
+
+  Hash(): [number, Error | null] {
+    return [0, new Error("unhashable: range")];
+  }
+
+  CompareSameType(op: Token, y: Value, depth: number): [boolean, Error | null] {
+    switch (op) {
+      case Token.EQL:
+        return [rangeEqual(this, y as unknown as RangeValue), null];
+      case Token.NEQ:
+        return [!rangeEqual(this, y as unknown as RangeValue), null];
+      default:
+        return [
+          false,
+          new Error(
+            `${this.Type()} ${op} ${(y as RangeValue).Type()} not implemented)`
+          ),
+        ];
+    }
+  }
+
+  public contains(x: Int): boolean {
+    const x32 = AsInt32(x);
+    if (x32 === undefined) {
+      return false; // out of range
+    }
+    const delta = x32 - this.start;
+    const [quo, rem] = [Math.floor(delta / this.step), delta % this.step];
+    return rem === 0 && 0 <= quo && quo < this.len;
+  }
+}
+
+function rangeEqual(x: RangeValue, y: RangeValue): boolean {
+  // Two ranges compare equal if they denote the same sequence.
+  if (x.len !== y.len) {
+    return false; // sequences differ in length
+  }
+  if (x.len === 0) {
+    return true; // both sequences are empty
+  }
+  if (x.start !== y.start) {
+    return false; // first element differs
+  }
+  return x.len === 1 || x.step === y.step;
+}
+
+// rangeLen calculates the length of a range with the provided start, stop, and step.
+// caller must ensure that step is non-zero.
+function rangeLen(start: number, stop: number, step: number): number {
+  if (step > 0) {
+    if (stop > start) {
+      return Math.floor((stop - 1 - start) / step) + 1;
+    }
+  } else if (step < 0) {
+    if (start > stop) {
+      return Math.floor((start - 1 - stop) / -step) + 1;
+    }
+  } else {
+    throw new Error("rangeLen: zero step");
+  }
+  return 0;
+}
+
+class RangeIterator {
+  r: RangeValue;
+  i: number;
+
+  constructor(r: RangeValue) {
+    this.r = r;
+    this.i = 0;
+  }
+
+  next(p: Value): boolean {
+    if (this.i < this.r.len) {
+      // BUG:
+      // * p = this.r.index(this.i);
+      this.i++;
+      return true;
+    }
+    return false;
+  }
+
+  done(): void {}
+}
+
+export class StringDict {
+  val: Map<string, Value>;
+
+  constructor(vals?: any) {
+    if (vals) {
+      this.val = new Map(vals);
+    } else {
+      this.val = new Map();
+    }
+  }
+
+  set(k: string, v: Value) {
+    this.val.set(k, v);
+  }
+  get(k: string): Value | undefined {
+    return this.val.get(k);
+  }
+
+  keys(): string[] {
+    return [...this.val.keys()];
+  }
+
+  toString(): string {
+    // TODO:
+    // const buf = new StringBuilder();
+    // buf.writeChar('{');
+    // let sep = '';
+    // for (const name of this.keys()) {
+    //   buf.writeString(sep);
+    //   buf.writeString(name);
+    //   buf.writeString(': ');
+    //   writeValue(buf, this[name], null);
+    //   sep = ', ';
+    // }
+    // buf.writeChar('}');
+    // return buf.toString();
+    return "a string dict";
+  }
+
+  freeze(): void {
+    for (const value of this.val.values()) {
+      value.Freeze();
+    }
+  }
+
+  has(key: string): boolean {
+    return this.val.has(key);
+  }
+}
+export var Universe = new StringDict([
+  ["print", new Builtin("print", print, null)],
+]);

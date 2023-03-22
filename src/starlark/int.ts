@@ -1,4 +1,4 @@
-import * as syntax from "../syntax/index";
+import * as syntax from "../syntax/scan";
 import { Value } from "./value";
 import { Bool } from "./value";
 
@@ -293,7 +293,7 @@ export function MakeInt(x: number): Int {
 }
 
 // MakeInt64 returns a Starlark int for the specified int64.
-function MakeInt64(x: BigInt): Int {
+export function MakeInt64(x: BigInt): Int {
   if (x >= BigInt(MinInt32) && x <= BigInt(MaxInt32)) {
     return makeSmallInt(x);
   }
@@ -313,7 +313,7 @@ function MakeUint64(x: BigInt): Int {
   return makeBigInt(x);
 }
 
-function MakeBigInt(x: BigInt): Int {
+export function MakeBigInt(x: BigInt): Int {
   if (isSmall(x)) {
     return makeSmallInt(x);
   }

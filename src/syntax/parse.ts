@@ -1,6 +1,6 @@
-import { TokenValue, Scanner, Token, Position } from "./scan.js";
-import * as syntax from "./syntax.js";
-import { Walk } from "./walk.js";
+import { TokenValue, Scanner, Token, Position } from "./scan";
+import * as syntax from "./syntax";
+import { Walk } from "./walk";
 
 // A Mode value is a set of flags (or 0) that controls optional parser functionality.
 type Mode = number;
@@ -635,8 +635,7 @@ class Parser {
       if (!first && opprec === precedence[idx]) {
         this.input.error(
           this.input.pos,
-          `${(x as syntax.BinaryExpr).Op} does not associate with ${
-            this.tok
+          `${(x as syntax.BinaryExpr).Op} does not associate with ${this.tok
           } (use parens)`
         );
       }

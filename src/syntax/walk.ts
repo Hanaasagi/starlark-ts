@@ -1,4 +1,4 @@
-import { Node, Stmt } from "./syntax.js";
+import { Node, Stmt } from "./syntax";
 import {
   isFile,
   isExprStmt,

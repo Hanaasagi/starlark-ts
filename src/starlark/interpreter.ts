@@ -1,27 +1,29 @@
 import { Opcode } from "../internal/compile/compile";
-import { Thread } from "./eval";
+import { Thread, Call } from "./eval";
 import * as compile from "../internal/compile/compile";
 import { Position } from "../syntax/scan";
-import * as syntax from "../syntax/index";
+import { Token } from "../syntax/scan";
+import * as syntax from "../syntax/syntax";
 import { parse, ParseExpr } from "../syntax/parse";
 import { Callable, Function, Tuple, Module } from "./value";
 import { List, Iterable } from "./value";
 import { Value, Compare } from "./value";
-import { Universe } from "./library";
+import { Universe } from "./value";
 import { Iterator } from "./value";
 import { Bool, True, False } from "./value";
+import { IterableMapping } from "./value";
 import * as resolve from "../resolve/resolve";
 import { setArgs } from "./eval";
 import { Binary, Unary } from "./eval";
 
 // This file defines the bytecode interpreter.
 
-const vmdebug = false; // TODO(adonovan): use a bitfield of specific kinds of error.
+const vmdebug = true; // TODO(adonovan): use a bitfield of specific kinds of error.
 
 // TODO(adonovan):
 // - optimize position table.
 // - opt: record MaxIterStack during compilation and preallocate the stack.
-function CallInternal(
+export function CallInternal(
   fn: Function,
   thread: Thread,
   args: Tuple,
@@ -50,7 +52,9 @@ function CallInternal(
   }
 
   let f = fn.funcode;
+  console.log("CallInternal funcode is", f);
   let fr = thread.frameAt(0);
+  console.log("CallInternal fr is", fr);
 
   // Allocate space for stack and locals.
   // Logically these do not escape from this frame
@@ -65,7 +69,7 @@ function CallInternal(
 
   const nlocals: number = f.locals.length;
   const nspace: number = nlocals + f.maxStack;
-  const space: Value[] = new Array(nspace);
+  const space: Value[] = new Array(nspace).fill(null);
   const locals: Value[] = space.slice(0, nlocals); // local variables, starting with parameters
   const stack: Value[] = space.slice(nlocals); // operand stack
 
@@ -75,14 +79,14 @@ function CallInternal(
     return [null, thread.evalError(err)];
   }
 
+  fr.locals = locals;
+
   if (vmdebug) {
     console.log(`Entering ${f.name} @${f.position(0)}`);
     console.log(`${stack.length} stack, ${locals.length} locals`);
-    const leaveMsg = `Leaving ${f.name}`;
+    // const leaveMsg = `Leaving ${f.name}`;
     // setTimeout(() => console.log(leaveMsg), 0);
   }
-
-  fr.locals = locals;
 
   // Spill indicated locals to cells.
   // Each cell is a separate alloc to avoid spurious liveness.
@@ -113,7 +117,7 @@ function CallInternal(
     }
     // BUG: atomic
     const reason = thread.cancelReason;
-    if (reason !== null) {
+    if (reason) {
       const err = `Starlark computation cancelled: ${reason}`;
       break loop;
     }
@@ -130,7 +134,7 @@ function CallInternal(
 
     if (op >= compile.OpcodeArgMin) {
       let s = 0;
-      for (; ;) {
+      for (;;) {
         const b = code[pc];
         pc++;
         arg |= (b & 0x7f) << s;
@@ -144,6 +148,8 @@ function CallInternal(
       console.log(stack.slice(0, sp)); // very verbose!
       compile.PrintOp(f, fr.pc, op, arg);
     }
+
+    console.log("CallInternal op code is", Opcode.String(op));
     switch (op) {
       case Opcode.NOP:
         // nop
@@ -174,11 +180,10 @@ function CallInternal(
       case Opcode.LT:
       case Opcode.LE:
       case Opcode.GE:
-        let opToken = Object.values(syntax.Token)[
-          op -
-          Opcode.EQL +
-          Object.values(syntax.Token).indexOf(syntax.Token.EQL)
-        ];
+        let opToken =
+          Object.values(Token)[
+            op - Opcode.EQL + Object.values(Token).indexOf(Token.EQL)
+          ];
         const yy = stack[sp - 1];
         const xx = stack[sp - 2];
         sp -= 2;
@@ -203,14 +208,13 @@ function CallInternal(
       case Opcode.LTLT:
       case Opcode.GTGT:
       case Opcode.IN:
-        let binop = Object.values(syntax.Token)[
-          op -
-          Opcode.PLUS +
-          Object.values(syntax.Token).indexOf(syntax.Token.PLUS)
-        ];
+        let binop =
+          Object.values(Token)[
+            op - Opcode.PLUS + Object.values(Token).indexOf(Token.PLUS)
+          ];
 
         if (op == Opcode.IN) {
-          binop = syntax.Token.IN;
+          binop = Token.IN;
         }
         let y = stack[sp - 1];
         let x = stack[sp - 2];
@@ -226,15 +230,14 @@ function CallInternal(
       case Opcode.UPLUS:
       case Opcode.UMINUS:
       case Opcode.TILDE: {
-        let unop: syntax.Token;
+        let unop: Token;
         if (op === Opcode.TILDE) {
-          unop = syntax.Token.TILDE;
+          unop = Token.TILDE;
         } else {
-          unop = Object.values(syntax.Token)[
-            op -
-            Opcode.UPLUS +
-            Object.values(syntax.Token).indexOf(syntax.Token.PLUS)
-          ];
+          unop =
+            Object.values(Token)[
+              op - Opcode.UPLUS + Object.values(Token).indexOf(Token.PLUS)
+            ];
         }
         const x = stack[sp - 1];
         const [y, err2] = Unary(unop, x);
@@ -272,6 +275,157 @@ function CallInternal(
         break;
       }
 
+      case Opcode.CALL:
+      case Opcode.CALL_VAR:
+      case Opcode.CALL_KW:
+      case Opcode.CALL_VAR_KW: {
+        let kwargs: Value | null = null;
+        if (op === Opcode.CALL_KW || op === Opcode.CALL_VAR_KW) {
+          kwargs = stack[sp - 1];
+          sp--;
+        }
+
+        let args: Value | null = null;
+        if (op === Opcode.CALL_VAR || op === Opcode.CALL_VAR_KW) {
+          args = stack[sp - 1];
+          sp--;
+        }
+
+        // named args (pairs)
+        let kvpairs: Tuple[] = [];
+        const nkvpairs: number = arg & 0xff;
+        if (nkvpairs > 0) {
+          kvpairs = new Array<Tuple>(nkvpairs);
+          let kvpairsAlloc = new Tuple(new Array(2 * nkvpairs)); // allocate a single backing array
+          sp -= 2 * nkvpairs;
+
+          for (let i = 0; i < nkvpairs; i++) {
+            // BUG:
+            let pair: Tuple = kvpairsAlloc.slice(0, 2, 2) as Tuple;
+            pair.elems[0] = stack[sp + 2 * i]; // name
+            pair.elems[1] = stack[sp + 2 * i + 1]; // value
+            kvpairs.push(pair);
+          }
+        }
+        if (kwargs != null) {
+          // Add key/value items from **kwargs dictionary.
+          const dict: IterableMapping = kwargs as IterableMapping;
+          if (!dict.Type()) {
+            err = new Error(
+              `argument after ** must be a mapping, not ${dict.Type()}`
+            );
+            break loop;
+          }
+          const items: Tuple[] = dict.items();
+          for (let i = 0; i < items.length; i++) {
+            if (!items[i].index(0).Type()) {
+              err = new Error(
+                `keywords must be strings, not ${items[i].index(0).Type()}`
+              );
+              break loop;
+            }
+          }
+          if (kvpairs.length === 0) {
+            kvpairs = items;
+          } else {
+            kvpairs.push(...items);
+          }
+        }
+
+        // positional args
+        let positional: Tuple | null = null;
+        const npos: number = arg >> 8;
+        if (npos > 0) {
+          positional = new Tuple(stack.slice(sp - npos, sp));
+          sp -= npos;
+
+          // Copy positional arguments into a new array,
+          // unless the callee is another Starlark function,
+          // in which case it can be trusted not to mutate them.
+          if (stack[sp - 1] instanceof Function && args === null) {
+            positional.elems.push(...positional.elems);
+          }
+        }
+        if (args !== null) {
+          // TODO:
+          // // Add elements from *args sequence.
+          // const iter: Iterable<Value> | null = Iterate(args);
+          // if (iter === null) {
+          //   err = new Error(
+          //     `argument after * must be iterable, not ${args.Type()}`
+          //   );
+          //   break loop;
+          // }
+          // for (let elem of iter) {
+          //   positional?.elems.push(elem);
+          // }
+        }
+
+        const func: Value = stack[sp - 1];
+
+        if (vmdebug) {
+          console.log(
+            `VM call ${func.String()} args = ${positional} kwargs = ${kvpairs} @${f.position(
+              fr.pc
+            )}`
+          );
+        }
+
+        // thread.endProfSpan()
+        const result = Call(thread, func, positional!, kvpairs);
+        // thread.beginProfSpan()
+
+        // if (isError(result)) {
+        //   err = result
+        //   break loop
+        // }
+        if (vmdebug) {
+          console.log(`Resuming ${f.name} @${f.position(0)}`);
+        }
+        stack[sp - 1] = result[0];
+
+        break;
+      }
+
+      case Opcode.SETLOCAL:
+        locals[arg] = stack[sp - 1];
+        sp--;
+        break;
+
+      case Opcode.SETLOCALCELL:
+        (locals[arg] as cell).v = stack[sp - 1];
+        sp--;
+        break;
+
+      case Opcode.SETGLOBAL:
+        fn.module.globals[arg] = stack[sp - 1];
+        sp--;
+        break;
+      case Opcode.CONSTANT: {
+        stack[sp] = fn.module.constants[arg];
+        sp++;
+        break;
+      }
+
+      case Opcode.GLOBAL: {
+        let x = fn.module.globals[arg];
+        if (!x) {
+          // err = fmt.Errorf(
+          //   "global variable %s referenced before assignment",
+          //   f.Prog.Globals[arg].Name
+          // );
+          break loop;
+        }
+        stack[sp] = x;
+        sp++;
+        break;
+      }
+
+      case Opcode.UNIVERSAL:
+        stack[sp] = Universe.get(f.prog.names[arg])!;
+        sp++;
+        break;
+
       // TODO:
       // case compile.INPLACE_PIPE:
       default:
@@ -280,11 +434,11 @@ function CallInternal(
     }
   }
   // @ts-ignore
-  return result, err;
+  return [result, err];
 }
 
 class wrappedError {
-  constructor(public msg: string, public cause: Error) { }
+  constructor(public msg: string, public cause: Error) {}
 
   public get name(): string {
     return "wrappedError";
@@ -319,7 +473,7 @@ export class mandatory implements Value {
   public Type(): string {
     return "mandatory";
   }
-  public Freeze(): void { } // immutable
+  public Freeze(): void {} // immutable
   public Truth(): Bool {
     return False;
   }

@@ -1,6 +1,6 @@
 import * as syntax from "../syntax/syntax";
 import { Token } from "../syntax/scan";
-import { Binding } from "./binding";
+import { Binding, Module } from "./binding";
 import { Scope } from "./binding";
 import { Position } from "../syntax/scan";
 import { Function } from "./binding";
@@ -57,10 +57,7 @@ export function REPLChunk(
 
   r.resolveNonLocalUses(r.env);
 
-  file.Module = {
-    Locals: r.moduleLocals,
-    Globals: r.moduleGlobals,
-  };
+  file.Module = new Module(r.moduleLocals, r.moduleGlobals);
 
   if (r.errors.errors.length > 0) {
     return r.errors.errors[0];
@@ -145,6 +142,9 @@ class Block {
 
   constructor(parent: Block | null = null) {
     this.parent = parent;
+    this.bindings = new Map();
+    this.children = new Array();
+    this.uses = new Array();
   }
 
   bind(name: string, bind: Binding): void {
@@ -200,11 +200,13 @@ class Resolver {
     const file = new Block();
     this.env = file;
     this.file = file;
+    this.moduleLocals = new Array();
+    this.moduleGlobals = new Array();
+    this.globals = new Map();
+    this.predeclared = new Map();
     this.isGlobal = isGlobal;
     this.isPredeclared = isPredeclared;
     this.isUniversal = isUniversal;
-    this.globals = new Map();
-    this.predeclared = new Map();
     this.loops = 0;
     this.ifstmts = 0;
     this.errors = new ErrorList([]);
@@ -309,6 +311,14 @@ class Resolver {
     const id = use.id;
     let bind: Binding;
 
+    console.log(
+      "this.file.bindings.has",
+      this.file.bindings.has(id.Name),
+      id.Name
+    );
+    console.log("globals.has", this.globals.has(id.Name), id.Name);
+    console.log(this.isUniversal, this.isUniversal!(id.Name), id.Name);
+
     if (this.file.bindings.has(id.Name)) {
       // use of load-defined name in file block
       bind = this.file.bindings.get(id.Name)!;
@@ -341,9 +351,7 @@ class Resolver {
     } else {
       bind = new Binding(Scope.Undefined, 0, null);
       // TODO:
-      // const hint = this.spellcheck(use) ? ` (did you mean ${this.spellcheck(use)}?)` : '';
-      // this.errorf(id.NamePos, `undefined: ${id.Name}${hint}`);
-      // return undefined;
+      this.errorf(id.NamePos, `undefined: ${id.Name} fuck`);
     }
     id.Binding = bind;
 
@@ -625,12 +633,14 @@ class Resolver {
       }
       this.expr(e.Body); // body may be *DictEntry
       this.pop();
+      return;
     }
 
     if (e instanceof syntax.TupleExpr) {
       for (const x of e.List) {
         this.expr(x);
       }
+      return;
     }
 
     if (e instanceof syntax.DictExpr) {
@@ -639,19 +649,23 @@ class Resolver {
         this.expr(entry_.Key);
         this.expr(entry_.Value);
       }
+      return;
     }
 
     if (e instanceof syntax.UnaryExpr) {
       this.expr(e.X!);
+      return;
     }
 
     if (e instanceof syntax.BinaryExpr) {
       this.expr(e.X);
       this.expr(e.Y);
+      return;
     }
 
     if (e instanceof syntax.DotExpr) {
       this.expr(e.X);
+      return;
     }
 
     if (e instanceof syntax.CallExpr) {
@@ -718,6 +732,7 @@ class Resolver {
         const [pos, _] = e.span();
         this.errorf(pos, `${n} keyword arguments in call, limit is 255`);
       }
+      return;
     }
 
     if (e instanceof syntax.LambdaExpr) {
@@ -734,10 +749,12 @@ class Resolver {
       );
       e._function = fn;
       this.func(fn, e.lambda);
+      return;
     }
 
     if (e instanceof syntax.ParenExpr) {
       this.expr(e.x);
+      return;
     }
 
     console.log("unreachable");
@@ -883,7 +900,9 @@ class Resolver {
 
     // Is this the file block?
     if (env == this.file) {
-      return this.useToplevel(use)!; // file-local, global, predeclared, or not found
+      let a = this.useToplevel(use)!; // file-local, global, predeclared, or not found
+      console.log("~~~~~~~~~~~~~", use.id);
+      return a;
     }
 
     // Defined in this block?

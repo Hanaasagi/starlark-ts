@@ -24,7 +24,7 @@
 // Operands, logically uint32s, are encoded using little-endian 7-bit
 // varints, the top bit indicating that more bytes follow.
 
-import * as syntax from "../../syntax";
+import * as syntax from "../../syntax/syntax";
 import { Token } from "../../syntax/scan";
 import * as resolve from "../../resolve/resolve";
 import * as binding from "../../resolve/binding";
@@ -34,7 +34,7 @@ import { Position } from "../../syntax/scan";
 // to be printed to stderr as it is generated.
 var Disassemble = false;
 
-const debug = false; // make code generation verbose, for debugging the compiler
+const debug = true; // make code generation verbose, for debugging the compiler
 
 // Increment this to force recompilation of saved bytecode files.
 export const Version = 13;
@@ -197,77 +197,77 @@ export namespace Opcode {
 
 // stackEffect records the effect on the size of the operand stack of
 // each kind of instruction. For some instructions this requires computation.
-const stackEffect: { [key: string]: number } = {
-  AMP: -1,
-  APPEND: -2,
-  ATTR: 0,
-  CALL: variableStackEffect,
-  CALL_KW: variableStackEffect,
-  CALL_VAR: variableStackEffect,
-  CALL_VAR_KW: variableStackEffect,
-  CIRCUMFLEX: -1,
-  CJMP: -1,
-  CONSTANT: +1,
-  DUP2: +2,
-  DUP: +1,
-  EQL: -1,
-  FALSE: +1,
-  FREE: +1,
-  FREECELL: +1,
-  GE: -1,
-  GLOBAL: +1,
-  GT: -1,
-  GTGT: -1,
-  IN: -1,
-  INDEX: -1,
-  INPLACE_ADD: -1,
-  INPLACE_PIPE: -1,
-  ITERJMP: variableStackEffect,
-  ITERPOP: 0,
-  ITEMPUSH: -1,
-  JMP: 0,
-  LE: -1,
-  LOAD: -1,
-  LOCAL: +1,
-  LOCALCELL: +1,
-  LT: -1,
-  LTLT: -1,
-  MAKEDICT: +1,
-  MAKEFUNC: 0,
-  MAKELIST: variableStackEffect,
-  MAKETUPLE: variableStackEffect,
-  MANDATORY: +1,
-  MINUS: -1,
-  NEQ: -1,
-  NONE: +1,
-  NOP: 0,
-  NOT: 0,
-  PERCENT: -1,
-  PIPE: -1,
-  PLUS: -1,
-  POP: -1,
-  PREDECLARED: +1,
-  RETURN: -1,
-  SETLOCALCELL: -1,
-  SETDICT: -3,
-  SETDICTUNIQ: -3,
-  SETFIELD: -2,
-  SETGLOBAL: -1,
-  SETINDEX: -3,
-  SETLOCAL: -1,
-  SLASH: -1,
-  SLASHSLASH: -1,
-  SLICE: -3,
-  STAR: -1,
-  TRUE: +1,
-  UMINUS: 0,
-  UNIVERSAL: +1,
-  UNPACK: variableStackEffect,
-  UPLUS: 0,
-};
+const stackEffect: Map<Opcode, number> = new Map([
+  [Opcode.AMP, -1],
+  [Opcode.APPEND, -2],
+  [Opcode.ATTR, 0],
+  [Opcode.CALL, variableStackEffect],
+  [Opcode.CALL_KW, variableStackEffect],
+  [Opcode.CALL_VAR, variableStackEffect],
+  [Opcode.CALL_VAR_KW, variableStackEffect],
+  [Opcode.CIRCUMFLEX, -1],
+  [Opcode.CJMP, -1],
+  [Opcode.CONSTANT, +1],
+  [Opcode.DUP2, +2],
+  [Opcode.DUP, +1],
+  [Opcode.EQL, -1],
+  [Opcode.FALSE, +1],
+  [Opcode.FREE, +1],
+  [Opcode.FREECELL, +1],
+  [Opcode.GE, -1],
+  [Opcode.GLOBAL, +1],
+  [Opcode.GT, -1],
+  [Opcode.GTGT, -1],
+  [Opcode.IN, -1],
+  [Opcode.INDEX, -1],
+  [Opcode.INPLACE_ADD, -1],
+  [Opcode.INPLACE_PIPE, -1],
+  [Opcode.ITERJMP, variableStackEffect],
+  [Opcode.ITERPOP, 0],
+  [Opcode.ITERPUSH, -1],
+  [Opcode.JMP, 0],
+  [Opcode.LE, -1],
+  [Opcode.LOAD, -1],
+  [Opcode.LOCAL, +1],
+  [Opcode.LOCALCELL, +1],
+  [Opcode.LT, -1],
+  [Opcode.LTLT, -1],
+  [Opcode.MAKEDICT, +1],
+  [Opcode.MAKEFUNC, 0],
+  [Opcode.MAKELIST, variableStackEffect],
+  [Opcode.MAKETUPLE, variableStackEffect],
+  [Opcode.MANDATORY, +1],
+  [Opcode.MINUS, -1],
+  [Opcode.NEQ, -1],
+  [Opcode.NONE, +1],
+  [Opcode.NOP, 0],
+  [Opcode.NOT, 0],
+  [Opcode.PERCENT, -1],
+  [Opcode.PIPE, -1],
+  [Opcode.PLUS, -1],
+  [Opcode.POP, -1],
+  [Opcode.PREDECLARED, +1],
+  [Opcode.RETURN, -1],
+  [Opcode.SETLOCALCELL, -1],
+  [Opcode.SETDICT, -3],
+  [Opcode.SETDICTUNIQ, -3],
+  [Opcode.SETFIELD, -2],
+  [Opcode.SETGLOBAL, -1],
+  [Opcode.SETINDEX, -3],
+  [Opcode.SETLOCAL, -1],
+  [Opcode.SLASH, -1],
+  [Opcode.SLASHSLASH, -1],
+  [Opcode.SLICE, -3],
+  [Opcode.STAR, -1],
+  [Opcode.TRUE, +1],
+  [Opcode.UMINUS, 0],
+  [Opcode.UNIVERSAL, +1],
+  [Opcode.UNPACK, variableStackEffect],
+  [Opcode.UPLUS, 0],
+]);
 
 // The type of a bytes literal value, to distinguish from text string.
-type Bytes = string;
+export type Bytes = string;
 
 // A Binding is the name and position of a binding identifier.
 export class Binding {
@@ -324,8 +324,16 @@ export class Funcode {
     this.pos = pos;
     this.name = name;
     this.doc = doc;
+    this.code = new Array();
+    this.pclinetab = new Array();
     this.locals = locals;
+    this.cells = new Array();
     this.freevars = freevars;
+    this.maxStack = 0;
+    this.numParams = 0;
+    this.numKwonlyParams = 0;
+    this.hasKwargs = false;
+    this.hasKwargs = false;
   }
 
   // Position returns the source position for program counter pc.
@@ -406,13 +414,18 @@ export class Funcode {
 export class Program {
   loads: Binding[];
   names: string[];
-  constants: any;
+  constants: any[];
   functions: Funcode[];
   globals: Binding[];
   toplevel: Funcode | null;
 
   constructor(globals: Binding[]) {
+    this.loads = new Array();
+    this.names = new Array();
+    this.constants = new Array();
+    this.functions = new Array();
     this.globals = globals;
+    this.toplevel = null;
   }
 }
 
@@ -442,6 +455,7 @@ class Pcomp {
     locals: binding.Binding[],
     freevars: binding.Binding[]
   ): Funcode {
+    console.log("=============Exec Pcomp func==================");
     let fcomp = new Fcomp(
       this,
       pos,
@@ -474,6 +488,7 @@ class Pcomp {
     const entry = fcomp.newBlock();
     fcomp.block = entry;
     fcomp.stmts(stmts);
+    console.log("block is", fcomp.block);
     if (fcomp.block !== null) {
       fcomp.emit(Opcode.NONE);
       fcomp.emit(Opcode.RETURN);
@@ -536,7 +551,7 @@ class Pcomp {
         // Compute effect on stack.
         let se = insn.stackeffect();
         if (debug) {
-          console.log(`\t${insn.op} ${stack} ${stack + se}`);
+          console.log(`\t${Opcode.String(insn.op)} ${stack} ${stack + se}`);
         }
         stack += se;
         if (stack < 0) {
@@ -594,9 +609,11 @@ class Pcomp {
       }
     };
     setinitialstack(entry, 0);
+    console.log("visit entry", entry);
     visit(entry);
 
     const fn = fcomp.fn;
+    console.log("^^^^^^^^^^^^^^^^^^^^^", maxstack);
     fn.maxStack = maxstack;
 
     // Emit bytecode (and position table).
@@ -749,6 +766,7 @@ class Fcomp {
           PrintOp(this.fn, pc, insn.op, insn.arg);
         }
 
+        console.log("code is", code, insn.op);
         code.push(insn.op);
         pc++;
 
@@ -872,6 +890,7 @@ class Fcomp {
 
   // lookup emits code to push the value of the specified variable.
   lookup(id: syntax.Ident): void {
+    console.log(">>>>", id.Binding);
     const bind = id.Binding as binding.Binding;
     if (bind.scope !== binding.Scope.Universal) {
       // (universal lookup can't fail)
@@ -937,6 +956,7 @@ class Fcomp {
           this.block = this.newBlock(); // dead code
           break;
       }
+      return;
     }
 
     if (stmt instanceof syntax.IfStmt) {
@@ -956,6 +976,7 @@ class Fcomp {
       this.jump(done);
 
       this.block = done;
+      return;
     }
 
     if (stmt instanceof syntax.AssignStmt) {
@@ -1036,11 +1057,13 @@ class Fcomp {
               break;
           }
       }
+      return;
     }
 
     if (stmt instanceof syntax.DefStmt) {
       this.func(stmt.Function);
       this.set(stmt.Name);
+      return;
     }
 
     if (stmt instanceof syntax.ForStmt) {
@@ -1066,6 +1089,7 @@ class Fcomp {
 
       this.block = tail;
       this.emit(Opcode.ITERPOP);
+      return;
     }
 
     if (stmt instanceof syntax.WhileStmt) {
@@ -1084,6 +1108,7 @@ class Fcomp {
       this.jump(head);
 
       this.block = done;
+      return;
     }
 
     if (stmt instanceof syntax.ReturnStmt) {
@@ -1094,6 +1119,7 @@ class Fcomp {
       }
       this.emit(Opcode.RETURN);
       this.block = this.newBlock(); // dead code
+      return;
     }
 
     if (stmt instanceof syntax.LoadStmt) {
@@ -1109,29 +1135,37 @@ class Fcomp {
       for (const name of stmt.To.reverse()) {
         this.set(name);
       }
+      return;
     }
     const [start, _] = stmt.span();
     console.log(`${start}: exec: unexpected statement ${stmt} `);
   }
 
   assign(pos: Position, lhs: syntax.Expr): void {
+    console.log("-----");
+    console.log(pos, lhs);
+    console.log("-----");
     if (lhs instanceof syntax.ParenExpr) {
       // (lhs) = rhs
       this.assign(pos, lhs.x);
+      return;
     }
 
     if (lhs instanceof syntax.Ident) {
       // x = rhs
       this.set(lhs);
+      return;
     }
     if (lhs instanceof syntax.TupleExpr) {
       // x, y = rhs
       this.assignSequence(pos, lhs.List);
+      return;
     }
 
     if (lhs instanceof syntax.ListExpr) {
       // [x, y] = rhs
       this.assignSequence(pos, lhs.list);
+      return;
     }
 
     if (lhs instanceof syntax.IndexExpr) {
@@ -1142,6 +1176,7 @@ class Fcomp {
       this.emit(Opcode.EXCH);
       this.setPos(lhs.Lbrack);
       this.emit(Opcode.SETINDEX);
+      return;
     }
 
     if (lhs instanceof syntax.DotExpr) {
@@ -1150,6 +1185,7 @@ class Fcomp {
       this.emit(Opcode.EXCH);
       this.setPos(lhs.Dot);
       this.emit1(Opcode.SETFIELD, this.pcomp.nameIndex(lhs.Name.Name));
+      return;
     }
     throw new Error(`Unexpected expression type: ${lhs} `);
   }
@@ -1163,12 +1199,17 @@ class Fcomp {
   }
 
   expr(e: syntax.Expr) {
+    console.log("==========================");
+    console.log(e);
+    console.log("==========================");
     if (e instanceof syntax.ParenExpr) {
       this.expr(e.x);
+      return;
     }
 
     if (e instanceof syntax.Ident) {
       this.lookup(e);
+      return;
     }
 
     if (e instanceof syntax.Literal) {
@@ -1178,12 +1219,14 @@ class Fcomp {
         v = v as string as Bytes;
       }
       this.emit1(Opcode.CONSTANT, this.pcomp.constantIndex(v));
+      return;
     }
     if (e instanceof syntax.ListExpr) {
       for (let x of e.list) {
         this.expr(x);
       }
       this.emit1(Opcode.MAKELIST, e.list.length);
+      return;
     }
 
     if (e instanceof syntax.CondExpr) {
@@ -1203,6 +1246,7 @@ class Fcomp {
       this.jump(done);
 
       this.block = done;
+      return;
     }
 
     if (e instanceof syntax.IndexExpr) {
@@ -1210,6 +1254,7 @@ class Fcomp {
       this.expr(e.Y);
       this.setPos(e.Lbrack);
       this.emit(Opcode.INDEX);
+      return;
     }
 
     if (e instanceof syntax.SliceExpr) {
@@ -1231,6 +1276,7 @@ class Fcomp {
         this.emit(Opcode.NONE);
       }
       this.emit(Opcode.SLICE);
+      return;
     }
 
     if (e instanceof syntax.Comprehension) {
@@ -1240,10 +1286,12 @@ class Fcomp {
         this.emit1(Opcode.MAKELIST, 0);
       }
       this.comprehension(e, 0);
+      return;
     }
 
     if (e instanceof syntax.TupleExpr) {
       this.tuple(e.List);
+      return;
     }
 
     if (e instanceof syntax.DictExpr) {
@@ -1256,6 +1304,7 @@ class Fcomp {
         this.setPos(dictEntry.Colon);
         this.emit(Opcode.SETDICTUNIQ);
       }
+      return;
     }
 
     if (e instanceof syntax.UnaryExpr) {
@@ -1277,6 +1326,7 @@ class Fcomp {
         default:
           throw new Error(`${e.OpPos}: unexpected unary op: ${e.Op} `);
       }
+      return;
     }
 
     if (e instanceof syntax.BinaryExpr) {
@@ -1326,20 +1376,24 @@ class Fcomp {
           this.binop(e.OpPos, e.Op);
           break;
       }
+      return;
     }
 
     if (e instanceof syntax.DotExpr) {
       this.expr(e.X);
       this.setPos(e.Dot);
       this.emit1(Opcode.ATTR, this.pcomp.nameIndex(e.Name.Name));
+      return;
     }
 
     if (e instanceof syntax.CallExpr) {
       this.call(e);
+      return;
     }
 
     if (e instanceof syntax.LambdaExpr) {
       this.func(e._function);
+      return;
     }
 
     const start = e.span()[0];
@@ -1731,9 +1785,13 @@ class Block {
   public insns: Insn[];
   public jmp?: Block;
   public cjmp?: Block;
-  public initialstack: number;
-  public index: number; // -1 => not encoded yet
-  public addr: number;
+  public initialstack: number = -1;
+  public index: number = -1; // -1 => not encoded yet
+  public addr: number = 0;
+
+  constructor() {
+    this.insns = new Array();
+  }
 }
 
 class Insn {
@@ -1750,7 +1808,7 @@ class Insn {
   }
 
   stackeffect(): number {
-    let se: number = stackEffect[this.op];
+    let se: number = stackEffect.get(this.op)!;
     if (se === variableStackEffect) {
       const arg: number = Number(this.arg);
       switch (this.op) {
@@ -1758,7 +1816,7 @@ class Insn {
         case Opcode.CALL_KW:
         case Opcode.CALL_VAR:
         case Opcode.CALL_VAR_KW:
-          se = -2 * (this.arg & 0xff) + (this.arg >> 8);
+          se = -(2 * (this.arg & 0xff) + (this.arg >> 8));
           if (this.op !== Opcode.CALL) {
             se--;
           }
@@ -1854,7 +1912,7 @@ function clip(x: number, min: number, max: number): [number, boolean] {
 function addUint32(code: number[], x: number, min: number): number[] {
   let end: number = code.length + min;
   while (x >= 0x80) {
-    code.push(x | 0x80);
+    code.push((x & 0xff) | 0x80);
     x >>= 7;
   }
   code.push(x);
@@ -1932,7 +1990,7 @@ export function PrintOp(
       break;
   }
   const buf = new Array<string>();
-  buf.push(`\t${pc} \t${op} \t${arg} `);
+  buf.push(`\t${pc} \t${Opcode.String(op)} \t${arg} `);
   if (comment !== "") {
     buf.push(`\t; ${comment} `);
   }

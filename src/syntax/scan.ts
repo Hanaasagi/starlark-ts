@@ -1,4 +1,4 @@
-import { Comment } from "./syntax.js";
+import { Comment } from "./syntax";
 import { readFileSync } from "fs";
 
 // A Token represents a Starlark lexical token.

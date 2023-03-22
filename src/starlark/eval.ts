@@ -1,13 +1,15 @@
 import * as compile from "../internal/compile/compile";
-import { Position } from "../syntax/scan";
-import * as syntax from "../syntax/index";
+import { Position, Token } from "../syntax/scan";
+import * as syntax from "../syntax/syntax";
 import { parse, ParseExpr } from "../syntax/parse";
-import { Callable, Function, Tuple, Module } from "./value";
+import { Callable, Function, Tuple, Module, String } from "./value";
 import { List, Iterable } from "./value";
 import { Value } from "./value";
-import { Universe } from "./library";
+import { Universe, StringDict, Builtin } from "./value";
 import * as resolve from "../resolve/resolve";
 import * as binding from "../resolve/binding";
+import { CallInternal } from "./interpreter";
+import { MakeInt64, MakeBigInt } from "./int";
 // import {*} from "./value"
 
 // A Thread contains the state of a Starlark thread,
@@ -115,47 +117,6 @@ export class Thread {
   }
 }
 
-export class StringDict {
-  val: Map<string, Value>;
-
-  set(k: string, v: Value) {
-    this.val.set(k, v);
-  }
-  get(k: string): Value | undefined {
-    return this.val.get(k);
-  }
-
-  keys(): string[] {
-    return [...this.val.keys()];
-  }
-
-  toString(): string {
-    // TODO:
-    // const buf = new StringBuilder();
-    // buf.writeChar('{');
-    // let sep = '';
-    // for (const name of this.keys()) {
-    //   buf.writeString(sep);
-    //   buf.writeString(name);
-    //   buf.writeString(': ');
-    //   writeValue(buf, this[name], null);
-    //   sep = ', ';
-    // }
-    // buf.writeChar('}');
-    // return buf.toString();
-    return "a string dict";
-  }
-
-  freeze(): void {
-    for (const value of this.val.values()) {
-      value.Freeze();
-    }
-  }
-
-  has(key: string): boolean {
-    return key in this.val;
-  }
-}
 const builtinFilename = "<builtin>";
 
 // A frame records a call to a Starlark function (including module toplevel)
@@ -347,11 +308,16 @@ export function ExecFile(
   predeclared: StringDict
 ): [StringDict | null, Error | null] {
   // Parse, resolve, and compile a Starlark source file.
-  const [, mod, err] = SourceProgram(filename, src, predeclared.has);
+  const f = (s: string): boolean => {
+    return predeclared.has(s);
+  };
+  const [, mod, err] = SourceProgram(filename, src, f);
   if (err !== null) {
     return [null, err];
   }
 
+  console.log("mod====");
+  console.log(mod);
   let [g, _] = mod!.init(thread, predeclared);
   g.freeze();
   return [g, null];
@@ -393,7 +359,10 @@ function FileProgram(
   f: syntax.File,
   isPredeclared: (name: string) => boolean
 ): Program {
-  resolve.File(f, isPredeclared, Universe.has);
+  const fn = (s: string): boolean => {
+    return Universe.has(s);
+  };
+  resolve.File(f, isPredeclared, fn);
 
   let pos: Position;
   if (f.Stmts.length > 0) {
@@ -481,27 +450,28 @@ function makeToplevelFunction(
   prog: compile.Program,
   predeclared: StringDict
 ): Function {
-  // TODO:
-  // Create the Starlark value denoted by each program constant c.
-  const constants: Value[] = [];
-  // for (let i = 0; i < prog.constants.length; i++) {
-  //   const c = prog.constants[i];
-  //   let v: Value;
-  //   if (typeof c === "number") {
-  //     v = MakeInt64(c);
-  //   } else if (c instanceof BigInt) {
-  //     v = MakeBigInt(c);
-  //   } else if (typeof c === "string") {
-  //     v = String(c);
-  //   } else if (c instanceof compile.Bytes) {
-  //     v = Bytes(c);
-  //   } else if (typeof c === "number") {
-  //     v = Float(c);
-  //   } else {
-  //     throw new Error(`unexpected constant ${c.constructor.name}: ${c}`);
-  //   }
-  //   constants[i] = v;
-  // }
+  const constants: Value[] = new Array(prog.constants.length);
+
+  for (let i = 0; i < prog.constants.length; i++) {
+    const c = prog.constants[i];
+    let v: Value;
+
+    if (typeof c === "number") {
+      v = MakeInt64(BigInt(c));
+    } else if (typeof c == "bigint") {
+      v = MakeBigInt(c);
+    } else if (typeof c === "string") {
+      v = new String(c);
+      // TODO:
+      // } else if (c instanceof compile.Bytes) {
+      //   v = Bytes(c);
+      // } else if (typeof c === "number") {
+      //   v = Float(c);
+    } else {
+      throw new Error(`unexpected constant ${c.constructor.name}: ${c}`);
+    }
+    constants[i] = v;
+  }
 
   return new Function(
     prog.toplevel!,
@@ -737,7 +707,7 @@ function setIndex(x: Value, y: Value, z: Value): Error | null {
   return new Error(`${x.Type()} value does not support item assignment`);
 }
 
-export function Unary(op: syntax.Token, x: Value): [Value, Error] {
+export function Unary(op: Token, x: Value): [Value, Error] {
   // if (op === syntax.NOT) {
   //   return [!x.Truth(), null];
   // }
@@ -754,7 +724,7 @@ export function Unary(op: syntax.Token, x: Value): [Value, Error] {
 }
 
 // TODO: Binary is missing
-export function Binary(op: syntax.Token, x: Value, y: Value): [Value, Error] {
+export function Binary(op: Token, x: Value, y: Value): [Value, Error] {
   return [x, new Error(`unknown binary op: ${op} ${x.Type()}`)];
 }
 
@@ -813,7 +783,7 @@ function stringRepeat(s: string, n: bigint): [string, Error | null] {
 }
 
 // Call calls the function fn with the specified positional and keyword arguments.
-function Call(
+export function Call(
   thread: Thread,
   fn: Value,
   args: Tuple,
@@ -853,7 +823,18 @@ function Call(
   // pass through the interpreter without leaving
   // it in a bad state.
   try {
-    let [result, err] = c.callInternal(thread, args, kwargs);
+    // console.log(c, c.callInternal);
+    // let [result, err] = c.callInternal(thread, args, kwargs);
+    // TODO:
+    let result;
+    let err;
+    if (fn instanceof Builtin) {
+      [result, err] = fn.CallInternal(thread, args, kwargs);
+    } else {
+      [result, err] = CallInternal(fn as Function, thread, args, kwargs);
+    }
+    console.log("result >>>>>>>>>>>");
+    console.log(result);
 
     // Sanity check: null is not a valid Starlark value.
     if (result == null && err == null) {
