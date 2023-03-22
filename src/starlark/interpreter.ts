@@ -135,7 +135,7 @@ export function CallInternal(
 
     if (op >= compile.OpcodeArgMin) {
       let s = 0;
-      for (;;) {
+      for (; ;) {
         const b = code[pc];
         pc++;
         arg |= (b & 0x7f) << s;
@@ -183,7 +183,7 @@ export function CallInternal(
       case Opcode.GE:
         let opToken =
           Object.values(Token)[
-            op - Opcode.EQL + Object.values(Token).indexOf(Token.EQL)
+          op - Opcode.EQL + Object.values(Token).indexOf(Token.EQL)
           ];
         const yy = stack[sp - 1];
         const xx = stack[sp - 2];
@@ -211,7 +211,7 @@ export function CallInternal(
       case Opcode.IN:
         let binop =
           Object.values(Token)[
-            op - Opcode.PLUS + Object.values(Token).indexOf(Token.PLUS)
+          op - Opcode.PLUS + Object.values(Token).indexOf(Token.PLUS)
           ];
 
         if (op == Opcode.IN) {
@@ -237,7 +237,7 @@ export function CallInternal(
         } else {
           unop =
             Object.values(Token)[
-              op - Opcode.UPLUS + Object.values(Token).indexOf(Token.PLUS)
+            op - Opcode.UPLUS + Object.values(Token).indexOf(Token.PLUS)
             ];
         }
         const x = stack[sp - 1];
@@ -354,7 +354,7 @@ export function CallInternal(
 
           for (let i = 0; i < nkvpairs; i++) {
             // BUG:
-            let pair: Tuple = kvpairsAlloc.slice(0, 2, 2) as Tuple;
+            let pair: Tuple = kvpairsAlloc.slice(0, 2, 1) as Tuple;
             pair.elems[0] = stack[sp + 2 * i]; // name
             pair.elems[1] = stack[sp + 2 * i + 1]; // value
             kvpairs.push(pair);
@@ -621,7 +621,13 @@ export function CallInternal(
         let n = Number(arg);
         let tuple = new Tuple(new Array(n));
         sp -= n;
-        tuple.elems = stack.slice(sp, stack.length);
+        for (let i = 0; i < tuple.Len(); i++) {
+          if (sp + i >= stack.length) {
+            break;
+          }
+          tuple.elems[i] = stack[sp + i];
+        }
+        // tuple.elems = stack.slice(sp, stack.length);
         stack[sp] = tuple;
         sp++;
         break;
@@ -631,7 +637,13 @@ export function CallInternal(
         let n = Number(arg);
         let elems: Value[] = new Array(n);
         sp -= n;
-        elems = stack.slice(sp, stack.length);
+
+        for (let i = 0; i < elems.length; i++) {
+          if (sp + i >= stack.length) {
+            break;
+          }
+          elems[i] = stack[sp + i];
+        }
         stack[sp] = new List(elems);
         sp++;
         break;
@@ -641,8 +653,8 @@ export function CallInternal(
         let funcode = f.prog.functions[arg];
         let tuple = stack[sp - 1] as Tuple;
         let n = tuple.Len() - funcode.freevars.length;
-        let defaults = tuple.slice(0, n, n) as Tuple;
-        let freevars = tuple.slice(n, tuple.Len()) as Tuple;
+        let defaults = tuple.slice(0, n, 1) as Tuple;
+        let freevars = tuple.slice(n, tuple.Len(), 1) as Tuple;
         stack[sp - 1] = new Function(funcode, fn.module, defaults, freevars);
         break;
       }
@@ -775,7 +787,7 @@ export function CallInternal(
 }
 
 class wrappedError {
-  constructor(public msg: string, public cause: Error) {}
+  constructor(public msg: string, public cause: Error) { }
 
   public get name(): string {
     return "wrappedError";
@@ -804,14 +816,14 @@ class wrappedError {
 // mandatory is a sentinel value used in a function's defaults tuple
 // to indicate that a (keyword-only) parameter is mandatory.
 export class mandatory implements Value {
-  constructor() {}
+  constructor() { }
   public String(): string {
     return "mandatory";
   }
   public Type(): string {
     return "mandatory";
   }
-  public Freeze(): void {} // immutable
+  public Freeze(): void { } // immutable
   public Truth(): Bool {
     return False;
   }

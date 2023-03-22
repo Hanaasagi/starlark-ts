@@ -319,6 +319,7 @@ export function ExecFile(
   console.log("mod====");
   console.log(mod);
   let [g, _] = mod!.init(thread, predeclared);
+  console.log("AFTER MOD BERFORE FREEZE", g);
   g.freeze();
   return [g, null];
 }
