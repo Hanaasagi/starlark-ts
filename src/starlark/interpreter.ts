@@ -9,12 +9,13 @@ import { Callable, Function, Tuple, Module } from "./value";
 import { List, Iterable } from "./value";
 import { Value, Compare } from "./value";
 import { Universe } from "./value";
-import { Iterator } from "./value";
-import { Bool, True, False, None } from "./value";
+import { Iterator, Dict, String } from "./value";
+import { Bool, True, False, None, Iterate } from "./value";
 import { IterableMapping } from "./value";
 import * as resolve from "../resolve/resolve";
-import { setArgs } from "./eval";
+import { setArgs, setIndex, getIndex, getAttr, setField, slice } from "./eval";
 import { Binary, Unary } from "./eval";
+import { listExtend } from "./eval";
 
 // This file defines the bytecode interpreter.
 
@@ -98,7 +99,7 @@ export function CallInternal(
   // - there is exactly one return statement
   // - there is no redefinition of 'err'.
 
-  var iterstack: Iterator[]; // stack of active iterators
+  var iterstack: Iterator[] = new Array(); // stack of active iterators
   // TODO: defer
 
   let sp = 0;
@@ -134,7 +135,7 @@ export function CallInternal(
 
     if (op >= compile.OpcodeArgMin) {
       let s = 0;
-      for (; ;) {
+      for (;;) {
         const b = code[pc];
         pc++;
         arg |= (b & 0x7f) << s;
@@ -182,7 +183,7 @@ export function CallInternal(
       case Opcode.GE:
         let opToken =
           Object.values(Token)[
-          op - Opcode.EQL + Object.values(Token).indexOf(Token.EQL)
+            op - Opcode.EQL + Object.values(Token).indexOf(Token.EQL)
           ];
         const yy = stack[sp - 1];
         const xx = stack[sp - 2];
@@ -210,7 +211,7 @@ export function CallInternal(
       case Opcode.IN:
         let binop =
           Object.values(Token)[
-          op - Opcode.PLUS + Object.values(Token).indexOf(Token.PLUS)
+            op - Opcode.PLUS + Object.values(Token).indexOf(Token.PLUS)
           ];
 
         if (op == Opcode.IN) {
@@ -236,7 +237,7 @@ export function CallInternal(
         } else {
           unop =
             Object.values(Token)[
-            op - Opcode.UPLUS + Object.values(Token).indexOf(Token.PLUS)
+              op - Opcode.UPLUS + Object.values(Token).indexOf(Token.PLUS)
             ];
         }
         const x = stack[sp - 1];
@@ -254,24 +255,52 @@ export function CallInternal(
         let x = stack[sp - 2];
         sp -= 2;
 
-        // TODO:
+        // It's possible that y is not Iterable but
+        // nonetheless defines x+y, in which case we
+        // should fall back to the general case.
+        let z: Value | null = null;
+        if (x instanceof List && "iterate" in y) {
+          if (x.checkMutable("apply += to")) {
+            break loop;
+          }
+          listExtend(x, y as Iterable);
+          z = x;
+        }
+        if (!z) {
+          [z, err] = Binary(Token.PLUS, x, y);
+          if (err) {
+            break loop;
+          }
+        }
 
-        // let z: Value;
-        // if (x instanceof List && isIterable(y)) {
-        //   if (x.checkMutable("apply += to")) {
-        //     break loop;
-        //   }
-        //   listExtend(x, y);
-        //   z = x;
-        // }
-        // if (!z) {
-        //   [z, err] = Binary(syntax.PLUS, x, y);
-        //   if (err) {
-        //     break loop;
-        //   }
-        // }
+        stack[sp++] = z;
+        break;
+      }
+      case Opcode.INPLACE_ADD: {
+        const y = stack[sp - 1];
+        const x = stack[sp - 2];
+        sp -= 2;
 
-        // stack[sp++] = z;
+        let z: Value | null = null;
+        if (x instanceof Dict) {
+          if (y instanceof Dict) {
+            const err = x.ht.checkMutable("apply |= to");
+            if (err !== null) {
+              break loop;
+            }
+            x.ht.addAll(y.ht); // can't fail
+            z = x;
+          }
+        }
+        if (z === null) {
+          [z, err] = Binary(Token.PIPE, x, y);
+          if (err !== null) {
+            break loop;
+          }
+        }
+
+        stack[sp] = z!;
+        sp++;
         break;
       }
 
@@ -288,6 +317,15 @@ export function CallInternal(
       case Opcode.FALSE:
         stack[sp] = False;
         sp++;
+        break;
+
+      case Opcode.MANDATORY:
+        stack[sp] = new mandatory();
+        sp++;
+        break;
+
+      case Opcode.JMP:
+        pc = arg;
         break;
 
       case Opcode.CALL:
@@ -402,6 +440,250 @@ export function CallInternal(
         break;
       }
 
+      case Opcode.ITERPUSH: {
+        let x = stack[sp - 1];
+        sp--;
+        let iter = Iterate(x);
+        if (!iter) {
+          err = new Error(`${x.Type()} value is not iterable`);
+          break loop;
+        }
+        iterstack.push(iter);
+        break;
+      }
+      case Opcode.ITERJMP: {
+        let iter = iterstack[iterstack.length - 1];
+        if (iter.next(stack[sp])) {
+          sp++;
+        } else {
+          pc = arg;
+        }
+        break;
+      }
+
+      case Opcode.ITERPOP: {
+        let n = iterstack.length - 1;
+        iterstack[n].done();
+        iterstack = iterstack.slice(0, n);
+        break;
+      }
+      case Opcode.NOT:
+        stack[sp - 1] = stack[sp - 1].Truth().val == true ? True : None;
+        break;
+
+      case Opcode.SETINDEX: {
+        let z = stack[sp - 1];
+        let y = stack[sp - 2];
+        let x = stack[sp - 3];
+        sp -= 3;
+        err = setIndex(x, y, z);
+        if (err) {
+          break loop;
+        }
+        break;
+      }
+
+      case Opcode.INDEX: {
+        let y = stack[sp - 1];
+        let x = stack[sp - 2];
+        sp -= 2;
+        let [z, err3] = getIndex(x, y);
+        if (err3) {
+          err = err3;
+          break loop;
+        }
+        stack[sp] = z;
+        sp++;
+        break;
+      }
+
+      case Opcode.ATTR: {
+        let x = stack[sp - 1];
+        let name = f.prog.names[arg];
+        let [y, err2] = getAttr(x, name);
+        if (err2) {
+          err = err2;
+          break loop;
+        }
+        stack[sp - 1] = y!;
+        break;
+      }
+
+      case Opcode.SETFIELD: {
+        let y = stack[sp - 1];
+        let x = stack[sp - 2];
+        sp -= 2;
+        let name = f.prog.names[arg];
+        let err2 = setField(x, name, y);
+        if (err2) {
+          err = err2;
+          break loop;
+        }
+        break;
+      }
+
+      case Opcode.MAKEDICT: {
+        stack[sp] = new Dict();
+        sp++;
+        break;
+      }
+
+      case Opcode.SETFIELD:
+      case Opcode.SETDICTUNIQ: {
+        let dict = stack[sp - 3] as Dict;
+        let k = stack[sp - 2];
+        let v = stack[sp - 1];
+        sp -= 3;
+        let oldlen = dict.len();
+        let err2 = dict.setKey(k, v);
+        if (err2) {
+          err = err2;
+          break loop;
+        }
+        if (op == Opcode.SETDICTUNIQ && dict.len() == oldlen) {
+          err = new Error("duplicate key: ${k}");
+          break loop;
+        }
+
+        break;
+      }
+
+      case Opcode.APPEND: {
+        let elem = stack[sp - 1];
+        let list = stack[sp - 2] as List;
+        sp -= 2;
+        list.elems.push(elem);
+        break;
+      }
+
+      case Opcode.SLICE: {
+        let x = stack[sp - 4];
+        let lo = stack[sp - 3];
+        let hi = stack[sp - 2];
+        let step = stack[sp - 1];
+        sp -= 4;
+        let [res, err2] = slice(x, lo, hi, step);
+        if (err2) {
+          err = err2;
+          break loop;
+        }
+        stack[sp] = res;
+        sp++;
+        break;
+      }
+
+      case Opcode.UNPACK: {
+        let n = Number(arg);
+        let iterable = stack[sp - 1];
+        sp--;
+        let iter = Iterate(iterable);
+        if (!iter) {
+          err = new Error("got ${iterable.Type()} in sequence assignment");
+          break loop;
+        }
+        let i = 0;
+        sp += n;
+
+        while (i < n && iter.next(stack[sp - 1 - i])) {
+          i++;
+        }
+        // BUG:
+        var dummy: Value | null = null;
+        if (iter.next(dummy!)) {
+          // NB: Len may return -1 here in obscure cases.
+          err = new Error(
+            "too many values to unpack (got ${iterable.length}, want ${n})"
+          );
+          break loop;
+        }
+        iter.done();
+        if (i < n) {
+          err = new Error("too few values to unpack (got ${i}, want ${n})");
+          break loop;
+        }
+
+        break;
+      }
+
+      case Opcode.CJMP:
+        if (stack[sp - 1].Truth().val) {
+          pc = arg;
+        }
+        sp--;
+        break;
+
+      case Opcode.CONSTANT: {
+        stack[sp] = fn.module.constants[arg];
+        sp++;
+        break;
+      }
+      case Opcode.MAKETUPLE: {
+        let n = Number(arg);
+        let tuple = new Tuple(new Array(n));
+        sp -= n;
+        tuple.elems = stack.slice(sp, stack.length);
+        stack[sp] = tuple;
+        sp++;
+        break;
+      }
+
+      case Opcode.MAKELIST: {
+        let n = Number(arg);
+        let elems: Value[] = new Array(n);
+        sp -= n;
+        elems = stack.slice(sp, stack.length);
+        stack[sp] = new List(elems);
+        sp++;
+        break;
+      }
+
+      case Opcode.MAKEFUNC: {
+        let funcode = f.prog.functions[arg];
+        let tuple = stack[sp - 1] as Tuple;
+        let n = tuple.Len() - funcode.freevars.length;
+        let defaults = tuple.slice(0, n, n) as Tuple;
+        let freevars = tuple.slice(n, tuple.Len()) as Tuple;
+        stack[sp - 1] = new Function(funcode, fn.module, defaults, freevars);
+        break;
+      }
+
+      case Opcode.LOAD: {
+        let n = arg as number;
+        let m = stack[sp - 1] as String;
+        sp--;
+
+        if (!thread.Load) {
+          err = new Error("load not implemented by this application");
+          break loop;
+        }
+
+        let [dict, err2] = thread.Load(thread, m.val);
+
+        if (err2 !== null) {
+          err = new Error(`cannot load ${m}: ${err2}`);
+          break loop;
+        }
+
+        for (let i = 0; i < n; i++) {
+          const from = stack[sp - 1 - i] as String;
+          const v = dict.get(from.val);
+
+          if (!v) {
+            // TODO:
+            // err = new Error(`load: name ${from} not found in module ${module}`);
+            // const nearest = spell.Nearest(from, Object.keys(dict));
+            const nearest = "";
+            if (nearest) {
+              err = new Error(`${err} (did you mean ${nearest}?)`);
+            }
+            break loop;
+          }
+
+          stack[sp - 1 - i] = v;
+        }
+        break;
+      }
+
       case Opcode.SETLOCAL:
         locals[arg] = stack[sp - 1];
         sp--;
@@ -416,19 +698,55 @@ export function CallInternal(
         fn.module.globals[arg] = stack[sp - 1];
         sp--;
         break;
-      case Opcode.CONSTANT: {
-        stack[sp] = fn.module.constants[arg];
+
+      case Opcode.LOCAL: {
+        let x = locals[arg];
+        if (!x) {
+          err = new Error(
+            `local variable ${f.locals[arg].name} referenced before assignment`
+          );
+          break loop;
+        }
+        stack[sp] = x;
+        sp++;
+        break;
+      }
+      case Opcode.FREE: {
+        stack[sp] = fn.freevars.index(arg);
         sp++;
         break;
       }
 
+      case Opcode.LOCALCELL: {
+        let v = (locals[arg] as cell).v;
+        if (!v) {
+          err = new Error(
+            `local variable ${f.locals[arg].name} referenced before assignment`
+          );
+          break loop;
+        }
+        stack[sp] = v;
+        sp++;
+        break;
+      }
+      case Opcode.FREECELL: {
+        let v = (fn.freevars.index(arg) as cell).v;
+        if (!v) {
+          err = new Error(
+            `local variable ${f.freevars[arg].name} referenced before assignment`
+          );
+          break loop;
+        }
+        stack[sp] = v;
+        sp++;
+        break;
+      }
       case Opcode.GLOBAL: {
         let x = fn.module.globals[arg];
         if (!x) {
-          // err = fmt.Errorf(
-          //   "global variable %s referenced before assignment",
-          //   f.Prog.Globals[arg].Name
-          // );
+          err = new Error(
+            `global variable ${f.prog.globals[arg].name} referenced before assignment`
+          );
           break loop;
         }
         stack[sp] = x;
@@ -457,7 +775,7 @@ export function CallInternal(
 }
 
 class wrappedError {
-  constructor(public msg: string, public cause: Error) { }
+  constructor(public msg: string, public cause: Error) {}
 
   public get name(): string {
     return "wrappedError";
@@ -486,13 +804,14 @@ class wrappedError {
 // mandatory is a sentinel value used in a function's defaults tuple
 // to indicate that a (keyword-only) parameter is mandatory.
 export class mandatory implements Value {
+  constructor() {}
   public String(): string {
     return "mandatory";
   }
   public Type(): string {
     return "mandatory";
   }
-  public Freeze(): void { } // immutable
+  public Freeze(): void {} // immutable
   public Truth(): Bool {
     return False;
   }

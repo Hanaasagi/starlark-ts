@@ -563,7 +563,7 @@ function makeExprFunc(
 // The following functions are primitive operations of the byte code interpreter.
 
 // list += iterable
-function listExtend(x: List, y: Iterable): void {
+export function listExtend(x: List, y: Iterable): void {
   if (y instanceof List) {
     // fast path: list += list
     x.elems.push(...(y as List).elems);
@@ -582,7 +582,7 @@ function listExtend(x: List, y: Iterable): void {
 }
 
 // getAttr implements x.dot.
-function getAttr(x: Value, name: string): [Value | null, Error | null] {
+export function getAttr(x: Value, name: string): [Value | null, Error | null] {
   let hasAttr = "Attr" in x && "AttrNames" in x;
   if (!hasAttr) {
     return [null, new Error(`${x.Type()} has no.${name} field or method`)];
@@ -618,7 +618,7 @@ function getAttr(x: Value, name: string): [Value | null, Error | null] {
 }
 
 // setField implements x.name = y.
-function setField(x: Value, name: string, y: Value): Error | null {
+export function setField(x: Value, name: string, y: Value): Error | null {
   // if (isHasSetField(x)) {
   //   const err = x.setField(name, y);
   //   if (isNoSuchAttrError(err)) {
@@ -635,7 +635,7 @@ function setField(x: Value, name: string, y: Value): Error | null {
 }
 
 // getIndex implements x[y].
-function getIndex(x: Value, y: Value): [Value, Error] {
+export function getIndex(x: Value, y: Value): [Value, Error] {
   // switch (x.type) {
   //   case "Mapping": // dict
   //     const [z, found, err] = x.get(y);
@@ -674,7 +674,7 @@ function outOfRange(i: number, n: number, x: Value): Error {
 }
 
 // setIndex implements x[y] = z.
-function setIndex(x: Value, y: Value, z: Value): Error | null {
+export function setIndex(x: Value, y: Value, z: Value): Error | null {
   // switch (x.type) {
   //   case "Mapping":
   //     // dict
@@ -861,7 +861,7 @@ export function Call(
   }
 }
 
-function slice(
+export function slice(
   x: Value,
   lo: Value,
   hi: Value,

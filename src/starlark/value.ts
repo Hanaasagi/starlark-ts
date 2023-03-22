@@ -267,7 +267,7 @@ interface HasSetField extends HasAttrs {
 // NoneType is the type of None.  Its only legal value is None.
 // (We represent it as a number, not struct{}, so that None may be constant.)
 class NoneType implements Value {
-  constructor() { }
+  constructor() {}
 
   String(): string {
     return "None";
@@ -276,7 +276,7 @@ class NoneType implements Value {
     return "NoneType";
   }
 
-  Freeze() { }
+  Freeze() {}
   Truth(): Bool {
     return False;
   }
@@ -305,7 +305,7 @@ export class Bool implements Comparable {
     return "bool";
   }
 
-  Freeze() { }
+  Freeze() {}
 
   Truth(): Bool {
     return this;
@@ -339,7 +339,7 @@ class Float implements Comparable {
     return "float";
   }
 
-  Freeze() { }
+  Freeze() {}
 
   Truth(): Bool {
     return new Bool(this.val !== 0.0);
@@ -448,7 +448,7 @@ export class String implements Comparable, HasAttrs {
     return "string";
   }
 
-  Freeze() { }
+  Freeze() {}
 
   Truth(): Bool {
     return new Bool(this.val.length > 0);
@@ -529,7 +529,7 @@ class StringElems {
     return "string.elems";
   }
 
-  Freeze(): void { } // immutable
+  Freeze(): void {} // immutable
 
   Truth(): Bool {
     return True;
@@ -578,7 +578,7 @@ class StringElemsIterator implements Iterator {
     return true;
   }
 
-  done(): void { }
+  done(): void {}
 }
 
 // A stringCodepoints is an iterable whose iterator yields a sequence of
@@ -610,7 +610,7 @@ class stringCodepoints {
     return "string.codepoints";
   }
 
-  Freeze(): void { } // immutable
+  Freeze(): void {} // immutable
 
   Truth(): Bool {
     return True;
@@ -653,7 +653,7 @@ class stringCodepointsIterator implements Iterator {
     // return { done: false, value: p };
   }
 
-  done(): void { }
+  done(): void {}
 }
 
 // A Function is a function defined by a Starlark def statement or lambda expression.
@@ -896,7 +896,7 @@ export class Builtin implements Value {
 // The zero value of Dict is a valid empty dictionary.
 // If you know the exact final number of entries,
 // it is more efficient to call NewDict.
-class Dict implements Value {
+export class Dict implements Value {
   ht: Hashtable;
 
   // NewDict returns a new empty dictionary.
@@ -936,8 +936,8 @@ class Dict implements Value {
   }
 
   // set sets the value associated with a key.
-  public set(k: Value, v: Value): void {
-    this.ht.insert(k, v);
+  public setKey(k: Value, v: Value): Error | null {
+    return this.ht.insert(k, v);
   }
 
   // String returns the string representation of the dictionary.
@@ -1051,7 +1051,7 @@ export class List implements Value {
 
   // checkMutable reports an error if the list should not be mutated.
   // verb+" list" should describe the operation.
-  private checkMutable(verb: string): Error | null {
+  public checkMutable(verb: string): Error | null {
     if (this.frozen) {
       return new Error(`cannot ${verb} frozen list`);
     }
@@ -1225,7 +1225,7 @@ export class Tuple implements Value {
     return this.elems[i];
   }
 
-  slice(start: number, end: number, step: number): Value {
+  slice(start: number, end: number, step: number = 1): Value {
     if (step === 1) {
       return new Tuple(this.elems.slice(start, end));
     }
@@ -1293,7 +1293,7 @@ export class TupleIterator implements Iterator {
     return false;
   }
 
-  done(): void { }
+  done(): void {}
 }
 
 // A Set represents a TypeScript set value.
@@ -1735,7 +1735,7 @@ class Bytes implements Value, Comparable, Sliceable, Indexable {
     return "bytes";
   }
 
-  Freeze(): void { } // immutable
+  Freeze(): void {} // immutable
 
   Truth(): Bool {
     return new Bool(this.value.length > 0);
@@ -1965,7 +1965,7 @@ class RangeValue implements Value {
     );
   }
 
-  Freeze(): void { } // immutable
+  Freeze(): void {} // immutable
 
   String(): string {
     if (this.step !== 1) {
@@ -2066,7 +2066,7 @@ class RangeIterator {
     return false;
   }
 
-  done(): void { }
+  done(): void {}
 }
 
 export class StringDict {
