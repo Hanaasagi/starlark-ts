@@ -10,7 +10,7 @@ import { List, Iterable } from "./value";
 import { Value, Compare } from "./value";
 import { Universe } from "./value";
 import { Iterator } from "./value";
-import { Bool, True, False } from "./value";
+import { Bool, True, False, None } from "./value";
 import { IterableMapping } from "./value";
 import * as resolve from "../resolve/resolve";
 import { setArgs } from "./eval";
@@ -134,7 +134,7 @@ export function CallInternal(
 
     if (op >= compile.OpcodeArgMin) {
       let s = 0;
-      for (;;) {
+      for (; ;) {
         const b = code[pc];
         pc++;
         arg |= (b & 0x7f) << s;
@@ -182,7 +182,7 @@ export function CallInternal(
       case Opcode.GE:
         let opToken =
           Object.values(Token)[
-            op - Opcode.EQL + Object.values(Token).indexOf(Token.EQL)
+          op - Opcode.EQL + Object.values(Token).indexOf(Token.EQL)
           ];
         const yy = stack[sp - 1];
         const xx = stack[sp - 2];
@@ -210,7 +210,7 @@ export function CallInternal(
       case Opcode.IN:
         let binop =
           Object.values(Token)[
-            op - Opcode.PLUS + Object.values(Token).indexOf(Token.PLUS)
+          op - Opcode.PLUS + Object.values(Token).indexOf(Token.PLUS)
           ];
 
         if (op == Opcode.IN) {
@@ -236,7 +236,7 @@ export function CallInternal(
         } else {
           unop =
             Object.values(Token)[
-              op - Opcode.UPLUS + Object.values(Token).indexOf(Token.PLUS)
+            op - Opcode.UPLUS + Object.values(Token).indexOf(Token.PLUS)
             ];
         }
         const x = stack[sp - 1];
@@ -274,6 +274,21 @@ export function CallInternal(
         // stack[sp++] = z;
         break;
       }
+
+      case Opcode.NONE:
+        stack[sp] = None;
+        sp++;
+        break;
+
+      case Opcode.TRUE:
+        stack[sp] = True;
+        sp++;
+        break;
+
+      case Opcode.FALSE:
+        stack[sp] = False;
+        sp++;
+        break;
 
       case Opcode.CALL:
       case Opcode.CALL_VAR:
@@ -375,15 +390,15 @@ export function CallInternal(
         const result = Call(thread, func, positional!, kvpairs);
         // thread.beginProfSpan()
 
-        // if (isError(result)) {
-        //   err = result
-        //   break loop
-        // }
+        if (result[1]) {
+          break loop;
+        }
         if (vmdebug) {
           console.log(`Resuming ${f.name} @${f.position(0)}`);
         }
         stack[sp - 1] = result[0];
 
+        console.log("After Resuming", stack, result[0], sp);
         break;
       }
 
@@ -426,6 +441,10 @@ export function CallInternal(
         sp++;
         break;
 
+      case Opcode.RETURN:
+        result = stack[sp - 1];
+        break loop;
+
       // TODO:
       // case compile.INPLACE_PIPE:
       default:
@@ -438,7 +457,7 @@ export function CallInternal(
 }
 
 class wrappedError {
-  constructor(public msg: string, public cause: Error) {}
+  constructor(public msg: string, public cause: Error) { }
 
   public get name(): string {
     return "wrappedError";
@@ -473,7 +492,7 @@ export class mandatory implements Value {
   public Type(): string {
     return "mandatory";
   }
-  public Freeze(): void {} // immutable
+  public Freeze(): void { } // immutable
   public Truth(): Bool {
     return False;
   }

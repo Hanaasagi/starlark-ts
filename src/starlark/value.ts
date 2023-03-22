@@ -267,7 +267,7 @@ interface HasSetField extends HasAttrs {
 // NoneType is the type of None.  Its only legal value is None.
 // (We represent it as a number, not struct{}, so that None may be constant.)
 class NoneType implements Value {
-  constructor() {}
+  constructor() { }
 
   String(): string {
     return "None";
@@ -276,7 +276,7 @@ class NoneType implements Value {
     return "NoneType";
   }
 
-  Freeze() {}
+  Freeze() { }
   Truth(): Bool {
     return False;
   }
@@ -305,7 +305,7 @@ export class Bool implements Comparable {
     return "bool";
   }
 
-  Freeze() {}
+  Freeze() { }
 
   Truth(): Bool {
     return this;
@@ -339,7 +339,7 @@ class Float implements Comparable {
     return "float";
   }
 
-  Freeze() {}
+  Freeze() { }
 
   Truth(): Bool {
     return new Bool(this.val !== 0.0);
@@ -448,7 +448,7 @@ export class String implements Comparable, HasAttrs {
     return "string";
   }
 
-  Freeze() {}
+  Freeze() { }
 
   Truth(): Bool {
     return new Bool(this.val.length > 0);
@@ -529,7 +529,7 @@ class StringElems {
     return "string.elems";
   }
 
-  Freeze(): void {} // immutable
+  Freeze(): void { } // immutable
 
   Truth(): Bool {
     return True;
@@ -578,7 +578,7 @@ class StringElemsIterator implements Iterator {
     return true;
   }
 
-  done(): void {}
+  done(): void { }
 }
 
 // A stringCodepoints is an iterable whose iterator yields a sequence of
@@ -610,7 +610,7 @@ class stringCodepoints {
     return "string.codepoints";
   }
 
-  Freeze(): void {} // immutable
+  Freeze(): void { } // immutable
 
   Truth(): Bool {
     return True;
@@ -653,7 +653,7 @@ class stringCodepointsIterator implements Iterator {
     // return { done: false, value: p };
   }
 
-  done(): void {}
+  done(): void { }
 }
 
 // A Function is a function defined by a Starlark def statement or lambda expression.
@@ -1293,7 +1293,7 @@ export class TupleIterator implements Iterator {
     return false;
   }
 
-  done(): void {}
+  done(): void { }
 }
 
 // A Set represents a TypeScript set value.
@@ -1735,7 +1735,7 @@ class Bytes implements Value, Comparable, Sliceable, Indexable {
     return "bytes";
   }
 
-  Freeze(): void {} // immutable
+  Freeze(): void { } // immutable
 
   Truth(): Bool {
     return new Bool(this.value.length > 0);
@@ -1889,30 +1889,32 @@ function print(
   args: Tuple,
   kwargs: Tuple[]
 ): [Value, Error | null] {
-  console.log("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
-  console.log("<<<< print is not impl but i can give you", args);
-  console.log("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
-  return [b, null];
-  // let sep = " ";
+  console.error("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
+  console.error("<<<< print is not impl but i can give you", args);
+  let sep = " ";
   // const err = UnpackArgs("print", null, kwargs, "sep?", sep);
   // if (err) {
   //   return [null, err];
   // }
-  // const buf = new StringBuilder();
-  // for (let i = 0; i < args.length; i++) {
-  //   const v = args[i];
+  // const buf = new Array();
+  // for (let i = 0; i < args.Len(); i++) {
+  //   const v = args.index(i);
   //   if (i > 0) {
-  //     buf.WriteString(sep);
+  //     buf.push(sep);
   //   }
   //   const s = AsString(v);
   //   if (s !== undefined) {
-  //     buf.WriteString(s);
+  //     buf.push(s);
   //   } else if (v instanceof Bytes) {
-  //     buf.WriteString(String(v));
+  //     // buf.push(new String(v));
   //   } else {
-  //     writeValue(buf, v, null);
+  //     buf.push(v);
   //   }
   // }
+
+  // console.log(buf.join(""));
+  console.error("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
+  return [None, null];
 
   // const s = buf.String();
   // if (thread.Print !== null) {
@@ -1963,7 +1965,7 @@ class RangeValue implements Value {
     );
   }
 
-  Freeze(): void {} // immutable
+  Freeze(): void { } // immutable
 
   String(): string {
     if (this.step !== 1) {
@@ -2064,7 +2066,7 @@ class RangeIterator {
     return false;
   }
 
-  done(): void {}
+  done(): void { }
 }
 
 export class StringDict {

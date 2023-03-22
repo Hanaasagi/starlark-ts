@@ -1404,7 +1404,7 @@ class Fcomp {
     // Gather all the right operands of the left tree of plusses.
     // A tree (((a+b)+c)+d) becomes args=[a +b +c +d].
     const args: Summand[] = [];
-    for (let plus = e; ;) {
+    for (let plus = e; ; ) {
       args.push(new Summand(unparen(plus.Y), plus.OpPos));
       const left = unparen(plus.X) as syntax.Expr;
       if (!(left instanceof syntax.BinaryExpr) || left.Op !== Token.PLUS) {
@@ -1418,7 +1418,7 @@ class Fcomp {
 
     // Fold sums of adjacent literals of the same type: ""+"", []+[], ()+().
     const out: Summand[] = []; // compact in situ
-    for (let i = 0; i < args.length;) {
+    for (let i = 0; i < args.length; ) {
       let j = i + 1;
       const code = addable(args[i].x);
       // BUG:
@@ -1941,7 +1941,7 @@ export function PrintOp(
   arg: number
 ): void {
   if (op < OpcodeArgMin) {
-    console.log(`\t${pc} \t${op} `);
+    console.log(`\t${pc} \t${Opcode.String(op)} `);
     return;
   }
 
