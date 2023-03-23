@@ -1410,8 +1410,8 @@ class Fcomp {
   plus(e: syntax.BinaryExpr): void {
     // Gather all the right operands of the left tree of plusses.
     // A tree (((a+b)+c)+d) becomes args=[a +b +c +d].
-    const args: Summand[] = [];
-    for (let plus = e; ;) {
+    const args: Summand[] = new Array();
+    for (let plus = e; ; ) {
       args.push(new Summand(unparen(plus.Y), plus.OpPos));
       const left = unparen(plus.X) as syntax.Expr;
       if (!(left instanceof syntax.BinaryExpr) || left.Op !== Token.PLUS) {
@@ -1425,12 +1425,10 @@ class Fcomp {
 
     // Fold sums of adjacent literals of the same type: ""+"", []+[], ()+().
     const out: Summand[] = []; // compact in situ
-    for (let i = 0; i < args.length;) {
+    for (let i = 0; i < args.length; ) {
       let j = i + 1;
       const code = addable(args[i].x);
-      // BUG:
-      //@ts-ignore
-      if (code !== 0) {
+      if (code) {
         while (j < args.length && addable(args[j].x) === code) {
           j++;
         }
