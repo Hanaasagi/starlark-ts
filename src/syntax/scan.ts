@@ -538,6 +538,8 @@ export class Scanner {
     // start of line proper
     c = this.peekRune();
 
+    console.log("scan.ts c is", c);
+
     // Skip spaces.
     while (c === " " || c === "\t") {
       this.readRune();

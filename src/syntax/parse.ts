@@ -522,7 +522,6 @@ class Parser {
   parseExprs(exprs: syntax.Expr[], allowTrailingComma: boolean): syntax.Expr[] {
     while (this.tok === Token.COMMA) {
       const pos = this.nextToken();
-      this.nextToken();
       if (terminatesExprList(this.tok)) {
         if (!allowTrailingComma) {
           this.input.error(pos, "unparenthesized tuple with trailing comma");
@@ -653,6 +652,8 @@ class Parser {
   //                     | primary slice_suffix
   //                     | primary call_suffix
   parsePrimaryWithSuffix(): syntax.Expr {
+    console.log("Call parsePrimaryWithSuffix", this.tok);
+
     let x = this.parsePrimary();
     while (true) {
       switch (this.tok) {
@@ -860,7 +861,9 @@ class Parser {
       exprs = this.parseExprs(exprs, true); // allow trailing comma
     }
 
+    console.log("Before Error");
     const rbrack = this.consume(Token.RBRACK);
+    console.log("After Error");
     return new syntax.ListExpr(lbrack, exprs, rbrack);
   }
 

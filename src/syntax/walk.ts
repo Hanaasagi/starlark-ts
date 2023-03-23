@@ -27,7 +27,7 @@ import {
   isDotExpr,
   isCallExpr,
   isLambdaExpr,
-} from "./syntax.js";
+} from "./syntax";
 
 function walkStmts(stmts: Stmt[], f: (node: Node) => boolean): void {
   for (const stmt of stmts) {
