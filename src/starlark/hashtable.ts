@@ -20,8 +20,17 @@ function overloaded(elems: number, buckets: number): boolean {
 }
 
 class Bucket {
-  entries: Entry[] = new Array(bucketSize);
-  next: Bucket | null = null; // linked list of buckets
+  entries: Entry[];
+  next: Bucket | null; // linked list of buckets
+
+  constructor() {
+    this.entries = Array.from(
+      { length: bucketSize },
+      (_) => new Entry(0, null, null, null, null)
+    );
+
+    this.next = null;
+  }
 }
 
 class Entry {
@@ -33,14 +42,15 @@ class Entry {
 
   constructor(
     hash: number,
-    key: Value,
-    value: Value,
+    key: Value | null,
+    value: Value | null,
     next: Entry | null,
     prevLink: Entry | null
   ) {
     this.hash = hash;
-    this.key = key;
-    this.value = value;
+    // BUG:
+    this.key = key!;
+    this.value = value!;
     this.next = next;
     this.prevLink = prevLink;
   }
@@ -101,7 +111,7 @@ export class Hashtable {
         while (p != null) {
           for (let j = 0; j <= p.entries.length; j++) {
             let e = p.entries[j];
-            if (e.hash != 0) {
+            if (e && e.hash != 0) {
               e.key.Freeze();
               e.value.Freeze();
             }
@@ -142,8 +152,7 @@ export class Hashtable {
             }
             continue;
           }
-          let eq,
-            err = Equal(k, e.key);
+          let [eq, err] = Equal(k, e.key);
           if (err != null) {
             return err;
           } else if (!eq) {
@@ -157,6 +166,7 @@ export class Hashtable {
         }
         p = p.next;
       }
+
       if (overloaded(this_.len, this_.table.length)) {
         this_.grow();
         // @ts-ignore
@@ -176,10 +186,15 @@ export class Hashtable {
       this_.tailLink = insert.next;
 
       this_.len++;
+      // console.log("*********************", this_);
       return null;
     }
+    console.log("START DEBUG HashTable ===============");
+    console.log(this);
     // @ts-ignore
     insertImpl(this);
+    console.log(this);
+    console.log("END DEBUG HashTable ===============");
     return null;
   }
 

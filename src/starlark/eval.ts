@@ -838,7 +838,7 @@ export function Call(
     console.log(result);
 
     // Sanity check: null is not a valid Starlark value.
-    if (result == null && err == null) {
+    if ((result == null || result == undefined) && err == null) {
       err = new Error(`internal error: null (not None) returned from ${fn}`);
     }
 
