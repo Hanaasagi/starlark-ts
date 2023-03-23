@@ -830,7 +830,8 @@ export function Call(
     let result;
     let err;
     if (fn instanceof Builtin) {
-      [result, err] = fn.CallInternal(thread, args, kwargs);
+      // TODO:
+      result = fn.CallInternal(thread, args, kwargs);
     } else {
       [result, err] = CallInternal(fn as Function, thread, args, kwargs);
     }

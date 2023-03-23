@@ -267,7 +267,7 @@ interface HasSetField extends HasAttrs {
 // NoneType is the type of None.  Its only legal value is None.
 // (We represent it as a number, not struct{}, so that None may be constant.)
 class NoneType implements Value {
-  constructor() { }
+  constructor() {}
 
   String(): string {
     return "None";
@@ -276,7 +276,7 @@ class NoneType implements Value {
     return "NoneType";
   }
 
-  Freeze() { }
+  Freeze() {}
   Truth(): Bool {
     return False;
   }
@@ -305,7 +305,7 @@ export class Bool implements Comparable {
     return "bool";
   }
 
-  Freeze() { }
+  Freeze() {}
 
   Truth(): Bool {
     return this;
@@ -325,7 +325,7 @@ export class Bool implements Comparable {
 export const False: Bool = new Bool(false);
 export const True: Bool = new Bool(true);
 
-class Float implements Comparable {
+export class Float implements Comparable {
   val: number;
   constructor(val: number) {
     this.val = val;
@@ -339,7 +339,7 @@ class Float implements Comparable {
     return "float";
   }
 
-  Freeze() { }
+  Freeze() {}
 
   Truth(): Bool {
     return new Bool(this.val !== 0.0);
@@ -448,7 +448,7 @@ export class String implements Comparable, HasAttrs {
     return "string";
   }
 
-  Freeze() { }
+  Freeze() {}
 
   Truth(): Bool {
     return new Bool(this.val.length > 0);
@@ -529,7 +529,7 @@ class StringElems {
     return "string.elems";
   }
 
-  Freeze(): void { } // immutable
+  Freeze(): void {} // immutable
 
   Truth(): Bool {
     return True;
@@ -578,7 +578,7 @@ class StringElemsIterator implements Iterator {
     return true;
   }
 
-  done(): void { }
+  done(): void {}
 }
 
 // A stringCodepoints is an iterable whose iterator yields a sequence of
@@ -610,7 +610,7 @@ class stringCodepoints {
     return "string.codepoints";
   }
 
-  Freeze(): void { } // immutable
+  Freeze(): void {} // immutable
 
   Truth(): Bool {
     return True;
@@ -653,7 +653,7 @@ class stringCodepointsIterator implements Iterator {
     // return { done: false, value: p };
   }
 
-  done(): void { }
+  done(): void {}
 }
 
 // A Function is a function defined by a Starlark def statement or lambda expression.
@@ -815,7 +815,7 @@ export class Builtin implements Value {
     fn: Builtin,
     args: Tuple,
     kwargs: Tuple[]
-  ) => [Value, Error | null];
+  ) => Value | Error;
   recv: Value | null;
 
   constructor(
@@ -825,7 +825,7 @@ export class Builtin implements Value {
       fn: Builtin,
       args: Tuple,
       kwargs: Tuple[]
-    ) => [Value, Error | null],
+    ) => Value | Error,
     recv: Value | null = null
   ) {
     this.name = name;
@@ -863,11 +863,7 @@ export class Builtin implements Value {
     return "builtin_function_or_method";
   }
 
-  CallInternal(
-    thread: Thread,
-    args: Tuple,
-    kwargs: Tuple[]
-  ): [Value, Error | null] {
+  CallInternal(thread: Thread, args: Tuple, kwargs: Tuple[]): Value | Error {
     return this.fn(thread, this, args, kwargs);
   }
 
@@ -1293,7 +1289,7 @@ export class TupleIterator implements Iterator {
     return false;
   }
 
-  done(): void { }
+  done(): void {}
 }
 
 // A Set represents a TypeScript set value.
@@ -1692,7 +1688,7 @@ function b2i(b: boolean): number {
   }
 }
 
-function Len(x: Value): number {
+export function Len(x: Value): number {
   if ("Len" in x) {
     // @ts-ignore
     return x.Len();
@@ -1735,7 +1731,7 @@ class Bytes implements Value, Comparable, Sliceable, Indexable {
     return "bytes";
   }
 
-  Freeze(): void { } // immutable
+  Freeze(): void {} // immutable
 
   Truth(): Bool {
     return new Bool(this.value.length > 0);
@@ -1928,7 +1924,7 @@ function print(
 // A rangeValue is a comparable, immutable, indexable sequence of integers
 // defined by the three parameters to a range(...) call.
 // Invariant: step != 0.
-class RangeValue implements Value {
+export class RangeValue implements Value {
   public start: number;
   public stop: number;
   public step: number;
@@ -1965,7 +1961,7 @@ class RangeValue implements Value {
     );
   }
 
-  Freeze(): void { } // immutable
+  Freeze(): void {} // immutable
 
   String(): string {
     if (this.step !== 1) {
@@ -2032,7 +2028,7 @@ function rangeEqual(x: RangeValue, y: RangeValue): boolean {
 
 // rangeLen calculates the length of a range with the provided start, stop, and step.
 // caller must ensure that step is non-zero.
-function rangeLen(start: number, stop: number, step: number): number {
+export function rangeLen(start: number, stop: number, step: number): number {
   if (step > 0) {
     if (stop > start) {
       return Math.floor((stop - 1 - start) / step) + 1;
@@ -2066,7 +2062,7 @@ class RangeIterator {
     return false;
   }
 
-  done(): void { }
+  done(): void {}
 }
 
 export class StringDict {
@@ -2118,6 +2114,8 @@ export class StringDict {
     return this.val.has(key);
   }
 }
-export var Universe = new StringDict([
-  ["print", new Builtin("print", print, null)],
-]);
+
+export { Universe } from "./builtin";
+// export var Universe = new StringDict([
+//   ["print", new Builtin("print", print, null)],
+// ]);

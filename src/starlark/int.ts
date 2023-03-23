@@ -40,7 +40,7 @@ const maxint64 = BigInt("9223372036854775807");
 
 // Int is the type of a Starlark int.
 // The zero value is not a legal value; use MakeInt(0).
-export class Int {
+export class Int implements Value {
   impl: IntImpl;
 
   constructor(impl: IntImpl) {
@@ -327,9 +327,9 @@ function isSmall(x: BigInt): boolean {
   return n < 32 || (n === 32 && x === BigInt(Math.pow(2, 31) * -1));
 }
 
-const zero = makeSmallInt(BigInt(0));
-const one = makeSmallInt(BigInt(1));
-const oneBig = BigInt(1);
+export const zero = makeSmallInt(BigInt(0));
+export const one = makeSmallInt(BigInt(1));
+export const oneBig = BigInt(1);
 
 // Unary implements the operations +int, -int, and ~int.
 function Unary(i: Int, op: syntax.Token): [Value | null, Error | null] {

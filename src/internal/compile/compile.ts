@@ -515,6 +515,7 @@ class Pcomp {
     let maxstack: number = 0;
 
     let visit = (b: Block) => {
+      console.log("visit", b);
       if (b.index >= 0) {
         return; // already visited
       }
@@ -526,6 +527,8 @@ class Pcomp {
       if (debug) {
         console.log(`${name} block ${b.index}: (stack = ${stack})`);
       }
+      // Begin
+      console.log("PC is", pc);
       let cjmpAddr: number | null = null;
       let isiterjmp = 0;
       for (let i = 0; i < b.insns.length; i++) {
@@ -537,6 +540,8 @@ class Pcomp {
           switch (insn.op) {
             case Opcode.ITERJMP:
               isiterjmp = 1;
+              cjmpAddr = b.insns[i].arg;
+              pc += 4;
               break;
             case Opcode.CJMP:
               cjmpAddr = b.insns[i].arg;
@@ -562,8 +567,10 @@ class Pcomp {
           maxstack = stack + isiterjmp;
         }
       }
+      // After
 
       if (debug) {
+        console.log("PC after", pc);
         console.log(`successors of block ${b.addr} (start=${b.index}):`);
         if (b.jmp) {
           console.log(`jmp to ${b.jmp.index}`);
@@ -766,7 +773,7 @@ class Fcomp {
           PrintOp(this.fn, pc, insn.op, insn.arg);
         }
 
-        console.log("code is", code, insn.op);
+        // console.log("code is", code, insn.op);
         code.push(insn.op);
         pc++;
 
@@ -1404,7 +1411,7 @@ class Fcomp {
     // Gather all the right operands of the left tree of plusses.
     // A tree (((a+b)+c)+d) becomes args=[a +b +c +d].
     const args: Summand[] = [];
-    for (let plus = e; ; ) {
+    for (let plus = e; ;) {
       args.push(new Summand(unparen(plus.Y), plus.OpPos));
       const left = unparen(plus.X) as syntax.Expr;
       if (!(left instanceof syntax.BinaryExpr) || left.Op !== Token.PLUS) {
@@ -1418,7 +1425,7 @@ class Fcomp {
 
     // Fold sums of adjacent literals of the same type: ""+"", []+[], ()+().
     const out: Summand[] = []; // compact in situ
-    for (let i = 0; i < args.length; ) {
+    for (let i = 0; i < args.length;) {
       let j = i + 1;
       const code = addable(args[i].x);
       // BUG:
