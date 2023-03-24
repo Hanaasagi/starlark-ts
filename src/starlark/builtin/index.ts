@@ -364,8 +364,16 @@ function print(
   args: Tuple,
   kwargs: Tuple[]
 ): Value | Error {
+  //@ts-ignore
+  BigInt.prototype.toJSON = function () {
+    return this.toString();
+  };
+
   console.error("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
-  console.error("<<<< print is not impl but i can give you", args);
+  console.error(
+    "<<<< print is not impl but i can give you",
+    JSON.stringify(args)
+  );
   let sep = " ";
   // const err = UnpackArgs("print", null, kwargs, "sep?", sep);
   // if (err) {
@@ -412,6 +420,7 @@ function range_(
   if (err) {
     return err;
   }
+  console.log(res);
 
   let start = res[0];
   let stop = res[1];

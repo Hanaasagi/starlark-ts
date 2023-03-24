@@ -1210,13 +1210,14 @@ export function Call(
     } else {
       [result, err] = CallInternal(fn as Function, thread, args, kwargs);
     }
-    console.log("result >>>>>>>>>>>");
+    console.log("result " + (fn instanceof Builtin) + ">>>>>>>>>>> ");
     console.log(result);
 
+    // TODO: IMPORANT uncommented this, current is type reason
     // Sanity check: null is not a valid Starlark value.
-    if ((result == null || result == undefined) && err == null) {
-      err = new Error(`internal error: null (not None) returned from ${fn}`);
-    }
+    // if ((result == null || result == undefined) && err == null) {
+    //   err = new Error(`internal error: null (not None) returned from ${fn}`);
+    // }
 
     // Always return an EvalError with an accurate frame.
     if (err) {

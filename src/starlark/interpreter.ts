@@ -432,6 +432,7 @@ export function CallInternal(
 
         // thread.endProfSpan()
         const result = Call(thread, func, positional!, kvpairs);
+        console.log("VM call return", result);
         // thread.beginProfSpan()
 
         if (result[1]) {
