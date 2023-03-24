@@ -2,7 +2,7 @@ import * as compile from "../internal/compile/compile";
 import { Position, Token } from "../syntax/scan";
 import * as syntax from "../syntax/syntax";
 import { parse, ParseExpr } from "../syntax/parse";
-import { Callable, Function, Tuple, Module, String } from "./value";
+import { Callable, Function, Tuple, Module, String, Equal } from "./value";
 import { Bytes } from "./value";
 import { List, Iterable } from "./value";
 import { Value } from "./value";
@@ -10,12 +10,16 @@ import { Universe, StringDict, Builtin } from "./value";
 import * as resolve from "../resolve/resolve";
 import * as binding from "../resolve/binding";
 import { CallInternal } from "./interpreter";
-import { MakeInt64, MakeBigInt } from "./int";
+import { MakeInt64, MakeBigInt, AsInt32 } from "./int";
 import { Bool } from "./value";
 import { Dict } from "./value";
 import { Int } from "./int";
 import { Float } from "./value";
+import { Mapping, isMapping } from "./value";
+import { Set } from "./value";
 import { mandatory } from "./interpreter";
+import { True, False } from "./value";
+import { RangeValue } from "./value";
 // import {*} from "./value"
 
 // A Thread contains the state of a Starlark thread,
@@ -732,6 +736,7 @@ export function Unary(op: Token, x: Value): [Value, Error] {
 
 // TODO: Binary is missing
 export function Binary(op: Token, x: Value, y: Value): Value | Error {
+  let unknown = false;
   switch (op) {
     case Token.PLUS: {
       if (x instanceof String) {
@@ -1097,10 +1102,165 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
     }
 
     case Token.IN: {
-      // if (y instanceof List) {
-      // }
+      if (y instanceof List) {
+        for (var elem of y.elems) {
+          const [eq, err] = Equal(elem, x);
+          if (err) {
+            return err;
+          }
+
+          if (eq) {
+            return True;
+          }
+        }
+      }
+
+      if (y instanceof Tuple) {
+        for (var elem of y.elems) {
+          const [eq, err] = Equal(elem, x);
+          if (err) {
+            return err;
+          }
+
+          if (eq) {
+            return True;
+          }
+        }
+      }
+      if (isMapping(y)) {
+        const [_, found, __] = y.get(x);
+        return new Bool(found);
+      }
+
+      if (y instanceof Set) {
+        const [ok, err] = y.has(x);
+        if (err) {
+          return err;
+        }
+        return new Bool(ok);
+      }
+
+      if (y instanceof String) {
+        if (!(x instanceof String)) {
+          return new Error(
+            "'in <string>' requires string as left operand, not ${x.Type()}"
+          );
+        }
+        return new Bool(y.val.indexOf(x.val) != -1);
+      }
+      if (y instanceof Bytes) {
+        // TODO:
+      }
+      if (y instanceof RangeValue) {
+        // TODO:
+      }
+
+      break;
     }
+
+    case Token.PIPE: {
+      if (x instanceof Int) {
+        if (y instanceof Int) {
+          return x.Or(y);
+        }
+      }
+
+      if (x instanceof Dict) {
+        if (y instanceof Dict) {
+          return x.union(y);
+        }
+      }
+
+      if (x instanceof Set) {
+        if (y instanceof Set) {
+          // TODO:
+        }
+      }
+      break;
+    }
+
+    case Token.AMP: {
+      if (x instanceof Int) {
+        if (y instanceof Int) {
+          return x.And(y);
+        }
+      }
+      if (x instanceof Set) {
+        if (y instanceof Set) {
+          let newSet = new Set(x.Len() + y.Len());
+          if (x.Len() > y.Len()) {
+            [x, y] = [y, x];
+          }
+
+          // @ts-ignore
+          for (var xelem of x.elems()) {
+            // @ts-ignore
+            if (y.Has(xelem)) {
+              newSet.insert(xelem);
+            }
+          }
+          return newSet;
+        }
+      }
+      break;
+    }
+
+    case Token.CIRCUMFLEX: {
+      if (x instanceof Int) {
+        if (y instanceof Int) {
+          return x.Xor(y);
+        }
+      }
+
+      if (x instanceof Set) {
+        if (y instanceof Set) {
+          let newSet = new Set(x.Len() + y.Len());
+          for (var xelem of x.elems()) {
+            if (!y.has(xelem)[0]) {
+              newSet.insert(xelem);
+            }
+          }
+
+          for (var yelem of y.elems()) {
+            if (!x.has(yelem)[0]) {
+              newSet.insert(yelem);
+            }
+          }
+
+          return newSet;
+        }
+      }
+      break;
+    }
+
+    case Token.LTLT:
+    case Token.GTGT: {
+      if (x instanceof Int) {
+        const z = AsInt32(y);
+
+        if (z < 0) {
+          return new Error("negative shift count: ${y}");
+        }
+
+        if (op == Token.LTLT) {
+          if (z >= 512) {
+            return new Error("shift count too large ${v}");
+          }
+
+          // BUG: uint
+          // return x.Lsh(new Int(z));
+        } else {
+          // BUG:
+        }
+      }
+      break;
+    }
+    default:
+      unknown = true;
   }
+
+  // TODO: user-defined types
+
   return new Error("");
 }
 

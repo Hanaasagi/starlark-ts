@@ -196,7 +196,7 @@ interface HasSetIndex extends Indexable {
 //
 // If a type satisfies both Mapping and Iterable, the iterator yields
 // the keys of the mapping.
-interface Mapping extends Value {
+export interface Mapping extends Value {
   // Get returns the value corresponding to the specified key,
   // or !found if the mapping does not contain the key.
   //
@@ -204,6 +204,13 @@ interface Mapping extends Value {
   // The 'in' operator reports the 'found' component, ignoring errors.
   // BUG:
   get(v: Value): [Value, boolean, Error];
+}
+
+export function isMapping(v: Value): v is Mapping {
+  if ("get" in v && typeof v.get == "function") {
+    return true;
+  }
+  return false;
 }
 
 // An IterableMapping is a mapping that supports key enumeration.
@@ -1294,7 +1301,7 @@ export class TupleIterator implements Iterator {
 
 // A Set represents a TypeScript set value.
 // The zero value of Set is a valid empty set.
-class Set implements Value {
+export class Set implements Value {
   ht: Hashtable; // values are all None
 
   // NewSet returns a dictionary with initial space for

@@ -344,7 +344,7 @@ function Unary(i: Int, op: syntax.Token): [Value | null, Error | null] {
   return [null, null];
 }
 
-export function AsInt32(n: Int): number {
+export function AsInt32(n: Value): number {
   return 0;
 }
 
