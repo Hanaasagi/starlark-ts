@@ -1596,8 +1596,10 @@ export function setArgs(
   if (args.Len() > nonkwonly) {
     if (!fn.HasVarargs()) {
       throw new Error(
-        `function ${fn.Name()} accepts ${fn.defaults.Len() > fn.NumKwonlyParams() ? "at most " : ""
-        }${nonkwonly} positional argument${nonkwonly === 1 ? "" : "s"
+        `function ${fn.Name()} accepts ${
+          fn.defaults.Len() > fn.NumKwonlyParams() ? "at most " : ""
+        }${nonkwonly} positional argument${
+          nonkwonly === 1 ? "" : "s"
         } (${args.Len()} given)`
       );
     }
@@ -1676,7 +1678,8 @@ export function setArgs(
 
     if (missing.length !== 0) {
       return new Error(
-        `function ${fn.Name()} missing ${missing.length} argument${missing.length > 1 ? "s" : ""
+        `function ${fn.Name()} missing ${missing.length} argument${
+          missing.length > 1 ? "s" : ""
         }(${missing.join(", ")})`
       );
     }

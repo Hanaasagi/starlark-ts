@@ -133,7 +133,7 @@ export class AssignStmt implements Stmt {
     return [start, end];
   }
 
-  stmt() { }
+  stmt() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -162,7 +162,7 @@ export class DefStmt implements Stmt {
     const [_, end] = this.Body[this.Body.length - 1].span();
     return [this.Def, end];
   }
-  stmt() { }
+  stmt() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -183,7 +183,7 @@ export class ExprStmt implements Stmt {
   public span(): [Position, Position] {
     return this.X.span();
   }
-  stmt() { }
+  stmt() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -219,13 +219,13 @@ export class IfStmt implements Stmt {
 
   span(): [start: Position, end: Position] {
     let body = this.falseBody;
-    if (body == null) {
+    if (body == null || body.length == 0) {
       body = this.trueBody;
     }
     const [_, end] = body[body.length - 1].span();
     return [this.ifPos, end];
   }
-  stmt() { }
+  stmt() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -270,7 +270,7 @@ export class LoadStmt implements Stmt {
   ModuleName(): string {
     return this.Module.value as string;
   }
-  stmt() { }
+  stmt() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -294,7 +294,7 @@ export class BranchStmt implements Stmt {
   public span(): [Position, Position] {
     return [this.tokenPos, this.tokenPos.add(this.token.toString())];
   }
-  stmt() { }
+  stmt() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -322,7 +322,7 @@ export class ReturnStmt implements Stmt {
     const [, end] = this.Result!.span();
     return [this.Return!, end];
   }
-  stmt() { }
+  stmt() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -358,7 +358,7 @@ export class Ident implements Expr {
   public span(): [Position, Position] {
     return [this.NamePos, this.NamePos.add(this.Name)];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -391,7 +391,7 @@ export class Literal implements Expr {
   public span(): [start: Position, end: Position] {
     return [this.tokenPos!, this.tokenPos!.add(this.raw)];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -417,7 +417,7 @@ export class ParenExpr implements Expr {
   public span(): [Position, Position] {
     return [this.lparen, this.rparen.add(")")];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -446,7 +446,7 @@ export class CallExpr implements Expr {
     const [start, _] = this.Fn.span();
     return [start, this.Rparen.add(")")] as [Position, Position];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -477,7 +477,7 @@ export class DotExpr implements Expr {
     [, end] = this.Name.span();
     return [start, end];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -514,7 +514,7 @@ export class Comprehension implements Expr {
   public span(): [Position, Position] {
     return [this.Lbrack, this.Rbrack.add("]")];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -544,7 +544,7 @@ export class ForStmt implements Stmt {
     return [this.For, end];
   }
 
-  stmt() { }
+  stmt() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -571,7 +571,7 @@ export class WhileStmt implements Stmt {
     const [, end] = this.Body[this.Body.length - 1].span();
     return [this.While, end];
   }
-  stmt() { }
+  stmt() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -650,7 +650,7 @@ export class DictExpr implements Expr {
   span(): [Position, Position] {
     return [this.Lbrace, this.Rbrace.add("}")];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -679,7 +679,7 @@ export class DictEntry implements Expr {
     let [, end] = this.Value.span();
     return [start, end];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -707,7 +707,7 @@ export class LambdaExpr implements Expr {
     const [, end] = this.body.span();
     return [this.lambda, end];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -733,7 +733,7 @@ export class ListExpr implements Expr {
   public span(): [Position, Position] {
     return [this.lbrack!, this.rbrack!.add("]")];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -765,7 +765,7 @@ export class CondExpr implements Expr {
     const [startFalse, endFalse] = this.False.span();
     return [startTrue, endFalse];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -798,7 +798,7 @@ export class TupleExpr implements Expr {
       ];
     }
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -833,7 +833,7 @@ export class UnaryExpr implements Expr {
       return [this.OpPos, end];
     }
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -868,7 +868,7 @@ export class BinaryExpr implements Expr {
     const [, end] = this.Y.span();
     return [start, end];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -908,7 +908,7 @@ export class SliceExpr implements Expr {
     const [start, _] = this.X.span();
     return [start, this.Rbrack];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -937,7 +937,7 @@ export class IndexExpr implements Expr {
     const [start, _] = this.X.span();
     return [start, this.Rbrack];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }

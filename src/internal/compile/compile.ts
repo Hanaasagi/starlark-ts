@@ -515,7 +515,7 @@ class Pcomp {
     let maxstack: number = 0;
 
     let visit = (b: Block) => {
-      console.log("visit", b);
+      console.log("visit", b.insns);
       if (b.index >= 0) {
         return; // already visited
       }
@@ -811,6 +811,7 @@ class Fcomp {
   }
 
   emit(op: Opcode): void {
+    console.log("EMIT", Opcode.String(op));
     if (op >= OpcodeArgMin) {
       throw new Error("missing arg: " + op.toString());
     }
@@ -1411,7 +1412,7 @@ class Fcomp {
     // Gather all the right operands of the left tree of plusses.
     // A tree (((a+b)+c)+d) becomes args=[a +b +c +d].
     const args: Summand[] = new Array();
-    for (let plus = e; ; ) {
+    for (let plus = e; ;) {
       args.push(new Summand(unparen(plus.Y), plus.OpPos));
       const left = unparen(plus.X) as syntax.Expr;
       if (!(left instanceof syntax.BinaryExpr) || left.Op !== Token.PLUS) {
@@ -1425,7 +1426,7 @@ class Fcomp {
 
     // Fold sums of adjacent literals of the same type: ""+"", []+[], ()+().
     const out: Summand[] = []; // compact in situ
-    for (let i = 0; i < args.length; ) {
+    for (let i = 0; i < args.length;) {
       let j = i + 1;
       const code = addable(args[i].x);
       if (code) {
@@ -1499,13 +1500,22 @@ class Fcomp {
 
       // comparisons
       case Token.EQL:
+        this.emit(Opcode.EQL);
+        break;
       case Token.NEQ:
+        this.emit(Opcode.NEQ);
+        break;
       case Token.GT:
+        this.emit(Opcode.GT);
+        break;
       case Token.LT:
+        this.emit(Opcode.LT);
+        break;
       case Token.LE:
+        this.emit(Opcode.LE);
+        break;
       case Token.GE:
-        // BUG:
-        // this.emit(op - syntax.EQL + Opcode.EQL);
+        this.emit(Opcode.GE);
         break;
       default:
         console.log(`${pos}: unexpected binary op: ${op} `);

@@ -160,6 +160,7 @@ class Parser {
       }
       stmts = this.parseStmt(stmts);
     }
+    console.log("PARSE RESULT =>>>", JSON.stringify(stmts));
     return new syntax.File("", stmts, null);
   }
 
@@ -210,6 +211,7 @@ class Parser {
       this.consume(Token.COLON);
       tail.falseBody = this.parseSuite();
     }
+    console.log("PARSE IF", ifStmt);
     return ifStmt;
   }
 
@@ -634,7 +636,8 @@ class Parser {
       if (!first && opprec === precedence[idx]) {
         this.input.error(
           this.input.pos,
-          `${(x as syntax.BinaryExpr).Op} does not associate with ${this.tok
+          `${(x as syntax.BinaryExpr).Op} does not associate with ${
+            this.tok
           } (use parens)`
         );
       }
