@@ -267,7 +267,7 @@ interface HasSetField extends HasAttrs {
 // NoneType is the type of None.  Its only legal value is None.
 // (We represent it as a number, not struct{}, so that None may be constant.)
 class NoneType implements Value {
-  constructor() {}
+  constructor() { }
 
   String(): string {
     return "None";
@@ -276,7 +276,7 @@ class NoneType implements Value {
     return "NoneType";
   }
 
-  Freeze() {}
+  Freeze() { }
   Truth(): Bool {
     return False;
   }
@@ -305,7 +305,7 @@ export class Bool implements Comparable {
     return "bool";
   }
 
-  Freeze() {}
+  Freeze() { }
 
   Truth(): Bool {
     return this;
@@ -339,7 +339,7 @@ export class Float implements Comparable {
     return "float";
   }
 
-  Freeze() {}
+  Freeze() { }
 
   Truth(): Bool {
     return new Bool(this.val !== 0.0);
@@ -448,7 +448,7 @@ export class String implements Comparable, HasAttrs {
     return "string";
   }
 
-  Freeze() {}
+  Freeze() { }
 
   Truth(): Bool {
     return new Bool(this.val.length > 0);
@@ -529,7 +529,7 @@ class StringElems {
     return "string.elems";
   }
 
-  Freeze(): void {} // immutable
+  Freeze(): void { } // immutable
 
   Truth(): Bool {
     return True;
@@ -578,7 +578,7 @@ class StringElemsIterator implements Iterator {
     return true;
   }
 
-  done(): void {}
+  done(): void { }
 }
 
 // A stringCodepoints is an iterable whose iterator yields a sequence of
@@ -610,7 +610,7 @@ class stringCodepoints {
     return "string.codepoints";
   }
 
-  Freeze(): void {} // immutable
+  Freeze(): void { } // immutable
 
   Truth(): Bool {
     return True;
@@ -653,7 +653,7 @@ class stringCodepointsIterator implements Iterator {
     // return { done: false, value: p };
   }
 
-  done(): void {}
+  done(): void { }
 }
 
 // A Function is a function defined by a Starlark def statement or lambda expression.
@@ -1289,7 +1289,7 @@ export class TupleIterator implements Iterator {
     return false;
   }
 
-  done(): void {}
+  done(): void { }
 }
 
 // A Set represents a TypeScript set value.
@@ -1715,7 +1715,7 @@ export function Iterate(x: Value): Iterator | null {
 // It is comparable, indexable, and sliceable, but not directly iterable;
 // use bytes.elems() for an iterable view.
 // BUG: type bytes = string
-class Bytes implements Value, Comparable, Sliceable, Indexable {
+export class Bytes implements Value, Comparable, Sliceable, Indexable {
   private readonly value: string;
 
   constructor(value: string) {
@@ -1731,7 +1731,7 @@ class Bytes implements Value, Comparable, Sliceable, Indexable {
     return "bytes";
   }
 
-  Freeze(): void {} // immutable
+  Freeze(): void { } // immutable
 
   Truth(): Bool {
     return new Bool(this.value.length > 0);
@@ -1961,7 +1961,7 @@ export class RangeValue implements Value {
     );
   }
 
-  Freeze(): void {} // immutable
+  Freeze(): void { } // immutable
 
   String(): string {
     if (this.step !== 1) {
@@ -2062,7 +2062,7 @@ class RangeIterator {
     return false;
   }
 
-  done(): void {}
+  done(): void { }
 }
 
 export class StringDict {

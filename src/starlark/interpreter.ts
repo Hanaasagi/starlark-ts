@@ -220,9 +220,9 @@ export function CallInternal(
         let y = stack[sp - 1];
         let x = stack[sp - 2];
         sp -= 2;
-        let [z, err2] = Binary(binop, x, y);
-        if (err2 != null) {
-          err = err2;
+        let z = Binary(binop, x, y);
+        if (z instanceof Error) {
+          err = z;
           break loop;
         }
         stack[sp] = z;
@@ -267,13 +267,15 @@ export function CallInternal(
           z = x;
         }
         if (!z) {
-          [z, err] = Binary(Token.PLUS, x, y);
-          if (err) {
+          //@ts-ignore
+          z = Binary(Token.PLUS, x, y);
+          if (z instanceof Error) {
+            err = z;
             break loop;
           }
         }
 
-        stack[sp++] = z;
+        stack[sp++] = z!;
         break;
       }
       case Opcode.INPLACE_ADD: {
@@ -293,8 +295,10 @@ export function CallInternal(
           }
         }
         if (z === null) {
-          [z, err] = Binary(Token.PIPE, x, y);
-          if (err !== null) {
+          //@ts-ignore
+          z = Binary(Token.PIPE, x, y);
+          if (z instanceof Error) {
+            err = z;
             break loop;
           }
         }
@@ -390,13 +394,15 @@ export function CallInternal(
         const npos: number = arg >> 8;
         if (npos > 0) {
           positional = new Tuple(stack.slice(sp - npos, sp));
+          console.log("----->", positional);
           sp -= npos;
 
           // Copy positional arguments into a new array,
           // unless the callee is another Starlark function,
           // in which case it can be trusted not to mutate them.
-          if (stack[sp - 1] instanceof Function && args === null) {
-            positional.elems.push(...positional.elems);
+          if (!(stack[sp - 1] instanceof Function) || args != null) {
+            positional = new Tuple([...positional.elems]);
+            // positional.elems.push(...tmp.elems);
           }
         }
         if (args !== null) {

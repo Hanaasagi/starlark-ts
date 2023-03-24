@@ -202,7 +202,7 @@ export class Int implements Value {
   }
   // finiteFloat returns the finite float value nearest i,
   // or an error if the magnitude is too large.
-  public finiteFloat(i: Int): [number, Error | null] {
+  public finiteFloat(): [number, Error | null] {
     return [0, null];
     // const f = i.Float()
     // if (Number.isFinite(f)) {

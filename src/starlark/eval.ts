@@ -3,6 +3,7 @@ import { Position, Token } from "../syntax/scan";
 import * as syntax from "../syntax/syntax";
 import { parse, ParseExpr } from "../syntax/parse";
 import { Callable, Function, Tuple, Module, String } from "./value";
+import { Bytes } from "./value";
 import { List, Iterable } from "./value";
 import { Value } from "./value";
 import { Universe, StringDict, Builtin } from "./value";
@@ -10,6 +11,11 @@ import * as resolve from "../resolve/resolve";
 import * as binding from "../resolve/binding";
 import { CallInternal } from "./interpreter";
 import { MakeInt64, MakeBigInt } from "./int";
+import { Bool } from "./value";
+import { Dict } from "./value";
+import { Int } from "./int";
+import { Float } from "./value";
+import { mandatory } from "./interpreter";
 // import {*} from "./value"
 
 // A Thread contains the state of a Starlark thread,
@@ -725,8 +731,377 @@ export function Unary(op: Token, x: Value): [Value, Error] {
 }
 
 // TODO: Binary is missing
-export function Binary(op: Token, x: Value, y: Value): [Value, Error] {
-  return [x, new Error(`unknown binary op: ${op} ${x.Type()}`)];
+export function Binary(op: Token, x: Value, y: Value): Value | Error {
+  switch (op) {
+    case Token.PLUS: {
+      if (x instanceof String) {
+        if (y instanceof String) {
+          return new String(x.val + y.val);
+        }
+      }
+
+      if (x instanceof Int) {
+        if (y instanceof Int) {
+          return x.Add(y);
+        }
+
+        if (y instanceof Float) {
+          const [xf, err] = x.finiteFloat();
+          if (err) {
+            return err;
+          }
+
+          return new Float(xf + y.val);
+        }
+      }
+
+      if (x instanceof Float) {
+        if (y instanceof Float) {
+          return new Float(x.val + y.val);
+        }
+
+        if (y instanceof Int) {
+          const [yf, err] = y.finiteFloat();
+          if (err) {
+            return err;
+          }
+
+          return new Float(x.val + yf);
+        }
+      }
+
+      if (x instanceof List) {
+        if (y instanceof List) {
+          let inner = [...x.elems, ...y.elems];
+          return new List(inner);
+        }
+      }
+
+      if (x instanceof Tuple) {
+        if (y instanceof Tuple) {
+          let inner = [...x.elems, ...y.elems];
+          return new Tuple(inner);
+        }
+      }
+      break;
+    }
+
+    case Token.MINUS: {
+      if (x instanceof Int) {
+        if (y instanceof Int) {
+          return x.Sub(y);
+        }
+        if (y instanceof Float) {
+          const [xf, err] = x.finiteFloat();
+          if (err) {
+            return err;
+          }
+          return new Float(xf - y.val);
+        }
+      }
+      if (x instanceof Float) {
+        if (y instanceof Float) {
+          return new Float(x.val - y.val);
+        }
+        if (y instanceof Int) {
+          const [yf, err] = y.finiteFloat();
+          if (err) {
+            return err;
+          }
+          return new Float(x.val - yf);
+        }
+      }
+      break;
+    }
+
+    case Token.STAR: {
+      if (x instanceof Int) {
+        if (y instanceof Int) {
+          return x.Mul(y);
+        }
+        if (y instanceof Float) {
+          const [xf, err] = x.finiteFloat();
+          if (err) {
+            return err;
+          }
+          return new Float(xf * y.val);
+        }
+
+        if (y instanceof String) {
+          return new String(stringRepeat(y.val, x.BigInt())[0]);
+        }
+
+        if (y instanceof Bytes) {
+          // TODO:
+          console.log("TODO: eval.ts binary bytes");
+          // return bytesRepeat(y, x);
+        }
+
+        if (y instanceof List) {
+          const [elems, err] = tupleRepeat(new Tuple(y.elems), x);
+          if (err) {
+            return err;
+          }
+
+          return new List(elems.elems);
+        }
+
+        if (y instanceof Tuple) {
+          return tupleRepeat(y, x)[0];
+        }
+      }
+      if (x instanceof Float) {
+        if (y instanceof Float) {
+          return new Float(x.val * y.val);
+        }
+        if (y instanceof Int) {
+          const [yf, err] = y.finiteFloat();
+          if (err) {
+            return err;
+          }
+
+          return new Float(x.val * yf);
+        }
+      }
+
+      if (x instanceof String) {
+        if (y instanceof Int) {
+          return new String(stringRepeat(x.val, y.BigInt())[0]);
+        }
+      }
+
+      if (x instanceof Bytes) {
+        console.log("TODO: eval.ts binary x bytes");
+      }
+
+      if (x instanceof List) {
+        if (y instanceof Int) {
+          const [elems, err] = tupleRepeat(new Tuple(x.elems), y);
+          if (err) {
+            return err;
+          }
+
+          return new List(elems.elems);
+        }
+      }
+
+      if (x instanceof Tuple) {
+        if (y instanceof Int) {
+          return tupleRepeat(x, y)[0];
+        }
+      }
+      break;
+    }
+
+    case Token.SLASH: {
+      if (x instanceof Int) {
+        const [xf, err] = x.finiteFloat();
+        if (err) {
+          return err;
+        }
+
+        if (y instanceof Int) {
+          const [yf, err] = y.finiteFloat();
+          if (err) {
+            return err;
+          }
+
+          if (yf == 0) {
+            return new Error("floating-point division by zero");
+          }
+
+          return new Float(xf / yf);
+        }
+
+        if (y instanceof Float) {
+          if (y.val == 0) {
+            return new Error("floating-point division by zero");
+          }
+          return new Float(xf / y.val);
+        }
+      }
+
+      if (x instanceof Float) {
+        if (y instanceof Float) {
+          if (y.val == 0) {
+            return new Error("floating-point division by zero");
+          }
+
+          return new Float(x.val / y.val);
+        }
+        if (y instanceof Int) {
+          const [yf, err] = y.finiteFloat();
+          if (err) {
+            return err;
+          }
+
+          if (yf == 0.0) {
+            return new Error("floating-point division by zero");
+          }
+
+          return new Float(x.val / yf);
+        }
+      }
+      break;
+    }
+
+    case Token.SLASH: {
+      if (x instanceof Int) {
+        const [xf, err] = x.finiteFloat();
+        if (err) {
+          return err;
+        }
+
+        if (y instanceof Int) {
+          const [yf, err] = y.finiteFloat();
+          if (err) {
+            return err;
+          }
+          if (yf == 0) {
+            return new Error("floating-point division by zero");
+          }
+
+          return new Float(xf / yf);
+        }
+
+        if (y instanceof Float) {
+          if (y.val == 0) {
+            return new Error("floating-point division by zero");
+          }
+          return new Float(xf / y.val);
+        }
+      }
+
+      if (x instanceof Float) {
+        if (y instanceof Float) {
+          if (y.val == 0) {
+            return new Error("floating-point division by zero");
+          }
+
+          return new Float(x.val / y.val);
+        }
+
+        if (y instanceof Int) {
+          const [yf, err] = y.finiteFloat();
+          if (err) {
+            return err;
+          }
+          if (yf == 0) {
+            return new Error("floating-point division by zero");
+          }
+
+          return new Float(x.val / yf);
+        }
+      }
+      break;
+    }
+    case Token.SLASHSLASH: {
+      if (x instanceof Int) {
+        if (y instanceof Int) {
+          if (y.Sign() == 0) {
+            return new Error("floored division by zero");
+          }
+          return x.Div(y);
+        }
+
+        if (y instanceof Float) {
+          const [xf, err] = x.finiteFloat();
+          if (err) {
+            return err;
+          }
+
+          if (y.val == 0) {
+            return new Error("floored division by zero");
+          }
+
+          return new Float(Math.floor(xf / y.val));
+        }
+      }
+
+      if (x instanceof Float) {
+        if (y instanceof Float) {
+          if (y.val == 0) {
+            return new Error("floored division by zero");
+          }
+          return new Float(Math.floor(x.val / y.val));
+        }
+
+        if (y instanceof Int) {
+          const [yf, err] = y.finiteFloat();
+          if (err) {
+            return err;
+          }
+          if (yf == 0) {
+            return new Error("floored division by zero");
+          }
+
+          return new Float(Math.floor(x.val / yf));
+        }
+      }
+      break;
+    }
+    case Token.PERCENT: {
+      if (x instanceof Int) {
+        if (y instanceof Int) {
+          if (y.Sign() == 0) {
+            return new Error("integer modulo by zero");
+          }
+          return x.Mod(y);
+        }
+
+        if (y instanceof Float) {
+          const [xf, err] = x.finiteFloat();
+          if (err) {
+            return err;
+          }
+
+          if (y.val == 0) {
+            return new Error("floating-point modulo by zero");
+          }
+          return new Float(xf % y.val);
+        }
+      }
+      if (x instanceof Float) {
+        if (y instanceof Float) {
+          if (y.val == 0) {
+            return new Error("floating-point modulo by zero");
+          }
+          return new Float(x.val % y.val);
+        }
+
+        if (y instanceof Int) {
+          if (y.Sign() == 0) {
+            return new Error("Floating-point modulo by zero");
+          }
+          const [yf, err] = y.finiteFloat();
+          if (err) {
+            return err;
+          }
+          return new Float(x.val % yf);
+        }
+      }
+      if (x instanceof String) {
+        // TODO: bug
+        return interpolate(x.val, y)[0];
+      }
+
+      break;
+    }
+
+    case Token.NOT_IN: {
+      const z = Binary(Token.IN, x, y);
+      if (z instanceof Error) {
+        return z;
+      }
+      return new Bool(!z.Truth().val);
+    }
+
+    case Token.IN: {
+      // if (y instanceof List) {
+      // }
+    }
+  }
+  return new Error("");
 }
 
 // It's always possible to overeat in small bites but we'll
@@ -766,7 +1141,7 @@ function bytesRepeat(b: Uint8Array, n: number): [Uint8Array, Error | null] {
   return [new TextEncoder().encode(res), err];
 }
 
-function stringRepeat(s: string, n: bigint): [string, Error | null] {
+function stringRepeat(s: string, n: BigInt): [string, Error | null] {
   if (s === "") {
     return ["", null];
   }
@@ -1016,119 +1391,135 @@ export function setArgs(
   args: Tuple,
   kwargs: Tuple[]
 ): Error | null {
-  // if (fn.NumParams() == 0) {
-  //   const nactual = args.length + Object.keys(kwargs).length;
-  //   if (nactual > 0) {
-  //     return new Error(
-  //       `function ${fn.Name()} accepts no arguments (${nactual} given)`
-  //     );
-  //   }
-  //   return null;
-  // }
+  if (fn.NumParams() == 0) {
+    const nactual = args.Len() + kwargs.length;
+    if (nactual > 0) {
+      return new Error(
+        `function ${fn.Name()} accepts no arguments (${nactual} given)`
+      );
+    }
+    return null;
+  }
 
-  // const cond = (x: boolean, y: any, z: any) => (x ? y : z);
+  const cond = <T>(x: Bool, y: T, z: T): T => (x.val ? y : z);
 
-  // const nparams = fn.NumParams();
-  // let kwdict: { [key: string]: any } | undefined;
-  // if (fn.HasKwargs()) {
-  //   nparams--;
-  //   kwdict = {};
-  //   locals[nparams] = kwdict;
-  // }
-  // if (fn.HasVarargs()) {
-  //   nparams--;
-  // }
+  let nparams = fn.NumParams();
+  let kwdict: Dict | null = null;
 
-  // // Define the number of non-kwonly parameters
-  // const nonkwonly: number = nparams - fn.NumKwonlyParams();
+  if (fn.HasKwargs()) {
+    nparams--;
+    kwdict = new Dict();
+    locals[nparams] = kwdict;
+  }
+  if (fn.HasVarargs()) {
+    nparams--;
+  }
 
-  // // Check for too many positional arguments
-  // const argsLen: number = args.length;
-  // if (argsLen > nonkwonly) {
-  //   if (!fn.HasVarargs()) {
-  //     throw new Error(
-  //       `function ${fn.Name()} accepts ${fn.defaults.length > fn.NumKwonlyParams() ? "at most " : ""
-  //       }${nonkwonly} positional argument${nonkwonly === 1 ? "" : "s"
-  //       } (${argsLen} given)`
-  //     );
-  //   }
-  // }
+  // Define the number of non-kwonly parameters
+  const nonkwonly: number = nparams - fn.NumKwonlyParams();
+  console.log(
+    "SETARGS nparams=",
+    nparams,
+    "args.len()=",
+    args.Len(),
+    "fn.NumKwonlyParams=",
+    fn.NumKwonlyParams(),
+    "nonkwonly=",
+    nonkwonly,
+    "fn.HasVarargs()",
+    fn.HasVarargs()
+  );
 
-  // // Bind positional arguments to non-kwonly parameters
-  // for (let i = 0; i < argsLen && i < nonkwonly; i++) {
-  //   locals[i] = args[i];
-  // }
+  // Check for too many positional arguments
+  let n: number = args.Len();
+  if (args.Len() > nonkwonly) {
+    if (!fn.HasVarargs()) {
+      throw new Error(
+        `function ${fn.Name()} accepts ${fn.defaults.Len() > fn.NumKwonlyParams() ? "at most " : ""
+        }${nonkwonly} positional argument${nonkwonly === 1 ? "" : "s"
+        } (${args.Len()} given)`
+      );
+    }
+    n = nonkwonly;
+  }
 
-  // // Bind surplus positional arguments to *args parameter
-  // if (fn.HasVarargs()) {
-  //   const tuple: Array<any> = [];
-  //   for (let i = nonkwonly; i < argsLen; i++) {
-  //     tuple.push(args[i]);
-  //   }
-  //   locals[nparams] = tuple;
-  // }
+  // Bind positional arguments to non-kwonly parameters
+  for (let i = 0; i < n; i++) {
+    locals[i] = args.index(i);
+  }
 
-  // // Bind keyword arguments to parameters.
-  // const paramIdents = fn.funcode.Locals.slice(0, nparams);
-  // for (const pair of kwargs) {
-  //   const k = pair[0] as string,
-  //     v = pair[1];
-  //   const i = findParam(paramIdents, k);
-  //   if (i >= 0) {
-  //     if (locals[i] != null) {
-  //       return new Error(
-  //         `function ${fn.Name()} got multiple values for parameter ${k}`
-  //       );
-  //     }
-  //     locals[i] = v;
-  //     continue;
-  //   }
-  //   if (kwdict == null) {
-  //     return new Error(
-  //       `function ${fn.Name()} got an unexpected keyword argument ${k}`
-  //     );
-  //   }
-  //   const oldlen = kwdict.Len();
-  //   kwdict.SetKey(k, v);
-  //   if (kwdict.Len() === oldlen) {
-  //     return new Error(
-  //       `function ${fn.Name()} got multiple values for parameter ${k}`
-  //     );
-  //   }
-  // }
+  // Bind surplus positional arguments to *args parameter
+  if (fn.HasVarargs()) {
+    const tuple = new Tuple(new Array(args.Len() - n));
+    for (let i = n; i < args.Len(); i++) {
+      tuple.elems[i - n] = args.index(i);
+    }
+    locals[nparams] = tuple;
+  }
 
-  // // Are defaults required?
-  // if (n < nparams || fn.NumKwonlyParams() > 0) {
-  //   const m = nparams - fn.defaults.length; // first default
+  // Bind keyword arguments to parameters.
+  let paramIdents = fn.funcode.locals.slice(0, nparams);
 
-  //   // Report errors for missing required arguments.
-  //   const missing = [];
-  //   let i;
-  //   for (i = n; i < m; i++) {
-  //     if (locals[i] == null) {
-  //       missing.push(paramIdents[i].Name);
-  //     }
-  //   }
+  for (const pair of kwargs) {
+    const k = pair.index(0) as String;
+    const v = pair.index(1);
+    const i = findParam(paramIdents, k.val);
 
-  //   // Bind default values to parameters.
-  //   for (; i < nparams; i++) {
-  //     if (locals[i] == null) {
-  //       const dflt = fn.defaults[i - m];
-  //       if (dflt instanceof mandatory) {
-  //         missing.push(paramIdents[i].Name);
-  //         continue;
-  //       }
-  //       locals[i] = dflt;
-  //     }
-  //   }
+    if (i >= 0) {
+      if (locals[i] != null) {
+        return new Error(
+          `function ${fn.Name()} got multiple values for parameter ${k}`
+        );
+      }
+      locals[i] = v;
+      continue;
+    }
+    if (kwdict == null) {
+      return new Error(
+        `function ${fn.Name()} got an unexpected keyword argument ${k}`
+      );
+    }
+    const oldlen = kwdict.len();
+    kwdict.setKey(k, v);
+    if (kwdict.len() === oldlen) {
+      return new Error(
+        `function ${fn.Name()} got multiple values for parameter ${k}`
+      );
+    }
+  }
 
-  //   if (missing.length !== 0) {
-  //     return new Error(
-  //       `function ${fn.Name()} missing ${missing.length} argument${missing.length > 1 ? "s" : ""
-  //       }(${missing.join(", ")})`
-  //     );
-  //   }
-  // }
+  // Are defaults required?
+  if (n < nparams || fn.NumKwonlyParams() > 0) {
+    const m = nparams - fn.defaults.Len(); // first default
+
+    // Report errors for missing required arguments.
+    const missing = [];
+    let i;
+    for (i = n; i < m; i++) {
+      if (locals[i] == null) {
+        missing.push(paramIdents[i].name);
+      }
+    }
+
+    // Bind default values to parameters.
+    for (; i < nparams; i++) {
+      if (locals[i] == null) {
+        const dflt = fn.defaults.index(i - m);
+        if (dflt instanceof mandatory) {
+          missing.push(paramIdents[i].name);
+          continue;
+        }
+        locals[i] = dflt;
+      }
+    }
+
+    if (missing.length !== 0) {
+      return new Error(
+        `function ${fn.Name()} missing ${missing.length} argument${missing.length > 1 ? "s" : ""
+        }(${missing.join(", ")})`
+      );
+    }
+  }
   return null;
 }
 
