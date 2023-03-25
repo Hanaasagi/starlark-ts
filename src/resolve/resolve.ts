@@ -1,8 +1,7 @@
-import { symlinkSync } from 'fs';
-
 import * as syntax from '../starlark-parser';
 import { Token } from '../starlark-parser';
 import { Position } from '../starlark-parser';
+import * as spell from '../utils/spell';
 import { Binding, Module } from './binding';
 import { Scope } from './binding';
 import { Function } from './binding';
@@ -244,9 +243,7 @@ class Resolver {
   bind(id: syntax.Ident): boolean {
     // Binding outside any local (comprehension/function) block?
     if (this.env === this.file) {
-      // BUG:?
       let ok = true;
-
       let bind = this.file.bindings.get(id.Name);
       if (bind == undefined) {
         ok = false;
@@ -351,14 +348,43 @@ class Resolver {
       this.predeclared.set(id.Name, bind); // save it
     } else {
       bind = new Binding(Scope.Undefined, 0, null);
-      // TODO:
-      this.errorf(id.NamePos, `undefined: ${id.Name} fuck`);
+      let hint: string = '';
+      let n = this.spellcheck(use);
+      if (n) {
+        hint = ` (did you men ${n}?)`;
+      }
+
+      this.errorf(id.NamePos, `undefined: ${id.Name}${hint}`);
     }
     id.Binding = bind;
 
     return bind;
   }
-  // TODO: SPELLCHECK
+
+  spellcheck(use: Use): string {
+    var names = new Array();
+    let b: Block | null = use.env;
+    while (b) {
+      for (var name of b.bindings) {
+        names.push(name);
+      }
+      b = b.parent;
+    }
+
+    // globals
+    //
+    // We have no way to enumerate the sets whose membership
+    // tests are isPredeclared, isUniverse, and isGlobal,
+    // which includes prior names in the REPL session.
+
+    for (var bind of this.moduleGlobals) {
+      if (bind.first?.Name) {
+        names.push(bind.first?.Name);
+      }
+    }
+    names.sort((a, b) => a - b);
+    return spell.nearest(use.id.Name, names);
+  }
 
   stmts(stmts: syntax.Stmt[]) {
     for (const stmt of stmts) {
