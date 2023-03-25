@@ -1,8 +1,13 @@
 // A Position dethisribes the location of a rune of input.
 export class Position {
+  // REPL mode no filename
   file: string | null; // filename (indirect for compactness)
   line: number; // 1-based line number; 0 if line unknown
   col: number; // 1-based column (rune) number; 0 if column unknown
+
+  static default(): Position {
+    return new Position(null, 0, 0);
+  }
 
   // MakePosition returns position with the specified components.
   constructor(file: string | null, line: number, col: number) {

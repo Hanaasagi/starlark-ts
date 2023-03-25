@@ -180,16 +180,26 @@ export const keywordToken: Record<string, Token> = {
 // tokenValue records the position and value associated with each token.
 // @ts-ignore
 export class TokenValue {
-  // @ts-ignore
   raw: string; // raw text of token
-  // @ts-ignore
   int: number; // decoded int
-  // @ts-ignore
   bigInt: bigint | null; // decoded integers > int64
-  // @ts-ignore
   float: number; // decoded float
-  // @ts-ignore
   string: string; // decoded string or bytes
-  // @ts-ignore
   pos: Position; // start position of token
+
+  constructor(
+    raw?: string,
+    int?: number,
+    bigInt?: bigint | null,
+    float?: number,
+    string?: string,
+    pos?: Position
+  ) {
+    this.raw = raw || '';
+    this.int = int || 0;
+    this.bigInt = bigInt || null;
+    this.float = float || 0;
+    this.string = string || '';
+    this.pos = pos == undefined ? Position.default() : pos;
+  }
 }
