@@ -2,28 +2,28 @@
 
 // unesc maps single-letter chars following \ to their actual values.
 const unesc: { [key: string]: string } = {
-  a: "\x07",
-  b: "\b",
-  f: "\f",
-  n: "\n",
-  r: "\r",
-  t: "\t",
-  v: "\v",
-  "\\": "\\",
+  a: '\x07',
+  b: '\b',
+  f: '\f',
+  n: '\n',
+  r: '\r',
+  t: '\t',
+  v: '\v',
+  '\\': '\\',
   "'": "'",
   '"': '"',
 };
 
 // esc maps escape-worthy bytes to the char that should follow \.
 const esc: { [key: string]: string } = {
-  "\x07": "a",
-  "\b": "b",
-  "\f": "f",
-  "\n": "n",
-  "\r": "r",
-  "\t": "t",
-  "\v": "v",
-  "\\": "\\",
+  '\x07': 'a',
+  '\b': 'b',
+  '\f': 'f',
+  '\n': 'n',
+  '\r': 'r',
+  '\t': 't',
+  '\v': 'v',
+  '\\': '\\',
   "'": "'",
   '"': '"',
 };
@@ -31,7 +31,7 @@ const esc: { [key: string]: string } = {
 function unquote(
   quoted: string
 ): [string, boolean, boolean, Error | undefined] {
-  return ["", false, false, undefined];
+  return ['', false, false, undefined];
   // let s = "";
   // let triple = false;
   // let isByte = false;

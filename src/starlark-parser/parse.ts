@@ -1,6 +1,6 @@
-import { TokenValue, Scanner, Token, Position } from "./tokenize";
-import * as syntax from "./syntax";
-import { Walk } from "./walk";
+import * as syntax from './syntax';
+import { Position, Scanner, Token, TokenValue } from './tokenize';
+import { Walk } from './walk';
 
 // A Mode value is a set of flags (or 0) that controls optional parser functionality.
 type Mode = number;
@@ -24,6 +24,7 @@ export function parse(
   mode: Mode
 ): [syntax.File | null, Error | null] {
   let input = new Scanner(filename, src, (mode & RetainComments) != 0);
+
   // if (err) {
   //   return [null, err];
   // }
@@ -78,7 +79,7 @@ export function ParseCompoundStmt(
         // BUG:?
         // @ts-ignore
         if (p.tok !== Token.NEWLINE) {
-          p.input.error(p.input.pos, "invalid syntax");
+          p.input.error(p.input.pos, 'invalid syntax');
         }
     }
 
@@ -162,7 +163,7 @@ class Parser {
       stmts = this.parseStmt(stmts);
     }
     // console.log("PARSE RESULT =>>>", JSON.stringify(stmts));
-    return new syntax.File("", stmts, null);
+    return new syntax.File('', stmts, null);
   }
 
   parseStmt(stmts: syntax.Stmt[]): syntax.Stmt[] {
@@ -335,7 +336,7 @@ class Parser {
     if (this.tok !== Token.STRING) {
       this.input.error(
         this.input.pos,
-        "first operand of load statement must be a string literal"
+        'first operand of load statement must be a string literal'
       );
     }
     const module = this.parsePrimary() as syntax.Literal;
@@ -392,7 +393,7 @@ class Parser {
 
         //@ts-ignore
         case Token.RPAREN:
-          this.input.error(this.input.pos, "trailing comma in load statement");
+          this.input.error(this.input.pos, 'trailing comma in load statement');
 
         default:
           this.input.error(
@@ -404,7 +405,7 @@ class Parser {
     const rparen = this.consume(Token.RPAREN);
 
     if (to.length === 0) {
-      this.input.error(lparen, "load statement must import at least 1 symbol");
+      this.input.error(lparen, 'load statement must import at least 1 symbol');
     }
     return new syntax.LoadStmt(loadPos, module, to, from, rparen);
   }
@@ -429,7 +430,7 @@ class Parser {
 
   parseIdent(): syntax.Ident {
     if (this.tok !== Token.IDENT) {
-      this.input.error(this.input.pos, "not an identifier");
+      this.input.error(this.input.pos, 'not an identifier');
     }
     const id = new syntax.Ident(this.tokval.pos, this.tokval.raw, null);
     this.nextToken();
@@ -527,7 +528,7 @@ class Parser {
       const pos = this.nextToken();
       if (terminatesExprList(this.tok)) {
         if (!allowTrailingComma) {
-          this.input.error(pos, "unparenthesized tuple with trailing comma");
+          this.input.error(pos, 'unparenthesized tuple with trailing comma');
         }
         break;
       }
@@ -551,7 +552,7 @@ class Parser {
       const cond = this.parseTestPrec(0);
       //@ts-ignore
       if (p.tok !== Token.ELSE) {
-        p.input.error(ifpos, "conditional expression without else clause");
+        p.input.error(ifpos, 'conditional expression without else clause');
       }
       const elsepos = p.nextToken();
       const else_ = this.parseTest();
@@ -637,7 +638,8 @@ class Parser {
       if (!first && opprec === precedence[idx]) {
         this.input.error(
           this.input.pos,
-          `${(x as syntax.BinaryExpr).Op} does not associate with ${this.tok
+          `${(x as syntax.BinaryExpr).Op} does not associate with ${
+            this.tok
           } (use parens)`
         );
       }
@@ -759,7 +761,7 @@ class Parser {
       if (this.tok === Token.EQ) {
         // name = value
         if (!(x instanceof syntax.Ident)) {
-          throw new Error("keyword argument must have form name=expr");
+          throw new Error('keyword argument must have form name=expr');
         }
         const eq = this.nextToken();
         const y = this.parseTest();

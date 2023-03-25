@@ -1,10 +1,10 @@
-import { Stmt } from "../interface";
-import { CommentsRef } from "../comments";
-import { Position } from "../../tokenize";
-import { Expr } from "../interface";
-import { Comments } from "../comments";
-import { Ident } from "../exprs";
-import { Node } from "../interface";
+import { Position } from '../../tokenize';
+import { CommentsRef } from '../comments';
+import { Comments } from '../comments';
+import { Ident } from '../exprs';
+import { Stmt } from '../interface';
+import { Expr } from '../interface';
+import { Node } from '../interface';
 
 // A DefStmt represents a function definition.
 export class DefStmt implements Stmt {
@@ -26,7 +26,7 @@ export class DefStmt implements Stmt {
     const [_, end] = this.Body[this.Body.length - 1].span();
     return [this.Def, end];
   }
-  stmt() { }
+  stmt() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }

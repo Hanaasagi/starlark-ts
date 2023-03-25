@@ -1,4 +1,4 @@
-import { Comment } from "../tokenize";
+import { Comment } from '../tokenize';
 
 // Comments collects the comments associated with an expression.
 export class Comments {

@@ -1,8 +1,8 @@
-import { Expr } from "../interface";
-import { CommentsRef } from "../comments";
-import { Position } from "../../tokenize";
-import { Comments } from "../comments";
-import { Node } from "../interface";
+import { Position } from '../../tokenize';
+import { CommentsRef } from '../comments';
+import { Comments } from '../comments';
+import { Expr } from '../interface';
+import { Node } from '../interface';
 
 // An IndexExpr represents an index expression: X[Y].
 export class IndexExpr implements Expr {
@@ -24,7 +24,7 @@ export class IndexExpr implements Expr {
     const [start, _] = this.X.span();
     return [start, this.Rbrack];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }

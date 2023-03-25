@@ -1,8 +1,8 @@
-import { Expr } from "../interface";
-import { CommentsRef } from "../comments";
-import { Position } from "../../tokenize";
-import { Comments } from "../comments";
-import { Node } from "../interface";
+import { Position } from '../../tokenize';
+import { CommentsRef } from '../comments';
+import { Comments } from '../comments';
+import { Expr } from '../interface';
+import { Node } from '../interface';
 
 // CondExpr represents the conditional: X if COND else ELSE.
 export class CondExpr implements Expr {
@@ -27,7 +27,7 @@ export class CondExpr implements Expr {
     const [startFalse, endFalse] = this.False.span();
     return [startTrue, endFalse];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }

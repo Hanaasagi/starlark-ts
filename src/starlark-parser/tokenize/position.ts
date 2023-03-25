@@ -21,15 +21,15 @@ export class Position {
     if (this.file !== null) {
       return this.file;
     }
-    return "<invalid>";
+    return '<invalid>';
   }
 
   // add returns the position at the end of s, assuming it starts at p.
   add(s: string): Position {
-    if (s.includes("\n")) {
-      const n = s.split("\n").length - 1;
+    if (s.includes('\n')) {
+      const n = s.split('\n').length - 1;
       this.line += n;
-      s = s.substring(s.lastIndexOf("\n")! + 1, s.length);
+      s = s.substring(s.lastIndexOf('\n')! + 1, s.length);
       this.col = 1;
     }
     this.col += s.length;

@@ -1,8 +1,8 @@
-import { Expr } from "../interface";
-import { CommentsRef } from "../comments";
-import { Position } from "../../tokenize";
-import { Comments } from "../comments";
-import { Node } from "../interface";
+import { Position } from '../../tokenize';
+import { CommentsRef } from '../comments';
+import { Comments } from '../comments';
+import { Expr } from '../interface';
+import { Node } from '../interface';
 
 // A DictExpr represents a dictionary literal: { List }.
 export class DictExpr implements Expr {
@@ -19,9 +19,9 @@ export class DictExpr implements Expr {
   }
 
   span(): [Position, Position] {
-    return [this.Lbrace, this.Rbrace.add("}")];
+    return [this.Lbrace, this.Rbrace.add('}')];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }
@@ -50,7 +50,7 @@ export class DictEntry implements Expr {
     let [, end] = this.Value.span();
     return [start, end];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }

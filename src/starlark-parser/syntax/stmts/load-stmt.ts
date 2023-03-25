@@ -1,12 +1,12 @@
-import { Stmt } from "../interface";
-import { CommentsRef } from "../comments";
-import { Position } from "../../tokenize";
-import { Token } from "../../tokenize";
-import { Expr } from "../interface";
-import { Comments } from "../comments";
-import { Ident } from "../exprs";
-import { Literal } from "../exprs";
-import { Node } from "../interface";
+import { Position } from '../../tokenize';
+import { Token } from '../../tokenize';
+import { CommentsRef } from '../comments';
+import { Comments } from '../comments';
+import { Ident } from '../exprs';
+import { Literal } from '../exprs';
+import { Stmt } from '../interface';
+import { Expr } from '../interface';
+import { Node } from '../interface';
 
 // A LoadStmt loads another module and binds names from it:
 // load(Module, "x", y="foo").
@@ -44,7 +44,7 @@ export class LoadStmt implements Stmt {
   ModuleName(): string {
     return this.Module.value as string;
   }
-  stmt() { }
+  stmt() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }

@@ -1,35 +1,36 @@
-import { Ok, Err, Result } from "ts-results";
-import { Node } from "./syntax";
-import { Stmt } from "./syntax";
+import { Err, Ok, Result } from 'ts-results';
+
+import { Node } from './syntax';
+import { Stmt } from './syntax';
 import {
-  isFile,
-  isExprStmt,
-  isBranchStmt,
-  isIfStmt,
   isAssignStmt,
-  isDefStmt,
-  isForStmt,
-  isReturnStmt,
-  isLoadStmt,
-  isIdent,
-  isLiteral,
-  isListExpr,
-  isParenExpr,
-  isCondExpr,
-  isIndexExpr,
-  isDictEntry,
-  isSliceExpr,
-  isComprehension,
-  isIfClause,
-  isForClause,
-  isTupleExpr,
-  isDictExpr,
-  isUnaryExpr,
   isBinaryExpr,
-  isDotExpr,
+  isBranchStmt,
   isCallExpr,
+  isComprehension,
+  isCondExpr,
+  isDefStmt,
+  isDictEntry,
+  isDictExpr,
+  isDotExpr,
+  isExprStmt,
+  isFile,
+  isForClause,
+  isForStmt,
+  isIdent,
+  isIfClause,
+  isIfStmt,
+  isIndexExpr,
   isLambdaExpr,
-} from "./syntax";
+  isListExpr,
+  isLiteral,
+  isLoadStmt,
+  isParenExpr,
+  isReturnStmt,
+  isSliceExpr,
+  isTupleExpr,
+  isUnaryExpr,
+} from './syntax';
 
 function walkStmts(stmts: Stmt[], f: (node: Node | null) => boolean): void {
   for (const stmt of stmts) {

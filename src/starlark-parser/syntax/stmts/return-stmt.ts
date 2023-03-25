@@ -1,10 +1,10 @@
-import { Stmt } from "../interface";
-import { CommentsRef } from "../comments";
-import { Position } from "../../tokenize";
-import { Token } from "../../tokenize";
-import { Expr } from "../interface";
-import { Comments } from "../comments";
-import { Node } from "../interface";
+import { Position } from '../../tokenize';
+import { Token } from '../../tokenize';
+import { CommentsRef } from '../comments';
+import { Comments } from '../comments';
+import { Stmt } from '../interface';
+import { Expr } from '../interface';
+import { Node } from '../interface';
 
 // A ReturnStmt returns from a function.
 export class ReturnStmt implements Stmt {
@@ -20,12 +20,12 @@ export class ReturnStmt implements Stmt {
 
   public span(): [start: Position, end: Position] {
     if (!this.Result) {
-      return [this.Return!, this.Return!.add("return")];
+      return [this.Return!, this.Return!.add('return')];
     }
     const [, end] = this.Result!.span();
     return [this.Return!, end];
   }
-  stmt() { }
+  stmt() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }

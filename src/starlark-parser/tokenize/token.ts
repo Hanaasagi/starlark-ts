@@ -1,143 +1,143 @@
-import { Position } from "./position";
+import { Position } from './position';
 
 // A Token represents a Starlark lexical token.
 export enum Token {
   // illegal token
-  ILLEGAL = "illegal token",
+  ILLEGAL = 'illegal token',
   // end of file
-  EOF = "end of file",
+  EOF = 'end of file',
   // newline
-  NEWLINE = "newline",
+  NEWLINE = 'newline',
   // indent
-  INDENT = "indent",
+  INDENT = 'indent',
   // outdent
-  OUTDENT = "outdent",
+  OUTDENT = 'outdent',
   // identifier
-  IDENT = "identifier",
+  IDENT = 'identifier',
   // int literal
-  INT = "int literal",
+  INT = 'int literal',
   // float literal
-  FLOAT = "float literal",
+  FLOAT = 'float literal',
   // string literal
-  STRING = "string literal",
+  STRING = 'string literal',
   // bytes literal
-  BYTES = "bytes literal",
+  BYTES = 'bytes literal',
   // +
-  PLUS = "+",
+  PLUS = '+',
   // -
-  MINUS = "-",
+  MINUS = '-',
   // *
-  STAR = "*",
+  STAR = '*',
   // /
-  SLASH = "/",
+  SLASH = '/',
   // //
-  SLASHSLASH = "//",
+  SLASHSLASH = '//',
   // %
-  PERCENT = "%",
+  PERCENT = '%',
   // &
-  AMP = "&",
+  AMP = '&',
   // |
-  PIPE = "|",
+  PIPE = '|',
   // ^
-  CIRCUMFLEX = "^",
+  CIRCUMFLEX = '^',
   // <<
-  LTLT = "<<",
+  LTLT = '<<',
   // >>
-  GTGT = ">>",
+  GTGT = '>>',
   // ~
-  TILDE = "~",
+  TILDE = '~',
   // .
-  DOT = ".",
+  DOT = '.',
   //,
-  COMMA = ",",
+  COMMA = ',',
   // =
-  EQ = "=",
+  EQ = '=',
   // ;
-  SEMI = ";",
+  SEMI = ';',
   // :
-  COLON = ":",
+  COLON = ':',
   // (
-  LPAREN = "(",
+  LPAREN = '(',
   // )
-  RPAREN = ")",
+  RPAREN = ')',
   // [
-  LBRACK = "[",
+  LBRACK = '[',
   // ]
-  RBRACK = "]",
+  RBRACK = ']',
   // {
-  LBRACE = "{",
+  LBRACE = '{',
   // }
-  RBRACE = "}",
+  RBRACE = '}',
   // <
-  LT = "<",
+  LT = '<',
   // >
-  GT = ">",
+  GT = '>',
   // >=
-  GE = ">=",
+  GE = '>=',
   // <=
-  LE = "<=",
+  LE = '<=',
   // ==
-  EQL = "==",
+  EQL = '==',
   // !=
-  NEQ = "!=",
+  NEQ = '!=',
   // +=
-  PLUS_EQ = "+=",
+  PLUS_EQ = '+=',
   // -=
-  MINUS_EQ = "-=",
+  MINUS_EQ = '-=',
   // *=
-  STAR_EQ = "*=",
+  STAR_EQ = '*=',
   // /=
-  SLASH_EQ = "/=",
+  SLASH_EQ = '/=',
   // //=
-  SLASHSLASH_EQ = "//=",
+  SLASHSLASH_EQ = '//=',
   // %=
-  PERCENT_EQ = "%=",
+  PERCENT_EQ = '%=',
   // &=
-  AMP_EQ = "&=",
+  AMP_EQ = '&=',
   // |=
-  PIPE_EQ = "|=",
+  PIPE_EQ = '|=',
   // ^=
-  CIRCUMFLEX_EQ = "^=",
+  CIRCUMFLEX_EQ = '^=',
   // <<=
-  LTLT_EQ = "<<=",
+  LTLT_EQ = '<<=',
   // >>=
-  GTGT_EQ = ">>=",
+  GTGT_EQ = '>>=',
   // **
-  STARSTAR = "**",
+  STARSTAR = '**',
   // and
-  AND = "and",
+  AND = 'and',
   // break
-  BREAK = "break",
+  BREAK = 'break',
   // continue
-  CONTINUE = "continue",
+  CONTINUE = 'continue',
   // def
-  DEF = "def",
+  DEF = 'def',
   // elif
-  ELIF = "elif",
+  ELIF = 'elif',
   // else
-  ELSE = "else",
+  ELSE = 'else',
   // for
-  FOR = "for",
+  FOR = 'for',
   // if
-  IF = "if",
+  IF = 'if',
   // in
-  IN = "in",
+  IN = 'in',
   // lambda
-  LAMBDA = "lambda",
+  LAMBDA = 'lambda',
   // load
-  LOAD = "load",
+  LOAD = 'load',
   // not
-  NOT = "not",
+  NOT = 'not',
   // not in (synthesized by parser)
-  NOT_IN = "not in",
+  NOT_IN = 'not in',
   // or
-  OR = "or",
+  OR = 'or',
   // pass
-  PASS = "pass",
+  PASS = 'pass',
   // return
-  RETURN = "return",
+  RETURN = 'return',
   // while
-  WHILE = "while",
+  WHILE = 'while',
 }
 
 // BUG:

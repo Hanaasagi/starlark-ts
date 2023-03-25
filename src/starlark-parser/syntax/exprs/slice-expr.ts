@@ -1,8 +1,8 @@
-import { Expr } from "../interface";
-import { CommentsRef } from "../comments";
-import { Position } from "../../tokenize";
-import { Comments } from "../comments";
-import { Node } from "../interface";
+import { Position } from '../../tokenize';
+import { CommentsRef } from '../comments';
+import { Comments } from '../comments';
+import { Expr } from '../interface';
+import { Node } from '../interface';
 
 // A SliceExpr represents a slice or substring expression: X[Lo:Hi:Step].
 export class SliceExpr implements Expr {

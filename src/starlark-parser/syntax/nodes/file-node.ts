@@ -1,7 +1,7 @@
-import { Node } from "../interface";
-import { Stmt } from "../interface";
-import { Position } from "../../tokenize";
-import { Comments } from "../comments";
+import { Position } from '../../tokenize';
+import { Comments } from '../comments';
+import { Node } from '../interface';
+import { Stmt } from '../interface';
 
 // A File represents a Starlark file.
 export class File implements Node {
@@ -10,7 +10,7 @@ export class File implements Node {
   public Stmts: Stmt[];
   public Module: any; // a *resolve.Module, set by resolver
 
-  constructor(path: string = "", stmts: Stmt[], module: any | null) {
+  constructor(path: string = '', stmts: Stmt[], module: any | null) {
     this.commentsRef = undefined;
     this.Path = path;
     this.Stmts = stmts;

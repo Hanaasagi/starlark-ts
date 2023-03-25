@@ -1,8 +1,8 @@
-import { Expr } from "../interface";
-import { CommentsRef } from "../comments";
-import { Position } from "../../tokenize";
-import { Comments } from "../comments";
-import { Node } from "../interface";
+import { Position } from '../../tokenize';
+import { CommentsRef } from '../comments';
+import { Comments } from '../comments';
+import { Expr } from '../interface';
+import { Node } from '../interface';
 
 // A CallExpr represents a function call expression: Fn(Args).
 export class CallExpr implements Expr {
@@ -22,7 +22,7 @@ export class CallExpr implements Expr {
 
   public span(): [Position, Position] {
     const [start, _] = this.Fn.span();
-    return [start, this.Rparen.add(")")] as [Position, Position];
+    return [start, this.Rparen.add(')')] as [Position, Position];
   }
   expr() {}
   public comments(): Comments | null {

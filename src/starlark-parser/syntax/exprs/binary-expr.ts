@@ -1,9 +1,10 @@
-import { Expr } from "../interface";
-import { CommentsRef } from "../comments";
-import { Position } from "../../tokenize";
-import { Comments } from "../comments";
-import { Token } from "../../tokenize";
-import { Node } from "../interface";
+import { Position } from '../../tokenize';
+import { Token } from '../../tokenize';
+import { CommentsRef } from '../comments';
+import { Comments } from '../comments';
+import { Expr } from '../interface';
+import { Node } from '../interface';
+
 // A BinaryExpr represents a binary expression: X Op Y.
 //
 // As a special case, BinaryExpr{Op:EQ} may also
@@ -30,7 +31,7 @@ export class BinaryExpr implements Expr {
     const [, end] = this.Y.span();
     return [start, end];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }

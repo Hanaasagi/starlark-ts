@@ -1,8 +1,8 @@
-import { Expr } from "../interface";
-import { CommentsRef } from "../comments";
-import { Position } from "../../tokenize";
-import { Comments } from "../comments";
-import { Node } from "../interface";
+import { Position } from '../../tokenize';
+import { CommentsRef } from '../comments';
+import { Comments } from '../comments';
+import { Expr } from '../interface';
+import { Node } from '../interface';
 
 // A Comprehension represents a list or dict comprehension:
 // [Body for ... if ...] or {Body for ... if ...}
@@ -30,9 +30,9 @@ export class Comprehension implements Expr {
   }
 
   public span(): [Position, Position] {
-    return [this.Lbrack, this.Rbrack.add("]")];
+    return [this.Lbrack, this.Rbrack.add(']')];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }

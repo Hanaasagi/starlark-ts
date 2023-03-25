@@ -1,9 +1,9 @@
-import { Stmt } from "../interface";
-import { CommentsRef } from "../comments";
-import { Position } from "../../tokenize";
-import { Token } from "../../tokenize";
-import { Comments } from "../comments";
-import { Node } from "../interface";
+import { Position } from '../../tokenize';
+import { Token } from '../../tokenize';
+import { CommentsRef } from '../comments';
+import { Comments } from '../comments';
+import { Stmt } from '../interface';
+import { Node } from '../interface';
 
 // A BranchStmt changes the flow of control: break, continue, pass.
 export class BranchStmt implements Stmt {

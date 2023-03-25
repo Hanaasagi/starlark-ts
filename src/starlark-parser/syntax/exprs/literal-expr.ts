@@ -1,9 +1,9 @@
-import { Expr } from "../interface";
-import { CommentsRef } from "../comments";
-import { Position } from "../../tokenize";
-import { Comments } from "../comments";
-import { Token } from "../../tokenize";
-import { Node } from "../interface";
+import { Position } from '../../tokenize';
+import { Token } from '../../tokenize';
+import { CommentsRef } from '../comments';
+import { Comments } from '../comments';
+import { Expr } from '../interface';
+import { Node } from '../interface';
 
 // A Literal represents a literal string or number.
 export class Literal implements Expr {

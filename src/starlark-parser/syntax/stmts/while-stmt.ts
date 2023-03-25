@@ -1,9 +1,9 @@
-import { Stmt } from "../interface";
-import { CommentsRef } from "../comments";
-import { Position } from "../../tokenize";
-import { Expr } from "../interface";
-import { Comments } from "../comments";
-import { Node } from "../interface";
+import { Position } from '../../tokenize';
+import { CommentsRef } from '../comments';
+import { Comments } from '../comments';
+import { Stmt } from '../interface';
+import { Expr } from '../interface';
+import { Node } from '../interface';
 
 // A WhileStmt represents a while loop: while X: Body.
 export class WhileStmt implements Stmt {
@@ -23,7 +23,7 @@ export class WhileStmt implements Stmt {
     const [, end] = this.Body[this.Body.length - 1].span();
     return [this.While, end];
   }
-  stmt() { }
+  stmt() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }

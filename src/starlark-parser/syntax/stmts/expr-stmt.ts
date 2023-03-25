@@ -1,10 +1,10 @@
-import { Stmt } from "../interface";
-import { CommentsRef } from "../comments";
-import { Position } from "../../tokenize";
-import { Token } from "../../tokenize";
-import { Expr } from "../interface";
-import { Comments } from "../comments";
-import { Node } from "../interface";
+import { Position } from '../../tokenize';
+import { Token } from '../../tokenize';
+import { CommentsRef } from '../comments';
+import { Comments } from '../comments';
+import { Stmt } from '../interface';
+import { Expr } from '../interface';
+import { Node } from '../interface';
 
 export class ExprStmt implements Stmt {
   private commentsRef: CommentsRef;

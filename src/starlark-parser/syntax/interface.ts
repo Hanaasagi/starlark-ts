@@ -1,5 +1,5 @@
-import { Position } from "../tokenize";
-import { Comments } from "./comments";
+import { Position } from '../tokenize';
+import { Comments } from './comments';
 
 // A Node is a node in a Starlark syntax tree.
 export interface Node {

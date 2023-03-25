@@ -1,8 +1,8 @@
-import { Expr } from "../interface";
-import { CommentsRef } from "../comments";
-import { Position } from "../../tokenize";
-import { Comments } from "../comments";
-import { Node } from "../interface";
+import { Position } from '../../tokenize';
+import { CommentsRef } from '../comments';
+import { Comments } from '../comments';
+import { Expr } from '../interface';
+import { Node } from '../interface';
 
 // A ParenExpr represents a parenthesized expression: (X).
 export class ParenExpr implements Expr {
@@ -19,7 +19,7 @@ export class ParenExpr implements Expr {
   }
 
   public span(): [Position, Position] {
-    return [this.lparen, this.rparen.add(")")];
+    return [this.lparen, this.rparen.add(')')];
   }
   expr() {}
   public comments(): Comments | null {

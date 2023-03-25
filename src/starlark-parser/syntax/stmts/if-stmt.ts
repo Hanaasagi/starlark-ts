@@ -1,9 +1,9 @@
-import { Stmt } from "../interface";
-import { CommentsRef } from "../comments";
-import { Position } from "../../tokenize";
-import { Expr } from "../interface";
-import { Node } from "../interface";
-import { Comments } from "../comments";
+import { Position } from '../../tokenize';
+import { CommentsRef } from '../comments';
+import { Comments } from '../comments';
+import { Stmt } from '../interface';
+import { Expr } from '../interface';
+import { Node } from '../interface';
 
 // An IfStmt is a conditional: If Cond: True; else: False.
 // 'elseif' is desugared into a chain of IfStmts.

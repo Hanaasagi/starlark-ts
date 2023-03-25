@@ -1,8 +1,8 @@
-import { Node } from "../interface";
-import { CommentsRef } from "../comments";
-import { Position } from "../../tokenize";
-import { Expr } from "../interface";
-import { Comments } from "../comments";
+import { Position } from '../../tokenize';
+import { CommentsRef } from '../comments';
+import { Comments } from '../comments';
+import { Node } from '../interface';
+import { Expr } from '../interface';
 
 // TypeScript equivalent of IfClause
 export class IfClause implements Node {

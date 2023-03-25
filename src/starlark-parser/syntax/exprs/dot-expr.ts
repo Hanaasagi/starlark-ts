@@ -1,9 +1,9 @@
-import { Expr } from "../interface";
-import { CommentsRef } from "../comments";
-import { Position } from "../../tokenize";
-import { Comments } from "../comments";
-import { Ident } from "./ident-expr";
-import { Node } from "../interface";
+import { Position } from '../../tokenize';
+import { CommentsRef } from '../comments';
+import { Comments } from '../comments';
+import { Expr } from '../interface';
+import { Node } from '../interface';
+import { Ident } from './ident-expr';
 
 // A DotExpr represents a field or method selector: X.Name.
 export class DotExpr implements Expr {
@@ -27,7 +27,7 @@ export class DotExpr implements Expr {
     [, end] = this.Name.span();
     return [start, end];
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }

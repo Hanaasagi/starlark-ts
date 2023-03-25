@@ -1,8 +1,8 @@
-import { Node } from "../interface";
-import { CommentsRef } from "../comments";
-import { Position } from "../../tokenize";
-import { Expr } from "../interface";
-import { Comments } from "../comments";
+import { Position } from '../../tokenize';
+import { CommentsRef } from '../comments';
+import { Comments } from '../comments';
+import { Node } from '../interface';
+import { Expr } from '../interface';
 
 // A ForClause represents a for clause in a list comprehension: for Vars in X.
 export class ForClause implements Node {

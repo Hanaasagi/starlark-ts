@@ -1,9 +1,9 @@
-import { Expr } from "../interface";
-import { CommentsRef } from "../comments";
-import { Position } from "../../tokenize";
-import { Comments } from "../comments";
-import { Token } from "../../tokenize";
-import { Node } from "../interface";
+import { Position } from '../../tokenize';
+import { Token } from '../../tokenize';
+import { CommentsRef } from '../comments';
+import { Comments } from '../comments';
+import { Expr } from '../interface';
+import { Node } from '../interface';
 
 // A UnaryExpr represents a unary expression: Op X.
 //
@@ -27,11 +27,11 @@ export class UnaryExpr implements Expr {
       const [, end] = this.X.span();
       return [this.OpPos, end];
     } else {
-      const end = this.OpPos.add("*");
+      const end = this.OpPos.add('*');
       return [this.OpPos, end];
     }
   }
-  expr() { }
+  expr() {}
   public comments(): Comments | null {
     return this.commentsRef.comments();
   }

@@ -1,8 +1,8 @@
-import { Expr } from "../interface";
-import { CommentsRef } from "../comments";
-import { Position } from "../../tokenize";
-import { Comments } from "../comments";
-import { Node } from "../interface";
+import { Position } from '../../tokenize';
+import { CommentsRef } from '../comments';
+import { Comments } from '../comments';
+import { Expr } from '../interface';
+import { Node } from '../interface';
 
 // A ListExpr represents a list literal: [ List ].
 export class ListExpr implements Expr {
@@ -19,7 +19,7 @@ export class ListExpr implements Expr {
   }
 
   public span(): [Position, Position] {
-    return [this.lbrack!, this.rbrack!.add("]")];
+    return [this.lbrack!, this.rbrack!.add(']')];
   }
   expr() {}
   public comments(): Comments | null {
