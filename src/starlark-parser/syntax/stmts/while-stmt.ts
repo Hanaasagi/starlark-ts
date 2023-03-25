@@ -1,6 +1,6 @@
 import { Stmt } from "../interface";
 import { CommentsRef } from "../comments";
-import { Position } from "src/syntax/tokenize";
+import { Position } from "../../tokenize";
 import { Expr } from "../interface";
 import { Comments } from "../comments";
 import { Node } from "../interface";

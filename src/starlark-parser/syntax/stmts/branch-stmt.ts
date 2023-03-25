@@ -1,7 +1,7 @@
 import { Stmt } from "../interface";
 import { CommentsRef } from "../comments";
-import { Position } from "src/syntax/tokenize";
-import { Token } from "src/syntax/tokenize";
+import { Position } from "../../tokenize";
+import { Token } from "../../tokenize";
 import { Comments } from "../comments";
 import { Node } from "../interface";
 
