@@ -1,4 +1,4 @@
-import * as syntax from "../syntax/scan";
+import { Token } from "../starlark-parser";
 import { Value } from "./value";
 import { Bool } from "./value";
 
@@ -332,13 +332,13 @@ export const one = makeSmallInt(BigInt(1));
 export const oneBig = BigInt(1);
 
 // Unary implements the operations +int, -int, and ~int.
-function Unary(i: Int, op: syntax.Token): [Value | null, Error | null] {
+function Unary(i: Int, op: Token): [Value | null, Error | null] {
   switch (op) {
-    case syntax.Token.MINUS:
+    case Token.MINUS:
       return [zero.Sub(i), null];
-    case syntax.Token.PLUS:
+    case Token.PLUS:
       return [i, null];
-    case syntax.Token.TILDE:
+    case Token.TILDE:
       return [i.Not(), null];
   }
   return [null, null];

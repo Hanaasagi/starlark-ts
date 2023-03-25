@@ -1,7 +1,7 @@
-import * as compile from "../internal/compile/compile";
-import { Position, Token } from "../syntax/scan";
-import * as syntax from "../syntax/syntax";
-import { parse, ParseExpr } from "../syntax/parse";
+import * as compile from "../starlark-compiler/compile";
+import { Position, Token } from "../starlark-parser";
+import * as syntax from "../starlark-parser/syntax";
+import { parse, ParseExpr } from "../starlark-parser";
 import { Callable, Function, Tuple, Module, String, Equal } from "./value";
 import { Bytes } from "./value";
 import { List, Iterable } from "./value";
@@ -1596,10 +1596,8 @@ export function setArgs(
   if (args.Len() > nonkwonly) {
     if (!fn.HasVarargs()) {
       throw new Error(
-        `function ${fn.Name()} accepts ${
-          fn.defaults.Len() > fn.NumKwonlyParams() ? "at most " : ""
-        }${nonkwonly} positional argument${
-          nonkwonly === 1 ? "" : "s"
+        `function ${fn.Name()} accepts ${fn.defaults.Len() > fn.NumKwonlyParams() ? "at most " : ""
+        }${nonkwonly} positional argument${nonkwonly === 1 ? "" : "s"
         } (${args.Len()} given)`
       );
     }
@@ -1678,8 +1676,7 @@ export function setArgs(
 
     if (missing.length !== 0) {
       return new Error(
-        `function ${fn.Name()} missing ${missing.length} argument${
-          missing.length > 1 ? "s" : ""
+        `function ${fn.Name()} missing ${missing.length} argument${missing.length > 1 ? "s" : ""
         }(${missing.join(", ")})`
       );
     }

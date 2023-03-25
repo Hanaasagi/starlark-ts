@@ -24,11 +24,11 @@
 // Operands, logically uint32s, are encoded using little-endian 7-bit
 // varints, the top bit indicating that more bytes follow.
 
-import * as syntax from "../../syntax/syntax";
-import { Token } from "../../syntax/scan";
-import * as resolve from "../../resolve/resolve";
-import * as binding from "../../resolve/binding";
-import { Position } from "../../syntax/scan";
+import * as syntax from "../starlark-parser/syntax";
+import { Token } from "../starlark-parser";
+import * as resolve from "../resolve/resolve";
+import * as binding from "../resolve/binding";
+import { Position } from "../starlark-parser";
 
 // Disassemble causes the assembly code for each function
 // to be printed to stderr as it is generated.
@@ -1412,7 +1412,7 @@ class Fcomp {
     // Gather all the right operands of the left tree of plusses.
     // A tree (((a+b)+c)+d) becomes args=[a +b +c +d].
     const args: Summand[] = new Array();
-    for (let plus = e; ;) {
+    for (let plus = e; ; ) {
       args.push(new Summand(unparen(plus.Y), plus.OpPos));
       const left = unparen(plus.X) as syntax.Expr;
       if (!(left instanceof syntax.BinaryExpr) || left.Op !== Token.PLUS) {
@@ -1426,7 +1426,7 @@ class Fcomp {
 
     // Fold sums of adjacent literals of the same type: ""+"", []+[], ()+().
     const out: Summand[] = []; // compact in situ
-    for (let i = 0; i < args.length;) {
+    for (let i = 0; i < args.length; ) {
       let j = i + 1;
       const code = addable(args[i].x);
       if (code) {

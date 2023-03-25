@@ -1,5 +1,5 @@
-import * as syntax from "../syntax/syntax";
-import { Position } from "../syntax/scan";
+import * as syntax from "../starlark-parser";
+import { Position } from "../starlark-parser";
 
 // The Scope of Binding indicates what kind of scope it has.
 export enum Scope {

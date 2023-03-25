@@ -1,6 +1,6 @@
 // import { ExecFile } from "./starlark/eval";
 // import { Thread } from "./starlark/eval";
-import { parse } from "./syntax/parse";
+import { parse } from "./starlark-parser";
 import { StringDict } from "./starlark/value";
 import { ExecFile } from "./starlark/eval";
 import { Thread } from "./starlark/eval";

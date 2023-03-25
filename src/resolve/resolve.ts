@@ -1,8 +1,8 @@
-import * as syntax from "../syntax/syntax";
-import { Token } from "../syntax/scan";
+import * as syntax from "../starlark-parser";
+import { Token } from "../starlark-parser";
 import { Binding, Module } from "./binding";
 import { Scope } from "./binding";
-import { Position } from "../syntax/scan";
+import { Position } from "../starlark-parser";
 import { Function } from "./binding";
 import { symlinkSync } from "fs";
 
