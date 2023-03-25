@@ -637,8 +637,7 @@ class Parser {
       if (!first && opprec === precedence[idx]) {
         this.input.error(
           this.input.pos,
-          `${(x as syntax.BinaryExpr).Op} does not associate with ${
-            this.tok
+          `${(x as syntax.BinaryExpr).Op} does not associate with ${this.tok
           } (use parens)`
         );
       }
@@ -1078,7 +1077,7 @@ function flattenAST(root: syntax.Node): [syntax.Node[], syntax.Node[]] {
   const pre: syntax.Node[] = [];
   const post: syntax.Node[] = [];
   const stack: syntax.Node[] = [];
-  Walk(root, (n: syntax.Node): boolean => {
+  Walk(root, (n: syntax.Node | null): boolean => {
     if (n !== null) {
       pre.push(n);
       stack.push(n);

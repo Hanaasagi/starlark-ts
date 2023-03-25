@@ -1,3 +1,4 @@
+import { Ok, Err, Result } from "ts-results";
 import { Node } from "./syntax";
 import { Stmt } from "./syntax";
 import {
@@ -30,18 +31,18 @@ import {
   isLambdaExpr,
 } from "./syntax";
 
-function walkStmts(stmts: Stmt[], f: (node: Node) => boolean): void {
+function walkStmts(stmts: Stmt[], f: (node: Node | null) => boolean): void {
   for (const stmt of stmts) {
     Walk(stmt, f);
   }
 }
 
-export function Walk(n: Node, f: (n: Node) => boolean): void {
-  if (n === null) {
-    throw new Error("nil");
-  }
+export function Walk(
+  n: Node,
+  f: (n: Node | null) => boolean
+): Result<void, Error> {
   if (!f(n)) {
-    return;
+    return Ok.EMPTY;
   }
 
   if (isFile(n)) {
@@ -153,6 +154,9 @@ export function Walk(n: Node, f: (n: Node) => boolean): void {
     }
     Walk(lambdaExpr.body, f);
   } else {
-    throw new Error(n.toString());
+    return Err(Error(n.toString()));
   }
+
+  f(null);
+  return Ok.EMPTY;
 }
