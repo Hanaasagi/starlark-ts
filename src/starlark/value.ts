@@ -102,6 +102,19 @@ export interface Value {
   Hash(): [number, Error | null];
 }
 
+export function isValue(v: any): v is Value {
+  let is = true;
+  for (var n of ["String", "Type", "Freeze", "Truth", "Hash"]) {
+    if (!(n in v)) {
+      is = false;
+      break;
+    }
+
+  }
+  return is;
+
+}
+
 // A Comparable is a value that defines its own equivalence relation and
 // perhaps ordered comparisons.
 interface Comparable extends Value {
@@ -281,8 +294,8 @@ interface HasSetField extends HasAttrs {
 
 // NoneType is the type of None.  Its only legal value is None.
 // (We represent it as a number, not struct{}, so that None may be constant.)
-class NoneType implements Value {
-  constructor() {}
+export class NoneType implements Value {
+  constructor() { }
 
   String(): string {
     return 'None';
@@ -291,7 +304,7 @@ class NoneType implements Value {
     return 'NoneType';
   }
 
-  Freeze() {}
+  Freeze() { }
   Truth(): Bool {
     return False;
   }
@@ -320,7 +333,7 @@ export class Bool implements Comparable {
     return 'bool';
   }
 
-  Freeze() {}
+  Freeze() { }
 
   Truth(): Bool {
     return this;
@@ -354,7 +367,7 @@ export class Float implements Comparable {
     return 'float';
   }
 
-  Freeze() {}
+  Freeze() { }
 
   Truth(): Bool {
     return new Bool(this.val !== 0.0);
@@ -463,7 +476,7 @@ export class String implements Comparable, HasAttrs {
     return 'string';
   }
 
-  Freeze() {}
+  Freeze() { }
 
   Truth(): Bool {
     return new Bool(this.val.length > 0);
@@ -512,12 +525,11 @@ export class String implements Comparable, HasAttrs {
   }
 }
 
-function AsString(x: Value): [string, boolean] {
-  // BUG:
-  if (typeof x === 'string') {
-    return [x, true];
+export function AsString(x: Value): [string, boolean] {
+  if (x instanceof String) {
+    return [x.val, true]
   }
-  return ['', false];
+  return [x.String(), true]
 }
 
 // A stringElems is an iterable whose iterator yields a sequence of
@@ -544,7 +556,7 @@ class StringElems {
     return 'string.elems';
   }
 
-  Freeze(): void {} // immutable
+  Freeze(): void { } // immutable
 
   Truth(): Bool {
     return True;
@@ -593,7 +605,7 @@ class StringElemsIterator implements Iterator {
     return true;
   }
 
-  done(): void {}
+  done(): void { }
 }
 
 // A stringCodepoints is an iterable whose iterator yields a sequence of
@@ -625,7 +637,7 @@ class stringCodepoints {
     return 'string.codepoints';
   }
 
-  Freeze(): void {} // immutable
+  Freeze(): void { } // immutable
 
   Truth(): Bool {
     return True;
@@ -668,7 +680,7 @@ class stringCodepointsIterator implements Iterator {
     // return { done: false, value: p };
   }
 
-  done(): void {}
+  done(): void { }
 }
 
 // A Function is a function defined by a Starlark def statement or lambda expression.
@@ -1304,7 +1316,7 @@ export class TupleIterator implements Iterator {
     return false;
   }
 
-  done(): void {}
+  done(): void { }
 }
 
 // A Set represents a TypeScript set value.
@@ -1746,7 +1758,7 @@ export class Bytes implements Value, Comparable, Sliceable, Indexable {
     return 'bytes';
   }
 
-  Freeze(): void {} // immutable
+  Freeze(): void { } // immutable
 
   Truth(): Bool {
     return new Bool(this.value.length > 0);
@@ -1968,7 +1980,7 @@ export class RangeValue implements Value {
     );
   }
 
-  Freeze(): void {} // immutable
+  Freeze(): void { } // immutable
 
   String(): string {
     if (this.step !== 1) {
@@ -2069,7 +2081,7 @@ class RangeIterator {
     return false;
   }
 
-  done(): void {}
+  done(): void { }
 }
 
 export class StringDict {

@@ -6,11 +6,13 @@ import { AsInt32 } from '../int';
 import { MakeInt } from '../int';
 import { zero } from '../int';
 import { UnpackPositionalArgs } from '../unpack';
+import { UnpackArgs } from '../unpack';
 import { Builtin, StringDict } from '../value';
 import { Tuple } from '../value';
 import { Value } from '../value';
 import { Bool } from '../value';
 import { String as String_ } from '../value';
+import { Bytes } from '../value';
 import { Len } from '../value';
 import { Dict } from '../value';
 import { None } from '../value';
@@ -18,6 +20,7 @@ import { True } from '../value';
 import { False } from '../value';
 import { Float } from '../value';
 import { RangeValue } from '../value';
+import { AsString } from '../value';
 import { rangeLen } from '../value';
 
 export var Universe = new StringDict([
@@ -366,48 +369,49 @@ function print(
   kwargs: Tuple[]
 ): Value | Error {
   //@ts-ignore
-  BigInt.prototype.toJSON = function () {
-    return this.toString();
-  };
+  // BigInt.prototype.toJSON = function () {
+  //   return this.toString();
+  // };
 
-  console.error('<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<');
+  console.error('<<<<<<<<<<<<<<<<NOW PRINT<<<<<<<<<<<<<<<<<<<');
+
   console.error(
     '<<<< print is not impl but i can give you',
     JSON.stringify(args)
   );
+
   let sep = ' ';
-  // const err = UnpackArgs("print", null, kwargs, "sep?", sep);
+  // const err = UnpackArgs('print', new Tuple([]), kwargs, ['sep?', sep]);
+
   // if (err) {
   //   return [null, err];
   // }
-  // const buf = new Array();
-  // for (let i = 0; i < args.Len(); i++) {
-  //   const v = args.index(i);
-  //   if (i > 0) {
-  //     buf.push(sep);
-  //   }
-  //   const s = AsString(v);
-  //   if (s !== undefined) {
-  //     buf.push(s);
-  //   } else if (v instanceof Bytes) {
-  //     // buf.push(new String(v));
-  //   } else {
-  //     buf.push(v);
-  //   }
-  // }
+  const buf = new Array();
+  for (let i = 0; i < args.Len(); i++) {
+    const v = args.index(i);
+    if (i > 0) {
+      buf.push(sep);
+    }
+    const [s, ok] = AsString(v);
+    if (ok) {
+      buf.push(s);
+    } else if (v instanceof Bytes) {
+      // TODO:
+      // buf.push(new String(v));
+    } else {
+      buf.push(v);
+    }
+  }
 
-  // console.log(buf.join(""));
+  let data = buf.join('');
+  if (thread.Print) {
+    thread.Print(thread, data);
+  } else {
+    console.error(data);
+  }
   console.error('<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<');
   // @ts-ignore
   return null;
-
-  // const s = buf.String();
-  // if (thread.Print !== null) {
-  //   thread.Print(thread, s);
-  // } else {
-  //   console.log(s);
-  // }
-  // return [None, null];
 }
 
 function range_(
