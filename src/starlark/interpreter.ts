@@ -134,7 +134,7 @@ export function CallInternal(
 
     if (op >= compile.OpcodeArgMin) {
       let s = 0;
-      for (;;) {
+      for (; ;) {
         const b = code[pc];
         pc++;
         arg |= (b & 0x7f) << s;
@@ -182,7 +182,7 @@ export function CallInternal(
       case Opcode.GE:
         let opToken =
           Object.values(Token)[
-            op - Opcode.EQL + Object.values(Token).indexOf(Token.EQL)
+          op - Opcode.EQL + Object.values(Token).indexOf(Token.EQL)
           ];
         const yy = stack[sp - 1];
         const xx = stack[sp - 2];
@@ -210,7 +210,7 @@ export function CallInternal(
       case Opcode.IN:
         let binop =
           Object.values(Token)[
-            op - Opcode.PLUS + Object.values(Token).indexOf(Token.PLUS)
+          op - Opcode.PLUS + Object.values(Token).indexOf(Token.PLUS)
           ];
 
         if (op == Opcode.IN) {
@@ -236,7 +236,7 @@ export function CallInternal(
         } else {
           unop =
             Object.values(Token)[
-              op - Opcode.UPLUS + Object.values(Token).indexOf(Token.PLUS)
+            op - Opcode.UPLUS + Object.values(Token).indexOf(Token.PLUS)
             ];
         }
         const x = stack[sp - 1];
@@ -793,7 +793,7 @@ export function CallInternal(
 }
 
 class wrappedError {
-  constructor(public msg: string, public cause: Error) {}
+  constructor(public msg: string, public cause: Error) { }
 
   public get name(): string {
     return 'wrappedError';
@@ -822,14 +822,14 @@ class wrappedError {
 // mandatory is a sentinel value used in a function's defaults tuple
 // to indicate that a (keyword-only) parameter is mandatory.
 export class mandatory implements Value {
-  constructor() {}
+  constructor() { }
   public String(): string {
     return 'mandatory';
   }
   public Type(): string {
     return 'mandatory';
   }
-  public Freeze(): void {} // immutable
+  public Freeze(): void { } // immutable
   public Truth(): Bool {
     return False;
   }
