@@ -1,5 +1,5 @@
-import { Value } from "./value";
-import { Tuple } from "./value";
+import { Value } from './value';
+import { Tuple } from './value';
 
 export function UnpackPositionalArgs(
   fnname: string,
@@ -13,13 +13,13 @@ export function UnpackPositionalArgs(
   }
   const max = vars.length;
   if (args.Len() < min) {
-    const atleast = min < max ? "at least " : "";
+    const atleast = min < max ? 'at least ' : '';
     return new Error(
       `${fnname}: got ${args.Len()} arguments, want ${atleast}${min}`
     );
   }
   if (args.Len() > max) {
-    const atmost = max > min ? "at most " : "";
+    const atmost = max > min ? 'at most ' : '';
     return new Error(
       `${fnname}: got ${args.Len()} arguments, want ${atmost}${max}`
     );

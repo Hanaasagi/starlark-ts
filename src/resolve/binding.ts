@@ -1,5 +1,5 @@
-import * as syntax from "../starlark-parser";
-import { Position } from "../starlark-parser";
+import * as syntax from '../starlark-parser';
+import { Position } from '../starlark-parser';
 
 // The Scope of Binding indicates what kind of scope it has.
 export enum Scope {
@@ -13,13 +13,13 @@ export enum Scope {
 }
 
 export const scopeNames = [
-  "undefined",
-  "local",
-  "cell",
-  "free",
-  "global",
-  "predeclared",
-  "universal",
+  'undefined',
+  'local',
+  'cell',
+  'free',
+  'global',
+  'predeclared',
+  'universal',
 ];
 
 export namespace Scope {

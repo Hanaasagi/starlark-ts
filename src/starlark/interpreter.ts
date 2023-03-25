@@ -1,20 +1,20 @@
-import { Opcode } from "../starlark-compiler/compile";
-import { Thread, Call } from "./eval";
-import * as compile from "../starlark-compiler/compile";
-import { Position } from "../starlark-parser";
-import { Token } from "../starlark-parser";
-import { parse, ParseExpr } from "../starlark-parser";
-import { Callable, Function, Tuple, Module } from "./value";
-import { List, Iterable } from "./value";
-import { Value, Compare } from "./value";
-import { Universe } from "./value";
-import { Iterator, Dict, String } from "./value";
-import { Bool, True, False, None, Iterate } from "./value";
-import { IterableMapping } from "./value";
-import * as resolve from "../resolve/resolve";
-import { setArgs, setIndex, getIndex, getAttr, setField, slice } from "./eval";
-import { Binary, Unary } from "./eval";
-import { listExtend } from "./eval";
+import * as resolve from '../resolve/resolve';
+import { Opcode } from '../starlark-compiler/compile';
+import * as compile from '../starlark-compiler/compile';
+import { Position } from '../starlark-parser';
+import { Token } from '../starlark-parser';
+import { ParseExpr, parse } from '../starlark-parser';
+import { Call, Thread } from './eval';
+import { getAttr, getIndex, setArgs, setField, setIndex, slice } from './eval';
+import { Binary, Unary } from './eval';
+import { listExtend } from './eval';
+import { Callable, Function, Module, Tuple } from './value';
+import { Iterable, List } from './value';
+import { Compare, Value } from './value';
+import { Universe } from './value';
+import { Dict, Iterator, String } from './value';
+import { Bool, False, Iterate, None, True } from './value';
+import { IterableMapping } from './value';
 
 // This file defines the bytecode interpreter.
 
@@ -52,9 +52,9 @@ export function CallInternal(
   }
 
   let f = fn.funcode;
-  console.log("CallInternal funcode is", f);
+  console.log('CallInternal funcode is', f);
   let fr = thread.frameAt(0);
-  console.log("CallInternal fr is", fr);
+  console.log('CallInternal fr is', fr);
 
   // Allocate space for stack and locals.
   // Logically these do not escape from this frame
@@ -112,7 +112,7 @@ export function CallInternal(
       if (thread.OnMaxSteps != null) {
         thread.OnMaxSteps(thread);
       } else {
-        thread.Cancel("too many steps");
+        thread.Cancel('too many steps');
       }
     }
     // BUG: atomic
@@ -149,7 +149,7 @@ export function CallInternal(
       compile.PrintOp(f, fr.pc, op, arg);
     }
 
-    console.log("CallInternal op code is", Opcode.String(op));
+    console.log('CallInternal op code is', Opcode.String(op));
     switch (op) {
       case Opcode.NOP:
         // nop
@@ -258,8 +258,8 @@ export function CallInternal(
         // nonetheless defines x+y, in which case we
         // should fall back to the general case.
         let z: Value | null = null;
-        if (x instanceof List && "iterate" in y) {
-          if (x.checkMutable("apply += to")) {
+        if (x instanceof List && 'iterate' in y) {
+          if (x.checkMutable('apply += to')) {
             break loop;
           }
           listExtend(x, y as Iterable);
@@ -285,7 +285,7 @@ export function CallInternal(
         let z: Value | null = null;
         if (x instanceof Dict) {
           if (y instanceof Dict) {
-            const err = x.ht.checkMutable("apply |= to");
+            const err = x.ht.checkMutable('apply |= to');
             if (err !== null) {
               break loop;
             }
@@ -393,7 +393,7 @@ export function CallInternal(
         const npos: number = arg >> 8;
         if (npos > 0) {
           positional = new Tuple(stack.slice(sp - npos, sp));
-          console.log("----->", positional);
+          console.log('----->', positional);
           sp -= npos;
 
           // Copy positional arguments into a new array,
@@ -431,7 +431,7 @@ export function CallInternal(
 
         // thread.endProfSpan()
         const result = Call(thread, func, positional!, kvpairs);
-        console.log("VM call return", result);
+        console.log('VM call return', result);
         // thread.beginProfSpan()
 
         if (result[1]) {
@@ -442,7 +442,7 @@ export function CallInternal(
         }
         stack[sp - 1] = result[0];
 
-        console.log("After Resuming", stack, result[0], sp);
+        console.log('After Resuming', stack, result[0], sp);
         break;
       }
 
@@ -547,7 +547,7 @@ export function CallInternal(
           break loop;
         }
         if (op == Opcode.SETDICTUNIQ && dict.len() == oldlen) {
-          err = new Error("duplicate key: ${k}");
+          err = new Error('duplicate key: ${k}');
           break loop;
         }
 
@@ -584,7 +584,7 @@ export function CallInternal(
         sp--;
         let iter = Iterate(iterable);
         if (!iter) {
-          err = new Error("got ${iterable.Type()} in sequence assignment");
+          err = new Error('got ${iterable.Type()} in sequence assignment');
           break loop;
         }
         let i = 0;
@@ -598,13 +598,13 @@ export function CallInternal(
         if (iter.next(dummy!)) {
           // NB: Len may return -1 here in obscure cases.
           err = new Error(
-            "too many values to unpack (got ${iterable.length}, want ${n})"
+            'too many values to unpack (got ${iterable.length}, want ${n})'
           );
           break loop;
         }
         iter.done();
         if (i < n) {
-          err = new Error("too few values to unpack (got ${i}, want ${n})");
+          err = new Error('too few values to unpack (got ${i}, want ${n})');
           break loop;
         }
 
@@ -671,7 +671,7 @@ export function CallInternal(
         sp--;
 
         if (!thread.Load) {
-          err = new Error("load not implemented by this application");
+          err = new Error('load not implemented by this application');
           break loop;
         }
 
@@ -690,7 +690,7 @@ export function CallInternal(
             // TODO:
             // err = new Error(`load: name ${from} not found in module ${module}`);
             // const nearest = spell.Nearest(from, Object.keys(dict));
-            const nearest = "";
+            const nearest = '';
             if (nearest) {
               err = new Error(`${err} (did you mean ${nearest}?)`);
             }
@@ -796,7 +796,7 @@ class wrappedError {
   constructor(public msg: string, public cause: Error) {}
 
   public get name(): string {
-    return "wrappedError";
+    return 'wrappedError';
   }
 
   public get message(): string {
@@ -824,10 +824,10 @@ class wrappedError {
 export class mandatory implements Value {
   constructor() {}
   public String(): string {
-    return "mandatory";
+    return 'mandatory';
   }
   public Type(): string {
-    return "mandatory";
+    return 'mandatory';
   }
   public Freeze(): void {} // immutable
   public Truth(): Bool {
@@ -850,10 +850,10 @@ class cell {
     this.v = v;
   }
   public String(): string {
-    return "cell";
+    return 'cell';
   }
   public Type(): string {
-    return "cell";
+    return 'cell';
   }
   public Freeze(): void {
     if (this.v != null) {
@@ -861,9 +861,9 @@ class cell {
     }
   }
   public Truth(): Bool {
-    throw new Error("unreachable");
+    throw new Error('unreachable');
   }
   public Hash(): [number, Error | null] {
-    throw new Error("unreachable");
+    throw new Error('unreachable');
   }
 }

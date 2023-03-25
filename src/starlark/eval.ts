@@ -1,25 +1,26 @@
-import * as compile from "../starlark-compiler/compile";
-import { Position, Token } from "../starlark-parser";
-import * as syntax from "../starlark-parser/syntax";
-import { parse, ParseExpr } from "../starlark-parser";
-import { Callable, Function, Tuple, Module, String, Equal } from "./value";
-import { Bytes } from "./value";
-import { List, Iterable } from "./value";
-import { Value } from "./value";
-import { Universe, StringDict, Builtin } from "./value";
-import * as resolve from "../resolve/resolve";
-import * as binding from "../resolve/binding";
-import { CallInternal } from "./interpreter";
-import { MakeInt64, MakeBigInt, AsInt32 } from "./int";
-import { Bool } from "./value";
-import { Dict } from "./value";
-import { Int } from "./int";
-import { Float } from "./value";
-import { Mapping, isMapping } from "./value";
-import { Set } from "./value";
-import { mandatory } from "./interpreter";
-import { True, False } from "./value";
-import { RangeValue } from "./value";
+import * as binding from '../resolve/binding';
+import * as resolve from '../resolve/resolve';
+import * as compile from '../starlark-compiler/compile';
+import { Position, Token } from '../starlark-parser';
+import { ParseExpr, parse } from '../starlark-parser';
+import * as syntax from '../starlark-parser/syntax';
+import { AsInt32, MakeBigInt, MakeInt64 } from './int';
+import { Int } from './int';
+import { CallInternal } from './interpreter';
+import { mandatory } from './interpreter';
+import { Callable, Equal, Function, Module, String, Tuple } from './value';
+import { Bytes } from './value';
+import { Iterable, List } from './value';
+import { Value } from './value';
+import { Builtin, StringDict, Universe } from './value';
+import { Bool } from './value';
+import { Dict } from './value';
+import { Float } from './value';
+import { Mapping, isMapping } from './value';
+import { Set } from './value';
+import { False, True } from './value';
+import { RangeValue } from './value';
+
 // import {*} from "./value"
 
 // A Thread contains the state of a Starlark thread,
@@ -127,7 +128,7 @@ export class Thread {
   }
 }
 
-const builtinFilename = "<builtin>";
+const builtinFilename = '<builtin>';
 
 // A frame records a call to a Starlark function (including module toplevel)
 // or a built-in function or method.
@@ -155,7 +156,7 @@ class Frame {
       let v = this.callable as Function;
       return v.funcode.position(this.pc);
     }
-    if ("position" in this.callable) {
+    if ('position' in this.callable) {
       // If a built-in Callable defines
       // a Position method, use it.
       //@ts-ignore
@@ -200,12 +201,12 @@ class CallStack {
   toString(): string {
     const out = new Array();
     if (this.frames.length > 0) {
-      out.push("Traceback (most recent call last):\n");
+      out.push('Traceback (most recent call last):\n');
     }
     for (const fr of this.frames) {
       out.push(`  ${fr.pos}: in ${fr.name}\n`);
     }
-    return out.join("");
+    return out.join('');
   }
 }
 
@@ -229,7 +230,7 @@ class EvalError extends Error {
 
   Backtrace(): string {
     // TODO:
-    return "backtrace";
+    return 'backtrace';
   }
 
   Unwrap(): Error {
@@ -264,7 +265,7 @@ export class Program {
 
   // Filename returns the name of the file from which this program was loaded.
   public Filename(): string {
-    return this.compiled.toplevel?.pos.filename() || "";
+    return this.compiled.toplevel?.pos.filename() || '';
   }
 
   public String(): string {
@@ -326,10 +327,10 @@ export function ExecFile(
     return [null, err];
   }
 
-  console.log("mod====");
+  console.log('mod====');
   console.log(mod);
   let [g, _] = mod!.init(thread, predeclared);
-  console.log("AFTER MOD BERFORE FREEZE", g);
+  console.log('AFTER MOD BERFORE FREEZE', g);
   g.freeze();
   return [g, null];
 }
@@ -386,7 +387,7 @@ function FileProgram(
   const compiled = compile.File(
     f.Stmts,
     pos,
-    "<toplevel>",
+    '<toplevel>',
     module.locals,
     module.globals
   );
@@ -426,7 +427,7 @@ function ExecREPLChunk(
   const compiled = compile.File(
     f.Stmts,
     pos,
-    "<toplevel>",
+    '<toplevel>',
     module.locals,
     module.globals
   );
@@ -467,11 +468,11 @@ function makeToplevelFunction(
     const c = prog.constants[i];
     let v: Value;
 
-    if (typeof c === "number") {
+    if (typeof c === 'number') {
       v = MakeInt64(BigInt(c));
-    } else if (typeof c == "bigint") {
+    } else if (typeof c == 'bigint') {
       v = MakeBigInt(c);
-    } else if (typeof c === "string") {
+    } else if (typeof c === 'string') {
       v = new String(c);
       // TODO:
       // } else if (c instanceof compile.Bytes) {
@@ -567,7 +568,7 @@ function makeExprFunc(
     //@ts-ignore
     return [locals, err];
   }
-  const compiled = compile.Expr(expr, "<expr>", locals);
+  const compiled = compile.Expr(expr, '<expr>', locals);
   return [makeToplevelFunction(compiled, env), null];
 }
 
@@ -594,7 +595,7 @@ export function listExtend(x: List, y: Iterable): void {
 
 // getAttr implements x.dot.
 export function getAttr(x: Value, name: string): [Value | null, Error | null] {
-  let hasAttr = "Attr" in x && "AttrNames" in x;
+  let hasAttr = 'Attr' in x && 'AttrNames' in x;
   if (!hasAttr) {
     return [null, new Error(`${x.Type()} has no.${name} field or method`)];
   }
@@ -838,7 +839,7 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
 
         if (y instanceof Bytes) {
           // TODO:
-          console.log("TODO: eval.ts binary bytes");
+          console.log('TODO: eval.ts binary bytes');
           // return bytesRepeat(y, x);
         }
 
@@ -876,7 +877,7 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
       }
 
       if (x instanceof Bytes) {
-        console.log("TODO: eval.ts binary x bytes");
+        console.log('TODO: eval.ts binary x bytes');
       }
 
       if (x instanceof List) {
@@ -912,7 +913,7 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
           }
 
           if (yf == 0) {
-            return new Error("floating-point division by zero");
+            return new Error('floating-point division by zero');
           }
 
           return new Float(xf / yf);
@@ -920,7 +921,7 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
 
         if (y instanceof Float) {
           if (y.val == 0) {
-            return new Error("floating-point division by zero");
+            return new Error('floating-point division by zero');
           }
           return new Float(xf / y.val);
         }
@@ -929,7 +930,7 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
       if (x instanceof Float) {
         if (y instanceof Float) {
           if (y.val == 0) {
-            return new Error("floating-point division by zero");
+            return new Error('floating-point division by zero');
           }
 
           return new Float(x.val / y.val);
@@ -941,7 +942,7 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
           }
 
           if (yf == 0.0) {
-            return new Error("floating-point division by zero");
+            return new Error('floating-point division by zero');
           }
 
           return new Float(x.val / yf);
@@ -963,7 +964,7 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
             return err;
           }
           if (yf == 0) {
-            return new Error("floating-point division by zero");
+            return new Error('floating-point division by zero');
           }
 
           return new Float(xf / yf);
@@ -971,7 +972,7 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
 
         if (y instanceof Float) {
           if (y.val == 0) {
-            return new Error("floating-point division by zero");
+            return new Error('floating-point division by zero');
           }
           return new Float(xf / y.val);
         }
@@ -980,7 +981,7 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
       if (x instanceof Float) {
         if (y instanceof Float) {
           if (y.val == 0) {
-            return new Error("floating-point division by zero");
+            return new Error('floating-point division by zero');
           }
 
           return new Float(x.val / y.val);
@@ -992,7 +993,7 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
             return err;
           }
           if (yf == 0) {
-            return new Error("floating-point division by zero");
+            return new Error('floating-point division by zero');
           }
 
           return new Float(x.val / yf);
@@ -1004,7 +1005,7 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
       if (x instanceof Int) {
         if (y instanceof Int) {
           if (y.Sign() == 0) {
-            return new Error("floored division by zero");
+            return new Error('floored division by zero');
           }
           return x.Div(y);
         }
@@ -1016,7 +1017,7 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
           }
 
           if (y.val == 0) {
-            return new Error("floored division by zero");
+            return new Error('floored division by zero');
           }
 
           return new Float(Math.floor(xf / y.val));
@@ -1026,7 +1027,7 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
       if (x instanceof Float) {
         if (y instanceof Float) {
           if (y.val == 0) {
-            return new Error("floored division by zero");
+            return new Error('floored division by zero');
           }
           return new Float(Math.floor(x.val / y.val));
         }
@@ -1037,7 +1038,7 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
             return err;
           }
           if (yf == 0) {
-            return new Error("floored division by zero");
+            return new Error('floored division by zero');
           }
 
           return new Float(Math.floor(x.val / yf));
@@ -1049,7 +1050,7 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
       if (x instanceof Int) {
         if (y instanceof Int) {
           if (y.Sign() == 0) {
-            return new Error("integer modulo by zero");
+            return new Error('integer modulo by zero');
           }
           return x.Mod(y);
         }
@@ -1061,7 +1062,7 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
           }
 
           if (y.val == 0) {
-            return new Error("floating-point modulo by zero");
+            return new Error('floating-point modulo by zero');
           }
           return new Float(xf % y.val);
         }
@@ -1069,14 +1070,14 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
       if (x instanceof Float) {
         if (y instanceof Float) {
           if (y.val == 0) {
-            return new Error("floating-point modulo by zero");
+            return new Error('floating-point modulo by zero');
           }
           return new Float(x.val % y.val);
         }
 
         if (y instanceof Int) {
           if (y.Sign() == 0) {
-            return new Error("Floating-point modulo by zero");
+            return new Error('Floating-point modulo by zero');
           }
           const [yf, err] = y.finiteFloat();
           if (err) {
@@ -1239,12 +1240,12 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
         const z = AsInt32(y);
 
         if (z < 0) {
-          return new Error("negative shift count: ${y}");
+          return new Error('negative shift count: ${y}');
         }
 
         if (op == Token.LTLT) {
           if (z >= 512) {
-            return new Error("shift count too large ${v}");
+            return new Error('shift count too large ${v}');
           }
 
           // BUG: uint
@@ -1261,7 +1262,7 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
 
   // TODO: user-defined types
 
-  return new Error("");
+  return new Error('');
 }
 
 // It's always possible to overeat in small bites but we'll
@@ -1302,18 +1303,18 @@ function bytesRepeat(b: Uint8Array, n: number): [Uint8Array, Error | null] {
 }
 
 function stringRepeat(s: string, n: BigInt): [string, Error | null] {
-  if (s === "") {
-    return ["", null];
+  if (s === '') {
+    return ['', null];
   }
   const i = Number(n);
   if (i < 1) {
-    return ["", null];
+    return ['', null];
   }
   // Inv: i > 0, len > 0
   const sz = s.length * i;
   if (sz < 0 || sz >= Number.MAX_SAFE_INTEGER) {
     // Don't print sz.
-    return ["", new Error(`excessive repeat(${s.length} * ${i} elements)`)];
+    return ['', new Error(`excessive repeat(${s.length} * ${i} elements)`)];
   }
   return [s.repeat(i), null];
 }
@@ -1370,7 +1371,7 @@ export function Call(
     } else {
       [result, err] = CallInternal(fn as Function, thread, args, kwargs);
     }
-    console.log("result " + (fn instanceof Builtin) + ">>>>>>>>>>> ");
+    console.log('result ' + (fn instanceof Builtin) + '>>>>>>>>>>> ');
     console.log(result);
 
     // TODO: IMPORANT uncommented this, current is type reason
@@ -1579,15 +1580,15 @@ export function setArgs(
   // Define the number of non-kwonly parameters
   const nonkwonly: number = nparams - fn.NumKwonlyParams();
   console.log(
-    "SETARGS nparams=",
+    'SETARGS nparams=',
     nparams,
-    "args.len()=",
+    'args.len()=',
     args.Len(),
-    "fn.NumKwonlyParams=",
+    'fn.NumKwonlyParams=',
     fn.NumKwonlyParams(),
-    "nonkwonly=",
+    'nonkwonly=',
     nonkwonly,
-    "fn.HasVarargs()",
+    'fn.HasVarargs()',
     fn.HasVarargs()
   );
 
@@ -1596,8 +1597,10 @@ export function setArgs(
   if (args.Len() > nonkwonly) {
     if (!fn.HasVarargs()) {
       throw new Error(
-        `function ${fn.Name()} accepts ${fn.defaults.Len() > fn.NumKwonlyParams() ? "at most " : ""
-        }${nonkwonly} positional argument${nonkwonly === 1 ? "" : "s"
+        `function ${fn.Name()} accepts ${
+          fn.defaults.Len() > fn.NumKwonlyParams() ? 'at most ' : ''
+        }${nonkwonly} positional argument${
+          nonkwonly === 1 ? '' : 's'
         } (${args.Len()} given)`
       );
     }
@@ -1676,8 +1679,9 @@ export function setArgs(
 
     if (missing.length !== 0) {
       return new Error(
-        `function ${fn.Name()} missing ${missing.length} argument${missing.length > 1 ? "s" : ""
-        }(${missing.join(", ")})`
+        `function ${fn.Name()} missing ${missing.length} argument${
+          missing.length > 1 ? 's' : ''
+        }(${missing.join(', ')})`
       );
     }
   }

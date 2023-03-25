@@ -1,50 +1,51 @@
-import { Builtin, StringDict } from "../value";
-import { Tuple } from "../value";
-import { Thread } from "../eval";
-import { Value } from "../value";
-import { Bool } from "../value";
-import { String as String_ } from "../value";
-import { Len } from "../value";
-import { Dict } from "../value";
-import { None } from "../value";
-import { True } from "../value";
-import { False } from "../value";
-import { Float } from "../value";
-import { RangeValue } from "../value";
-import { rangeLen } from "../value";
-import { Int } from "../int";
-import { AsInt32 } from "../int";
-import { MakeInt } from "../int";
-import { zero } from "../int";
-import { UnpackPositionalArgs } from "../unpack";
-import { argv0 } from "process";
+import { argv0 } from 'process';
+
+import { Thread } from '../eval';
+import { Int } from '../int';
+import { AsInt32 } from '../int';
+import { MakeInt } from '../int';
+import { zero } from '../int';
+import { UnpackPositionalArgs } from '../unpack';
+import { Builtin, StringDict } from '../value';
+import { Tuple } from '../value';
+import { Value } from '../value';
+import { Bool } from '../value';
+import { String as String_ } from '../value';
+import { Len } from '../value';
+import { Dict } from '../value';
+import { None } from '../value';
+import { True } from '../value';
+import { False } from '../value';
+import { Float } from '../value';
+import { RangeValue } from '../value';
+import { rangeLen } from '../value';
 
 export var Universe = new StringDict([
-  ["None", None],
-  ["True", True],
-  ["False", False],
-  ["abs", new Builtin("abs", abs)],
-  ["any", new Builtin("any", any)],
-  ["all", new Builtin("all", all)],
-  ["bool", new Builtin("bool", bool_)],
-  ["bytes", new Builtin("bytes", bytes_)],
-  ["chr", new Builtin("chr", chr)],
-  ["dict", new Builtin("dict", dict)],
-  ["dir", new Builtin("dir", dir)],
-  ["enumerate", new Builtin("enumerate", enumerate)],
-  ["fail", new Builtin("fail", fail)],
-  ["float", new Builtin("float", float)],
-  ["getattr", new Builtin("getattr", getattr)],
-  ["hasattr", new Builtin("hasattr", hasattr)],
-  ["hash", new Builtin("hash", hash)],
-  ["int", new Builtin("int", int_)],
-  ["len", new Builtin("len", len_)],
-  ["list", new Builtin("list", list)],
-  ["max", new Builtin("max", minmax)],
-  ["min", new Builtin("min", minmax)],
-  ["ord", new Builtin("ord", ord)],
-  ["print", new Builtin("print", print)],
-  ["range", new Builtin("range", range_)],
+  ['None', None],
+  ['True', True],
+  ['False', False],
+  ['abs', new Builtin('abs', abs)],
+  ['any', new Builtin('any', any)],
+  ['all', new Builtin('all', all)],
+  ['bool', new Builtin('bool', bool_)],
+  ['bytes', new Builtin('bytes', bytes_)],
+  ['chr', new Builtin('chr', chr)],
+  ['dict', new Builtin('dict', dict)],
+  ['dir', new Builtin('dir', dir)],
+  ['enumerate', new Builtin('enumerate', enumerate)],
+  ['fail', new Builtin('fail', fail)],
+  ['float', new Builtin('float', float)],
+  ['getattr', new Builtin('getattr', getattr)],
+  ['hasattr', new Builtin('hasattr', hasattr)],
+  ['hash', new Builtin('hash', hash)],
+  ['int', new Builtin('int', int_)],
+  ['len', new Builtin('len', len_)],
+  ['list', new Builtin('list', list)],
+  ['max', new Builtin('max', minmax)],
+  ['min', new Builtin('min', minmax)],
+  ['ord', new Builtin('ord', ord)],
+  ['print', new Builtin('print', print)],
+  ['range', new Builtin('range', range_)],
   // ["repr", new Builtin("repr", repr)],
   // ["reversed", new Builtin("reversed", reversed)],
   // ["set", new Builtin("set", set)], // requires resolve.AllowSet
@@ -63,7 +64,7 @@ function abs(
   kwargs: Tuple[]
 ): Value | Error {
   let res = new Array(1);
-  const unpackError = UnpackPositionalArgs("abs", args, kwargs, 1, res);
+  const unpackError = UnpackPositionalArgs('abs', args, kwargs, 1, res);
   let x = res[0];
 
   if (unpackError) {
@@ -102,7 +103,7 @@ function all(
   // } finally {
   //   iter.done();
   // }
-  return new Error("TODO: builtin all");
+  return new Error('TODO: builtin all');
 }
 
 function any(
@@ -111,7 +112,7 @@ function any(
   args: Tuple,
   kwargs: Tuple[]
 ): Value | Error {
-  return new Error("TODO: builtin any");
+  return new Error('TODO: builtin any');
 }
 
 // https://github.com/google/starlark-go/blob/master/doc/spec.md#bool
@@ -123,7 +124,7 @@ function bool_(
 ): Value | Error {
   let x: Value = False;
   let res = new Array(1);
-  const unpackError = UnpackPositionalArgs("bool", args, kwargs, 0, res);
+  const unpackError = UnpackPositionalArgs('bool', args, kwargs, 0, res);
   if (unpackError) {
     return unpackError;
   }
@@ -137,7 +138,7 @@ function bytes_(
   args: Tuple,
   kwargs: Tuple[]
 ): Value | Error {
-  return new Error("TODO: builtin bytes");
+  return new Error('TODO: builtin bytes');
 }
 
 // https://github.com/google/starlark-go/blob/master/doc/spec.md#chr
@@ -148,7 +149,7 @@ function chr(
   kwargs: Tuple[]
 ): Value | Error {
   if (kwargs.length > 0) {
-    return new Error("chr does not accept keyword arguments");
+    return new Error('chr does not accept keyword arguments');
   }
   if (args.Len() !== 1) {
     return new Error(`chr: got ${args.Len()} arguments, want 1`);
@@ -174,7 +175,7 @@ function dict(
   args: Tuple,
   kwargs: Tuple[]
 ): Value | Error {
-  return new Error("TODO: builtin dict");
+  return new Error('TODO: builtin dict');
   // if (args.Len() > 1) {
   //   return new Error(`dict: got ${args.Len()} arguments, want at most 1`);
   // }
@@ -193,7 +194,7 @@ function dir(
   args: Tuple,
   kwargs: Tuple[]
 ): Value | Error {
-  return new Error("TODO: builtin dir");
+  return new Error('TODO: builtin dir');
 }
 
 function enumerate(
@@ -202,7 +203,7 @@ function enumerate(
   args: Tuple,
   kwargs: Tuple[]
 ): Value | Error {
-  return new Error("TODO: builtin enumerate");
+  return new Error('TODO: builtin enumerate');
 }
 
 // https://github.com/google/starlark-go/blob/master/doc/spec.md#fail
@@ -212,7 +213,7 @@ function fail(
   args: Tuple,
   kwargs: Tuple[]
 ): Value | Error {
-  return new Error("TODO: builtin fail");
+  return new Error('TODO: builtin fail');
 }
 
 // https://github.com/google/starlark-go/blob/master/doc/spec.md#float
@@ -222,7 +223,7 @@ function float(
   args: Tuple,
   kwargs: Tuple[]
 ): Value | Error {
-  return new Error("TODO: builtin fail");
+  return new Error('TODO: builtin fail');
 }
 
 function getattr(
@@ -233,13 +234,13 @@ function getattr(
 ): Value | Error {
   let res = new Array(3);
 
-  const err = UnpackPositionalArgs("getattr", args, kwargs, 2, res);
+  const err = UnpackPositionalArgs('getattr', args, kwargs, 2, res);
   if (err) {
     return err;
   }
 
   let [obj, name, dflt] = res;
-  if ("Attr" in obj && "AttrNames" in obj) {
+  if ('Attr' in obj && 'AttrNames' in obj) {
     let [v, err] = obj.Attr(name);
     if (err) {
       if (dflt) {
@@ -266,13 +267,13 @@ function hasattr(
   kwargs: Tuple[]
 ): Value | Error {
   let res = new Array(2);
-  const err = UnpackPositionalArgs("hasattr", args, kwargs, 2, res);
+  const err = UnpackPositionalArgs('hasattr', args, kwargs, 2, res);
   if (err) {
     return err;
   }
   let obj = res[0];
   let name = res[1];
-  if ("Attr" in obj && "AttrNames" in obj) {
+  if ('Attr' in obj && 'AttrNames' in obj) {
     let [v, err] = obj.Attr(name);
     if (!err) {
       return new Bool(v != null);
@@ -298,7 +299,7 @@ function hash(
   args: Tuple,
   kwargs: Tuple[]
 ): Value | Error {
-  return new Error("TODO: builtin hash");
+  return new Error('TODO: builtin hash');
 }
 
 function int_(
@@ -307,7 +308,7 @@ function int_(
   args: Tuple,
   kwargs: Tuple[]
 ): Value | Error {
-  return new Error("TODO: builtin int");
+  return new Error('TODO: builtin int');
 }
 
 function len_(
@@ -317,7 +318,7 @@ function len_(
   kwargs: Tuple[]
 ): Value | Error {
   let res = new Array(1);
-  const err = UnpackPositionalArgs("len", args, kwargs, 1, res);
+  const err = UnpackPositionalArgs('len', args, kwargs, 1, res);
   if (err) {
     return err;
   }
@@ -325,7 +326,7 @@ function len_(
   let len = Len(x);
 
   if (len < 0) {
-    return new Error("len: value of type ${x.Type()} has no len");
+    return new Error('len: value of type ${x.Type()} has no len');
   }
   return MakeInt(len);
 }
@@ -336,7 +337,7 @@ function list(
   args: Tuple,
   kwargs: Tuple[]
 ): Value | Error {
-  return new Error("TODO: builtin list");
+  return new Error('TODO: builtin list');
 }
 
 function minmax(
@@ -345,7 +346,7 @@ function minmax(
   args: Tuple,
   kwargs: Tuple[]
 ): Value | Error {
-  return new Error("TODO: builtin minmax");
+  return new Error('TODO: builtin minmax');
 }
 
 function ord(
@@ -354,7 +355,7 @@ function ord(
   args: Tuple,
   kwargs: Tuple[]
 ): Value | Error {
-  return new Error("TODO: builtin ord");
+  return new Error('TODO: builtin ord');
 }
 
 // https://github.com/google/starlark-go/blob/master/doc/spec.md#print
@@ -369,12 +370,12 @@ function print(
     return this.toString();
   };
 
-  console.error("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
+  console.error('<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<');
   console.error(
-    "<<<< print is not impl but i can give you",
+    '<<<< print is not impl but i can give you',
     JSON.stringify(args)
   );
-  let sep = " ";
+  let sep = ' ';
   // const err = UnpackArgs("print", null, kwargs, "sep?", sep);
   // if (err) {
   //   return [null, err];
@@ -396,7 +397,7 @@ function print(
   // }
 
   // console.log(buf.join(""));
-  console.error("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
+  console.error('<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<');
   // @ts-ignore
   return null;
 
@@ -416,7 +417,7 @@ function range_(
   kwargs: Tuple[]
 ): Value | Error {
   let res = new Array(3);
-  const err = UnpackPositionalArgs("range", args, kwargs, 1, res);
+  const err = UnpackPositionalArgs('range', args, kwargs, 1, res);
   if (err) {
     return err;
   }

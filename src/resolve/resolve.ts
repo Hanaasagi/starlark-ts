@@ -1,13 +1,14 @@
-import * as syntax from "../starlark-parser";
-import { Token } from "../starlark-parser";
-import { Binding, Module } from "./binding";
-import { Scope } from "./binding";
-import { Position } from "../starlark-parser";
-import { Function } from "./binding";
-import { symlinkSync } from "fs";
+import { symlinkSync } from 'fs';
+
+import * as syntax from '../starlark-parser';
+import { Token } from '../starlark-parser';
+import { Position } from '../starlark-parser';
+import { Binding, Module } from './binding';
+import { Scope } from './binding';
+import { Function } from './binding';
 
 const debug = false;
-const doesnt = "this Starlark dialect does not ";
+const doesnt = 'this Starlark dialect does not ';
 
 // global options
 // These features are either not standard Starlark (yet), or deprecated
@@ -158,7 +159,7 @@ class Block {
     if (this.comp !== null) {
       return `comprehension block at ${this.comp.span()}`;
     }
-    return "file block";
+    return 'file block';
   }
 
   resolveLocalUses() {
@@ -312,11 +313,11 @@ class Resolver {
     let bind: Binding;
 
     console.log(
-      "this.file.bindings.has",
+      'this.file.bindings.has',
       this.file.bindings.has(id.Name),
       id.Name
     );
-    console.log("globals.has", this.globals.has(id.Name), id.Name);
+    console.log('globals.has', this.globals.has(id.Name), id.Name);
     console.log(this.isUniversal, this.isUniversal!(id.Name), id.Name);
 
     if (this.file.bindings.has(id.Name)) {
@@ -343,8 +344,8 @@ class Resolver {
       this.predeclared.set(id.Name, bind); // save it
     } else if (this.isUniversal && this.isUniversal!(id.Name)) {
       // use of universal name
-      if (!AllowSet && id.Name.toUpperCase() === "SET") {
-        this.errorf(id.NamePos, doesnt + "support sets");
+      if (!AllowSet && id.Name.toUpperCase() === 'SET') {
+        this.errorf(id.NamePos, doesnt + 'support sets');
       }
       bind = new Binding(Scope.Universal, 0, null);
       this.predeclared.set(id.Name, bind); // save it
@@ -383,7 +384,7 @@ class Resolver {
 
     if (stmt instanceof syntax.IfStmt) {
       if (!AllowGlobalReassign && this.container().func == null) {
-        this.errorf(stmt.ifPos, "if statement not within a function");
+        this.errorf(stmt.ifPos, 'if statement not within a function');
       }
       this.expr(stmt.cond);
       this.ifstmts++;
@@ -395,7 +396,7 @@ class Resolver {
 
     if (stmt instanceof syntax.AssignStmt) {
       this.expr(stmt.RHS);
-      const isAugmented = stmt.Op !== "=";
+      const isAugmented = stmt.Op !== '=';
       this.assign(stmt.LHS, isAugmented);
       return;
     }
@@ -420,7 +421,7 @@ class Resolver {
 
     if (stmt instanceof syntax.ForStmt) {
       if (!AllowGlobalReassign && this.container().func == null) {
-        this.errorf(stmt.For, "for loop not within a function");
+        this.errorf(stmt.For, 'for loop not within a function');
       }
       this.expr(stmt.X);
       const isAugmented = false;
@@ -434,10 +435,10 @@ class Resolver {
 
     if (stmt instanceof syntax.WhileStmt) {
       if (!AllowRecursion) {
-        this.errorf(stmt.While, doesnt + "support while loops");
+        this.errorf(stmt.While, doesnt + 'support while loops');
       }
       if (!AllowGlobalReassign && this.container().func == null) {
-        this.errorf(stmt.While, "while loop not within a function");
+        this.errorf(stmt.While, 'while loop not within a function');
       }
       this.expr(stmt.Cond);
       this.loops++;
@@ -449,7 +450,7 @@ class Resolver {
 
     if (stmt instanceof syntax.ReturnStmt) {
       if (this.container().func == null) {
-        this.errorf(stmt.Return!, "return statement not within a function");
+        this.errorf(stmt.Return!, 'return statement not within a function');
       }
       if (stmt.Result != null) {
         this.expr(stmt.Result);
@@ -461,23 +462,23 @@ class Resolver {
     if (stmt instanceof syntax.LoadStmt) {
       // A load statement may not be nested in any other statement.
       if (this.container().func !== null) {
-        this.errorf(stmt.Load, "load statement within a function");
+        this.errorf(stmt.Load, 'load statement within a function');
       } else if (this.loops > 0) {
-        this.errorf(stmt.Load, "load statement within a loop");
+        this.errorf(stmt.Load, 'load statement within a loop');
       } else if (this.ifstmts > 0) {
-        this.errorf(stmt.Load, "load statement within a conditional");
+        this.errorf(stmt.Load, 'load statement within a conditional');
       }
 
       for (let i = 0; i < stmt.From.length; i++) {
         const from = stmt.From[i];
-        if (from.Name === "") {
-          this.errorf(from.NamePos, "load: empty identifier");
+        if (from.Name === '') {
+          this.errorf(from.NamePos, 'load: empty identifier');
           continue;
         }
-        if (from.Name[0] === "_") {
+        if (from.Name[0] === '_') {
           this.errorf(
             from.NamePos,
-            "load: names with leading underscores are not exported:${from.Name}"
+            'load: names with leading underscores are not exported:${from.Name}'
           );
         }
 
@@ -488,14 +489,14 @@ class Resolver {
           // "Global" in AllowGlobalReassign is a misnomer for "toplevel".
           // Sadly we can't report the previous declaration
           // as id.Binding may not be set yet.
-          this.errorf(id.NamePos, "cannot reassign top-level ${id.Name}");
+          this.errorf(id.NamePos, 'cannot reassign top-level ${id.Name}');
         }
       }
 
       return;
     }
 
-    console.log("unreachable!!!");
+    console.log('unreachable!!!');
   }
 
   assign(lhs: syntax.Expr, isAugmented: boolean): void {
@@ -681,16 +682,16 @@ class Resolver {
         if (arg instanceof syntax.UnaryExpr && arg.Op == Token.STARSTAR) {
           // **kwargs
           if (seenKwargs) {
-            this.errorf(pos, "multiple **kwargs not allowed");
+            this.errorf(pos, 'multiple **kwargs not allowed');
           }
           seenKwargs = true;
           this.expr(arg);
         } else if (arg instanceof syntax.UnaryExpr && arg.Op == Token.STAR) {
           // *args
           if (seenKwargs) {
-            this.errorf(pos, "*args may not follow **kwargs");
+            this.errorf(pos, '*args may not follow **kwargs');
           } else if (seenVarargs) {
-            this.errorf(pos, "multiple *args not allowed");
+            this.errorf(pos, 'multiple *args not allowed');
           }
           seenVarargs = true;
           this.expr(arg);
@@ -698,9 +699,9 @@ class Resolver {
           // k=v
           n++;
           if (seenKwargs) {
-            this.errorf(pos, "keyword argument may not follow **kwargs");
+            this.errorf(pos, 'keyword argument may not follow **kwargs');
           } else if (seenVarargs) {
-            this.errorf(pos, "keyword argument may not follow *args");
+            this.errorf(pos, 'keyword argument may not follow *args');
           }
           const x = arg.X as syntax.Ident;
           if (seenName.has(x.Name)) {
@@ -713,11 +714,11 @@ class Resolver {
           // positional argument
           p++;
           if (seenVarargs) {
-            this.errorf(pos, "positional argument may not follow *args");
+            this.errorf(pos, 'positional argument may not follow *args');
           } else if (seenKwargs) {
-            this.errorf(pos, "positional argument may not follow **kwargs");
+            this.errorf(pos, 'positional argument may not follow **kwargs');
           } else if (seenName.size > 0) {
-            this.errorf(pos, "positional argument may not follow named");
+            this.errorf(pos, 'positional argument may not follow named');
           }
           this.expr(arg);
         }
@@ -738,7 +739,7 @@ class Resolver {
     if (e instanceof syntax.LambdaExpr) {
       let fn = new Function(
         e.lambda,
-        "lambda",
+        'lambda',
         e.params,
         [new syntax.ReturnStmt(e.span()[0], e.body)],
         false,
@@ -757,7 +758,7 @@ class Resolver {
       return;
     }
 
-    console.log("unreachable");
+    console.log('unreachable');
   }
 
   func(func: Function, pos: Position) {
@@ -792,7 +793,7 @@ class Resolver {
         } else if (seenOptional) {
           this.errorf(
             param.NamePos,
-            "required parameter may not follow optional"
+            'required parameter may not follow optional'
           );
         }
         if (this.bind(param)) {
@@ -831,13 +832,13 @@ class Resolver {
               `* parameter may not follow **${starStar.Name}`
             );
           } else if (star != null) {
-            this.errorf(param.OpPos, "multiple * parameters not allowed");
+            this.errorf(param.OpPos, 'multiple * parameters not allowed');
           } else {
             star = param;
           }
         } else {
           if (starStar != null) {
-            this.errorf(param.OpPos, "multiple ** parameters not allowed");
+            this.errorf(param.OpPos, 'multiple ** parameters not allowed');
           }
           starStar = param.X instanceof syntax.Ident ? param.X : null;
         }
@@ -863,7 +864,7 @@ class Resolver {
       } else if (numKwonlyParams === 0) {
         this.errorf(
           star.OpPos,
-          "bare * must be followed by keyword-only parameters"
+          'bare * must be followed by keyword-only parameters'
         );
       }
     }
@@ -901,7 +902,7 @@ class Resolver {
     // Is this the file block?
     if (env == this.file) {
       let a = this.useToplevel(use)!; // file-local, global, predeclared, or not found
-      console.log("~~~~~~~~~~~~~", use.id);
+      console.log('~~~~~~~~~~~~~', use.id);
       return a;
     }
 

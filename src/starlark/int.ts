@@ -1,6 +1,6 @@
-import { Token } from "../starlark-parser";
-import { Value } from "./value";
-import { Bool } from "./value";
+import { Token } from '../starlark-parser';
+import { Value } from './value';
+import { Bool } from './value';
 
 class IntImpl {
   // We use only the signed 32-bit range of small to ensure
@@ -35,8 +35,8 @@ function makeBigInt(x: BigInt): Int {
 
 const MinInt32 = -2147483648;
 const MaxInt32 = 2147483647;
-const minint64 = BigInt("-9223372036854775808");
-const maxint64 = BigInt("9223372036854775807");
+const minint64 = BigInt('-9223372036854775808');
+const maxint64 = BigInt('9223372036854775807');
 
 // Int is the type of a Starlark int.
 // The zero value is not a legal value; use MakeInt(0).
@@ -102,7 +102,7 @@ export class Int implements Value {
 
   // The math/big API should provide this function.
   BigIntToInt64(i: BigInt): [BigInt, number] {
-    throw Error("no");
+    throw Error('no');
     return [BigInt(0), 0];
     // let sign = i.Sign();
     // if (sign > 0) {
@@ -118,7 +118,7 @@ export class Int implements Value {
   }
 
   BigIntToUint64(i: BigInt): [BigInt, number] {
-    throw Error("no");
+    throw Error('no');
     // const sign = i.sign();
     // if (sign > 0) {
     //   if (i.bitLength() > 64) {
@@ -149,7 +149,7 @@ export class Int implements Value {
   }
 
   public Type(): string {
-    return "int";
+    return 'int';
   }
 
   public Freeze(): void {

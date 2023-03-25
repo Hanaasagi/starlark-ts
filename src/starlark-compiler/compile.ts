@@ -23,12 +23,11 @@
 //
 // Operands, logically uint32s, are encoded using little-endian 7-bit
 // varints, the top bit indicating that more bytes follow.
-
-import * as syntax from "../starlark-parser/syntax";
-import { Token } from "../starlark-parser";
-import * as resolve from "../resolve/resolve";
-import * as binding from "../resolve/binding";
-import { Position } from "../starlark-parser";
+import * as binding from '../resolve/binding';
+import * as resolve from '../resolve/resolve';
+import { Token } from '../starlark-parser';
+import { Position } from '../starlark-parser';
+import * as syntax from '../starlark-parser/syntax';
 
 // Disassemble causes the assembly code for each function
 // to be printed to stderr as it is generated.
@@ -119,79 +118,79 @@ export const OpcodeArgMin = Opcode.JMP;
 export const OpcodeMax = Opcode.CALL_VAR_KW;
 
 var opcodeNames = new Map<Opcode, string>([
-  [Opcode.AMP, "amp"],
-  [Opcode.APPEND, "append"],
-  [Opcode.ATTR, "attr"],
-  [Opcode.CALL, "call"],
-  [Opcode.CALL_KW, "call_kw "],
-  [Opcode.CALL_VAR, "call_var"],
-  [Opcode.CALL_VAR_KW, "call_var_kw"],
-  [Opcode.CIRCUMFLEX, "circumflex"],
-  [Opcode.CJMP, "cjmp"],
-  [Opcode.CONSTANT, "constant"],
-  [Opcode.DUP2, "dup2"],
-  [Opcode.DUP, "dup"],
-  [Opcode.EQL, "eql"],
-  [Opcode.EXCH, "exch"],
-  [Opcode.FALSE, "false"],
-  [Opcode.FREE, "free"],
-  [Opcode.FREECELL, "freecell"],
-  [Opcode.GE, "ge"],
-  [Opcode.GLOBAL, "global"],
-  [Opcode.GT, "gt"],
-  [Opcode.GTGT, "gtgt"],
-  [Opcode.IN, "in"],
-  [Opcode.INDEX, "index"],
-  [Opcode.INPLACE_ADD, "inplace_add"],
-  [Opcode.INPLACE_PIPE, "inplace_pipe"],
-  [Opcode.ITERJMP, "iterjmp"],
-  [Opcode.ITERPOP, "iterpop"],
-  [Opcode.ITERPUSH, "iterpush"],
-  [Opcode.JMP, "jmp"],
-  [Opcode.LE, "le"],
-  [Opcode.LOAD, "load"],
-  [Opcode.LOCAL, "local"],
-  [Opcode.LOCALCELL, "localcell"],
-  [Opcode.LT, "lt"],
-  [Opcode.LTLT, "ltlt"],
-  [Opcode.MAKEDICT, "makedict"],
-  [Opcode.MAKEFUNC, "makefunc"],
-  [Opcode.MAKELIST, "makelist"],
-  [Opcode.MAKETUPLE, "maketuple"],
-  [Opcode.MANDATORY, "mandatory"],
-  [Opcode.MINUS, "minus"],
-  [Opcode.NEQ, "neq"],
-  [Opcode.NONE, "none"],
-  [Opcode.NOP, "nop"],
-  [Opcode.NOT, "not"],
-  [Opcode.PERCENT, "percent"],
-  [Opcode.PIPE, "pipe"],
-  [Opcode.PLUS, "plus"],
-  [Opcode.POP, "pop"],
-  [Opcode.PREDECLARED, "predeclared"],
-  [Opcode.RETURN, "return"],
-  [Opcode.SETDICT, "setdict"],
-  [Opcode.SETDICTUNIQ, "setdictuniq"],
-  [Opcode.SETFIELD, "setfield"],
-  [Opcode.SETGLOBAL, "setglobal"],
-  [Opcode.SETINDEX, "setindex"],
-  [Opcode.SETLOCAL, "setlocal"],
-  [Opcode.SETLOCALCELL, "setlocalcell"],
-  [Opcode.SLASH, "slash"],
-  [Opcode.SLASHSLASH, "slashslash"],
-  [Opcode.SLICE, "slice"],
-  [Opcode.STAR, "star"],
-  [Opcode.TILDE, "tilde"],
-  [Opcode.TRUE, "true"],
-  [Opcode.UMINUS, "uminus"],
-  [Opcode.UNIVERSAL, "universal"],
-  [Opcode.UNPACK, "unpack"],
-  [Opcode.UPLUS, "uplus"],
+  [Opcode.AMP, 'amp'],
+  [Opcode.APPEND, 'append'],
+  [Opcode.ATTR, 'attr'],
+  [Opcode.CALL, 'call'],
+  [Opcode.CALL_KW, 'call_kw '],
+  [Opcode.CALL_VAR, 'call_var'],
+  [Opcode.CALL_VAR_KW, 'call_var_kw'],
+  [Opcode.CIRCUMFLEX, 'circumflex'],
+  [Opcode.CJMP, 'cjmp'],
+  [Opcode.CONSTANT, 'constant'],
+  [Opcode.DUP2, 'dup2'],
+  [Opcode.DUP, 'dup'],
+  [Opcode.EQL, 'eql'],
+  [Opcode.EXCH, 'exch'],
+  [Opcode.FALSE, 'false'],
+  [Opcode.FREE, 'free'],
+  [Opcode.FREECELL, 'freecell'],
+  [Opcode.GE, 'ge'],
+  [Opcode.GLOBAL, 'global'],
+  [Opcode.GT, 'gt'],
+  [Opcode.GTGT, 'gtgt'],
+  [Opcode.IN, 'in'],
+  [Opcode.INDEX, 'index'],
+  [Opcode.INPLACE_ADD, 'inplace_add'],
+  [Opcode.INPLACE_PIPE, 'inplace_pipe'],
+  [Opcode.ITERJMP, 'iterjmp'],
+  [Opcode.ITERPOP, 'iterpop'],
+  [Opcode.ITERPUSH, 'iterpush'],
+  [Opcode.JMP, 'jmp'],
+  [Opcode.LE, 'le'],
+  [Opcode.LOAD, 'load'],
+  [Opcode.LOCAL, 'local'],
+  [Opcode.LOCALCELL, 'localcell'],
+  [Opcode.LT, 'lt'],
+  [Opcode.LTLT, 'ltlt'],
+  [Opcode.MAKEDICT, 'makedict'],
+  [Opcode.MAKEFUNC, 'makefunc'],
+  [Opcode.MAKELIST, 'makelist'],
+  [Opcode.MAKETUPLE, 'maketuple'],
+  [Opcode.MANDATORY, 'mandatory'],
+  [Opcode.MINUS, 'minus'],
+  [Opcode.NEQ, 'neq'],
+  [Opcode.NONE, 'none'],
+  [Opcode.NOP, 'nop'],
+  [Opcode.NOT, 'not'],
+  [Opcode.PERCENT, 'percent'],
+  [Opcode.PIPE, 'pipe'],
+  [Opcode.PLUS, 'plus'],
+  [Opcode.POP, 'pop'],
+  [Opcode.PREDECLARED, 'predeclared'],
+  [Opcode.RETURN, 'return'],
+  [Opcode.SETDICT, 'setdict'],
+  [Opcode.SETDICTUNIQ, 'setdictuniq'],
+  [Opcode.SETFIELD, 'setfield'],
+  [Opcode.SETGLOBAL, 'setglobal'],
+  [Opcode.SETINDEX, 'setindex'],
+  [Opcode.SETLOCAL, 'setlocal'],
+  [Opcode.SETLOCALCELL, 'setlocalcell'],
+  [Opcode.SLASH, 'slash'],
+  [Opcode.SLASHSLASH, 'slashslash'],
+  [Opcode.SLICE, 'slice'],
+  [Opcode.STAR, 'star'],
+  [Opcode.TILDE, 'tilde'],
+  [Opcode.TRUE, 'true'],
+  [Opcode.UMINUS, 'uminus'],
+  [Opcode.UNIVERSAL, 'universal'],
+  [Opcode.UNPACK, 'unpack'],
+  [Opcode.UPLUS, 'uplus'],
 ]);
 
 export namespace Opcode {
   export function String(c: Opcode): string {
-    return opcodeNames.get(c) || "illegal op (${c})";
+    return opcodeNames.get(c) || 'illegal op (${c})';
   }
 }
 
@@ -455,7 +454,7 @@ class Pcomp {
     locals: binding.Binding[],
     freevars: binding.Binding[]
   ): Funcode {
-    console.log("=============Exec Pcomp func==================");
+    console.log('=============Exec Pcomp func==================');
     let fcomp = new Fcomp(
       this,
       pos,
@@ -488,7 +487,7 @@ class Pcomp {
     const entry = fcomp.newBlock();
     fcomp.block = entry;
     fcomp.stmts(stmts);
-    console.log("block is", fcomp.block);
+    console.log('block is', fcomp.block);
     if (fcomp.block !== null) {
       fcomp.emit(Opcode.NONE);
       fcomp.emit(Opcode.RETURN);
@@ -515,7 +514,7 @@ class Pcomp {
     let maxstack: number = 0;
 
     let visit = (b: Block) => {
-      console.log("visit", b.insns);
+      console.log('visit', b.insns);
       if (b.index >= 0) {
         return; // already visited
       }
@@ -528,7 +527,7 @@ class Pcomp {
         console.log(`${name} block ${b.index}: (stack = ${stack})`);
       }
       // Begin
-      console.log("PC is", pc);
+      console.log('PC is', pc);
       let cjmpAddr: number | null = null;
       let isiterjmp = 0;
       for (let i = 0; i < b.insns.length; i++) {
@@ -570,7 +569,7 @@ class Pcomp {
       // After
 
       if (debug) {
-        console.log("PC after", pc);
+        console.log('PC after', pc);
         console.log(`successors of block ${b.addr} (start=${b.index}):`);
         if (b.jmp) {
           console.log(`jmp to ${b.jmp.index}`);
@@ -616,11 +615,11 @@ class Pcomp {
       }
     };
     setinitialstack(entry, 0);
-    console.log("visit entry", entry);
+    console.log('visit entry', entry);
     visit(entry);
 
     const fn = fcomp.fn;
-    console.log("^^^^^^^^^^^^^^^^^^^^^", maxstack);
+    console.log('^^^^^^^^^^^^^^^^^^^^^', maxstack);
     fn.maxStack = maxstack;
 
     // Emit bytecode (and position table).
@@ -635,7 +634,7 @@ class Pcomp {
 
     // Don't panic until we've completed printing of the function.
     if (oops) {
-      throw new Error("internal error");
+      throw new Error('internal error');
     }
 
     if (debug) {
@@ -761,7 +760,7 @@ class Fcomp {
           }
 
           if (Disassemble) {
-            console.log("Disassemble todo");
+            console.log('Disassemble todo');
             // console.error(
             //   `\t\t\t\t\t; ${path.basename(this.fn.pos.filename())}:${insn.line
             //   }:${insn.col}`
@@ -799,7 +798,7 @@ class Fcomp {
     }
 
     if (code.length !== codelen) {
-      throw new Error("internal error: wrong code length");
+      throw new Error('internal error: wrong code length');
     }
 
     this.fn.pclinetab = pclinetab;
@@ -811,9 +810,9 @@ class Fcomp {
   }
 
   emit(op: Opcode): void {
-    console.log("EMIT", Opcode.String(op));
+    console.log('EMIT', Opcode.String(op));
     if (op >= OpcodeArgMin) {
-      throw new Error("missing arg: " + op.toString());
+      throw new Error('missing arg: ' + op.toString());
     }
 
     let insn: Insn = new Insn(
@@ -830,7 +829,7 @@ class Fcomp {
 
   emit1(op: Opcode, arg: number): void {
     if (op < OpcodeArgMin) {
-      throw new Error("unwanted arg: " + op.toString());
+      throw new Error('unwanted arg: ' + op.toString());
     }
     const insn: Insn = new Insn(op, arg, this.pos.line, this.pos.col);
     this.block?.insns.push(insn);
@@ -842,7 +841,7 @@ class Fcomp {
   // On return, the current block is unset.
   jump(b: Block) {
     if (b === this.block) {
-      throw new Error("self-jump"); // unreachable: Starlark has no arbitrary looping constructs
+      throw new Error('self-jump'); // unreachable: Starlark has no arbitrary looping constructs
     }
     this.block!.jmp = b;
     this.block = null;
@@ -854,7 +853,7 @@ class Fcomp {
   // On return, the current block is unset.
   condjump(op: Opcode, t: Block, f: Block) {
     if (!(op === Opcode.CJMP || op === Opcode.ITERJMP)) {
-      throw new Error("not a conditional jump: " + op.toString());
+      throw new Error('not a conditional jump: ' + op.toString());
     }
     this.emit1(op, 0); // fill in address later
     this.block!.cjmp = t;
@@ -888,7 +887,7 @@ class Fcomp {
         this.emit1(Opcode.SETGLOBAL, bind.index);
         break;
       default:
-        console.log("should panic here");
+        console.log('should panic here');
         // log.Panicf(
         //   `${id.NamePos}: set(${id.Name}): not global/local/cell (${bind.scope})`
         // );
@@ -898,7 +897,7 @@ class Fcomp {
 
   // lookup emits code to push the value of the specified variable.
   lookup(id: syntax.Ident): void {
-    console.log(">>>>", id.Binding);
+    console.log('>>>>', id.Binding);
     const bind = id.Binding as binding.Binding;
     if (bind.scope !== binding.Scope.Universal) {
       // (universal lookup can't fail)
@@ -1150,9 +1149,9 @@ class Fcomp {
   }
 
   assign(pos: Position, lhs: syntax.Expr): void {
-    console.log("-----");
+    console.log('-----');
     console.log(pos, lhs);
-    console.log("-----");
+    console.log('-----');
     if (lhs instanceof syntax.ParenExpr) {
       // (lhs) = rhs
       this.assign(pos, lhs.x);
@@ -1207,9 +1206,9 @@ class Fcomp {
   }
 
   expr(e: syntax.Expr) {
-    console.log("==========================");
+    console.log('==========================');
     console.log(e);
-    console.log("==========================");
+    console.log('==========================');
     if (e instanceof syntax.ParenExpr) {
       this.expr(e.x);
       return;
@@ -1519,7 +1518,7 @@ class Fcomp {
         break;
       default:
         console.log(`${pos}: unexpected binary op: ${op} `);
-        throw new Error("Unexpected binary op");
+        throw new Error('Unexpected binary op');
     }
   }
 
@@ -1579,7 +1578,7 @@ class Fcomp {
     // TODO: avoid this with a more flexible encoding.
     if (p >= 256 || n >= 256) {
       // resolve already checked this; should be unreachable
-      throw new Error("too many arguments in call");
+      throw new Error('too many arguments in call');
     }
 
     return [Opcode.CALL + callmode, (p << 8) | n];
@@ -1901,15 +1900,15 @@ export function File(
 
 function docStringFromBody(body: syntax.Stmt[]): string {
   if (body.length === 0) {
-    return "";
+    return '';
   }
   const expr = body[0] as syntax.ExprStmt;
   if (!expr) {
-    return "";
+    return '';
   }
   const lit = expr.X as syntax.Literal;
   if (!lit || lit.token !== Token.STRING) {
-    return "";
+    return '';
   }
   return lit.value as string;
 }
@@ -1960,11 +1959,11 @@ export function PrintOp(
     return;
   }
 
-  let comment = "";
+  let comment = '';
   switch (op) {
     case Opcode.CONSTANT:
       const constant = fn.prog.constants[arg];
-      if (typeof constant === "string") {
+      if (typeof constant === 'string') {
         comment = JSON.stringify(constant);
         // FIXME:
         // } else if (constant instanceof Bytes) {
@@ -2006,10 +2005,10 @@ export function PrintOp(
   }
   const buf = new Array<string>();
   buf.push(`\t${pc} \t${Opcode.String(op)} \t${arg} `);
-  if (comment !== "") {
+  if (comment !== '') {
     buf.push(`\t; ${comment} `);
   }
-  console.log(buf.join(""));
+  console.log(buf.join(''));
 }
 
 class Summand {
@@ -2027,18 +2026,18 @@ class Summand {
 function addable(e: syntax.Expr): string | null {
   if (e instanceof syntax.Literal) {
     if (e.token === Token.STRING) {
-      return "s";
+      return 's';
     } else if (e.token === Token.BYTES) {
-      return "b";
+      return 'b';
     }
   }
   if (e instanceof syntax.ListExpr) {
-    return "l";
+    return 'l';
   }
   if (e instanceof syntax.TupleExpr) {
-    return "t";
+    return 't';
   }
-  return "";
+  return '';
 }
 
 // add returns an expression denoting the sum of args,
@@ -2046,16 +2045,16 @@ function addable(e: syntax.Expr): string | null {
 // The resulting syntax is degenerate, lacking position, etc.
 function add(code: string, args: Summand[]): syntax.Expr {
   switch (code) {
-    case "s":
-    case "b": {
-      let buf = "";
+    case 's':
+    case 'b': {
+      let buf = '';
       for (const arg of args) {
-        buf += arg.x instanceof syntax.Literal ? arg.x.value : "";
+        buf += arg.x instanceof syntax.Literal ? arg.x.value : '';
       }
-      const tok = code === "b" ? Token.BYTES : Token.STRING;
+      const tok = code === 'b' ? Token.BYTES : Token.STRING;
       return new syntax.Literal(tok, null, buf, buf);
     }
-    case "l": {
+    case 'l': {
       let elems: syntax.Expr[] = [];
       for (const arg of args) {
         elems = elems.concat(
@@ -2064,7 +2063,7 @@ function add(code: string, args: Summand[]): syntax.Expr {
       }
       return new syntax.ListExpr(null, elems, null);
     }
-    case "t": {
+    case 't': {
       let elems: syntax.Expr[] = [];
       for (const arg of args) {
         elems = elems.concat(
@@ -2074,7 +2073,7 @@ function add(code: string, args: Summand[]): syntax.Expr {
       return { List: elems } as syntax.TupleExpr;
     }
   }
-  throw new Error("Unsupported code: " + code);
+  throw new Error('Unsupported code: ' + code);
 }
 
 function unparen(e: syntax.Expr): syntax.Expr {

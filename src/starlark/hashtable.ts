@@ -1,15 +1,15 @@
-import { Value } from "./value";
-import { Equal } from "./value";
-import { None } from "./value";
-import { Tuple } from "./value";
+import { Value } from './value';
+import { Equal } from './value';
+import { None } from './value';
+import { Tuple } from './value';
 
 // noCopy is zero-sized type that triggers vet's copylock check.
 // See https://github.com/golang/go/issues/8005#issuecomment-190753527.
 class noCopy {
-  constructor() { }
+  constructor() {}
 
-  Lock(): void { }
-  Unlock(): void { }
+  Lock(): void {}
+  Unlock(): void {}
 }
 
 const bucketSize = 8;
@@ -88,7 +88,7 @@ export class Hashtable {
 
   private init(size: number): void {
     if (size < 0) {
-      throw new Error("size < 0");
+      throw new Error('size < 0');
     }
     let nb = 1;
     while (overloaded(size, nb)) {
@@ -123,7 +123,7 @@ export class Hashtable {
   }
 
   insert(k: Value, v: Value): Error | null {
-    let err = this.checkMutable("insert into");
+    let err = this.checkMutable('insert into');
     if (err != null) {
       return err;
     }
@@ -189,12 +189,12 @@ export class Hashtable {
       // console.log("*********************", this_);
       return null;
     }
-    console.log("START DEBUG HashTable ===============");
+    console.log('START DEBUG HashTable ===============');
     console.log(this);
     // @ts-ignore
     insertImpl(this);
     console.log(this);
-    console.log("END DEBUG HashTable ===============");
+    console.log('END DEBUG HashTable ===============');
     return null;
   }
 
@@ -285,7 +285,7 @@ export class Hashtable {
   delete(k: Value): [Value | null, boolean, Error | null] {
     let err: Error | null;
 
-    err = this.checkMutable("delete from");
+    err = this.checkMutable('delete from');
     if (err) {
       return [null, false, err];
     }
@@ -352,8 +352,8 @@ export class Hashtable {
 
   // clear removes all elements from the hash table.
   clear(): Error | null {
-    if (this.checkMutable("clear") !== null) {
-      return new Error(this.checkMutable("clear")?.message);
+    if (this.checkMutable('clear') !== null) {
+      return new Error(this.checkMutable('clear')?.message);
     }
     if (this.table !== null) {
       for (let i = 0; i < this.table.length; i++) {

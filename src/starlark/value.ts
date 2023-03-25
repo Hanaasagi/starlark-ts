@@ -1,11 +1,19 @@
 // import syntax = require("../syntax");
 // BUG:
 // import * as syntax from "../syntax/syntax";
-import { Position } from "../starlark-parser";
-import { signum } from "./eval";
-import * as compile from "../starlark-compiler/compile";
-import { hashString, Hashtable } from "./hashtable";
-import { mandatory } from "./interpreter";
+import * as compile from '../starlark-compiler/compile';
+import { Position } from '../starlark-parser';
+import { Token } from '../starlark-parser';
+import { signum } from './eval';
+// ------------------------------------------------------
+// ------------------------Library
+// ------------------------------------------------------
+import { Thread } from './eval';
+import { Hashtable, hashString } from './hashtable';
+// import { hashString } from "./hashtable";
+// import { toString } from "./value";
+import { AsInt32, Int, MakeInt } from './int';
+import { mandatory } from './interpreter';
 
 // Starlark values are represented by the Value interface.
 // The following built-in Value types are known to the evaluator:
@@ -207,7 +215,7 @@ export interface Mapping extends Value {
 }
 
 export function isMapping(v: Value): v is Mapping {
-  if ("get" in v && typeof v.get == "function") {
+  if ('get' in v && typeof v.get == 'function') {
     return true;
   }
   return false;
@@ -277,10 +285,10 @@ class NoneType implements Value {
   constructor() {}
 
   String(): string {
-    return "None";
+    return 'None';
   }
   Type(): string {
-    return "NoneType";
+    return 'NoneType';
   }
 
   Freeze() {}
@@ -303,13 +311,13 @@ export class Bool implements Comparable {
 
   String(): string {
     if (this.val) {
-      return "True";
+      return 'True';
     }
-    return "False";
+    return 'False';
   }
 
   Type(): string {
-    return "bool";
+    return 'bool';
   }
 
   Freeze() {}
@@ -343,7 +351,7 @@ export class Float implements Comparable {
   }
 
   Type(): string {
-    return "float";
+    return 'float';
   }
 
   Freeze() {}
@@ -452,7 +460,7 @@ export class String implements Comparable, HasAttrs {
   }
 
   Type(): string {
-    return "string";
+    return 'string';
   }
 
   Freeze() {}
@@ -487,7 +495,7 @@ export class String implements Comparable, HasAttrs {
       buf.push(this.val[i]);
     }
 
-    return new String(buf.join(""));
+    return new String(buf.join(''));
   }
 
   attr(name: string): [Value, Error | null] {
@@ -506,10 +514,10 @@ export class String implements Comparable, HasAttrs {
 
 function AsString(x: Value): [string, boolean] {
   // BUG:
-  if (typeof x === "string") {
+  if (typeof x === 'string') {
     return [x, true];
   }
-  return ["", false];
+  return ['', false];
 }
 
 // A stringElems is an iterable whose iterator yields a sequence of
@@ -526,14 +534,14 @@ class StringElems {
 
   toString(): string {
     if (this.ords) {
-      return this.s + ".elem_ords()";
+      return this.s + '.elem_ords()';
     } else {
-      return this.s + ".elems()";
+      return this.s + '.elems()';
     }
   }
 
   Type(): string {
-    return "string.elems";
+    return 'string.elems';
   }
 
   Freeze(): void {} // immutable
@@ -614,7 +622,7 @@ class stringCodepoints {
   }
 
   Type(): string {
-    return "string.codepoints";
+    return 'string.codepoints';
   }
 
   Freeze(): void {} // immutable
@@ -706,7 +714,7 @@ export class Function implements Value {
   }
 
   Type(): string {
-    return "function";
+    return 'function';
   }
 
   Truth(): Bool {
@@ -867,7 +875,7 @@ export class Builtin implements Value {
   }
 
   Type(): string {
-    return "builtin_function_or_method";
+    return 'builtin_function_or_method';
   }
 
   CallInternal(thread: Thread, args: Tuple, kwargs: Tuple[]): Value | Error {
@@ -950,7 +958,7 @@ export class Dict implements Value {
 
   // type returns the string "dict".
   public Type(): string {
-    return "dict";
+    return 'dict';
   }
 
   // freeze makes the dictionary immutable.
@@ -965,7 +973,7 @@ export class Dict implements Value {
 
   // hash returns an error because dictionaries are not hashable.
   public Hash(): [number, Error | null] {
-    return [0, new Error("unhashable type: dict")];
+    return [0, new Error('unhashable type: dict')];
   }
 
   // union returns a new dictionary that is the union of two dictionaries.
@@ -1068,10 +1076,10 @@ export class List implements Value {
     return toString(this);
   }
   public Type(): string {
-    return "list";
+    return 'list';
   }
   public Hash(): [number, Error | null] {
-    return [0, new Error("unhashable type: list")];
+    return [0, new Error('unhashable type: list')];
   }
   public Truth(): Bool {
     return new Bool(this.Len() > 0);
@@ -1124,7 +1132,7 @@ export class List implements Value {
   }
 
   public SetIndex(i: number, v: Value): Error | null {
-    const err = this.checkMutable("assign to element of");
+    const err = this.checkMutable('assign to element of');
     if (err !== null) {
       return err;
     }
@@ -1133,7 +1141,7 @@ export class List implements Value {
   }
 
   public Append(v: Value): Error | null {
-    const err = this.checkMutable("append to");
+    const err = this.checkMutable('append to');
     if (err !== null) {
       return err;
     }
@@ -1142,7 +1150,7 @@ export class List implements Value {
   }
 
   public Clear(): Error | null {
-    const err = this.checkMutable("clear");
+    const err = this.checkMutable('clear');
     if (err !== null) {
       return err;
     }
@@ -1256,7 +1264,7 @@ export class Tuple implements Value {
   }
 
   Type(): string {
-    return "tuple";
+    return 'tuple';
   }
 
   Truth(): Bool {
@@ -1341,7 +1349,7 @@ export class Set implements Value {
   }
 
   Type(): string {
-    return "set";
+    return 'set';
   }
 
   elems(): Value[] {
@@ -1353,7 +1361,7 @@ export class Set implements Value {
   }
 
   Hash(): [number, Error | null] {
-    return [0, new Error("unhashable type: set")];
+    return [0, new Error('unhashable type: set')];
   }
 
   Truth(): Bool {
@@ -1431,7 +1439,7 @@ export function toString(v: Value): string {
 // It is safe to re-use the same path slice for multiple calls.
 function writeValue(out: string[], x: Value, path: Value[]): void {
   if (x instanceof NoneType) {
-    out.push("None");
+    out.push('None');
     return;
   }
 
@@ -1441,9 +1449,9 @@ function writeValue(out: string[], x: Value, path: Value[]): void {
   }
   if (x instanceof Bool) {
     if (x.val) {
-      out.push("True");
+      out.push('True');
     } else {
-      out.push("False");
+      out.push('False');
     }
 
     return;
@@ -1456,33 +1464,33 @@ function writeValue(out: string[], x: Value, path: Value[]): void {
   }
 
   if (x instanceof List) {
-    out.push("[");
+    out.push('[');
     if (pathContains(path, x)) {
-      out.push("..."); // list contains itself
+      out.push('...'); // list contains itself
     } else {
       for (let i = 0; i < x.elems.length; i++) {
         if (i > 0) {
-          out.push(", ");
+          out.push(', ');
         }
         writeValue(out, x.elems[i], path.concat(x));
       }
     }
-    out.push("]");
+    out.push(']');
     return;
   }
 
   if (x instanceof Tuple) {
-    out.push("(");
+    out.push('(');
     for (let i = 0; i < x.Len(); i++) {
       if (i > 0) {
-        out.push(", ");
+        out.push(', ');
       }
       writeValue(out, x.index(i), path);
     }
     if (x.Len() === 1) {
-      out.push(",");
+      out.push(',');
     }
-    out.push(")");
+    out.push(')');
     return;
   }
 
@@ -1500,34 +1508,34 @@ function writeValue(out: string[], x: Value, path: Value[]): void {
   }
 
   if (x instanceof Dict) {
-    out.push("{");
+    out.push('{');
     if (pathContains(path, x)) {
-      out.push("..."); // dict contains itself
+      out.push('...'); // dict contains itself
     } else {
-      let sep = "";
+      let sep = '';
       for (let e = x.ht.head; e !== null; e = e.next) {
         let k = e.key;
         let v = e.value;
         out.push(sep);
         writeValue(out, k, path);
-        out.push(": ");
+        out.push(': ');
         writeValue(out, v, path.concat(x)); // cycle check
-        sep = ", ";
+        sep = ', ';
       }
     }
-    out.push("}");
+    out.push('}');
     return;
   }
 
   if (x instanceof Set) {
-    out.push("set([");
+    out.push('set([');
     for (let i = 0; i < x.elems().length; i++) {
       if (i > 0) {
-        out.push(", ");
+        out.push(', ');
       }
       writeValue(out, x.elems()[i], path);
     }
-    out.push("])");
+    out.push('])');
     return;
   }
 
@@ -1597,11 +1605,11 @@ export function CompareDepth(
   depth: number
 ): [boolean, Error | null] {
   if (depth < 1) {
-    return [false, new Error("comparison exceeded maximum recursion depth")];
+    return [false, new Error('comparison exceeded maximum recursion depth')];
   }
   if (sameType(x, y)) {
     // TODO:?
-    if ("CompareSameType" in x) {
+    if ('CompareSameType' in x) {
       return (x as Comparable).CompareSameType(op, y, depth);
     }
 
@@ -1696,7 +1704,7 @@ function b2i(b: boolean): number {
 }
 
 export function Len(x: Value): number {
-  if ("Len" in x) {
+  if ('Len' in x) {
     // @ts-ignore
     return x.Len();
   }
@@ -1709,7 +1717,7 @@ export function Len(x: Value): number {
 // Warning: Iterate(x) != nil does not imply Len(x) >= 0.
 // Some iterables may have unknown length.
 export function Iterate(x: Value): Iterator | null {
-  if ("Iterate" in x) {
+  if ('Iterate' in x) {
     //@ts-ignore
     return x.Iterate();
   }
@@ -1735,7 +1743,7 @@ export class Bytes implements Value, Comparable, Sliceable, Indexable {
   }
 
   Type(): string {
-    return "bytes";
+    return 'bytes';
   }
 
   Freeze(): void {} // immutable
@@ -1770,7 +1778,7 @@ export class Bytes implements Value, Comparable, Sliceable, Indexable {
     }
 
     const sign = signum(step);
-    let str = "";
+    let str = '';
     for (let i = start; signum(end - i) === sign; i += step) {
       str += this.value[i];
     }
@@ -1786,14 +1794,6 @@ export class Bytes implements Value, Comparable, Sliceable, Indexable {
   }
 }
 
-// ------------------------------------------------------
-// ------------------------Library
-// ------------------------------------------------------
-import { Thread } from "./eval";
-import { Token } from "../starlark-parser";
-// import { hashString } from "./hashtable";
-// import { toString } from "./value";
-import { AsInt32, MakeInt, Int } from "./int";
 // import * as syntax from "../syntax/syntax";
 
 export var bytesMethods: Map<string, Builtin> = new Map([
@@ -1892,9 +1892,9 @@ function print(
   args: Tuple,
   kwargs: Tuple[]
 ): [Value, Error | null] {
-  console.error("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
-  console.error("<<<< print is not impl but i can give you", args);
-  let sep = " ";
+  console.error('<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<');
+  console.error('<<<< print is not impl but i can give you', args);
+  let sep = ' ';
   // const err = UnpackArgs("print", null, kwargs, "sep?", sep);
   // if (err) {
   //   return [null, err];
@@ -1916,7 +1916,7 @@ function print(
   // }
 
   // console.log(buf.join(""));
-  console.error("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
+  console.error('<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<');
   return [None, null];
 
   // const s = buf.String();
@@ -1981,7 +1981,7 @@ export class RangeValue implements Value {
   }
 
   Type(): string {
-    return "range";
+    return 'range';
   }
 
   Truth(): Bool {
@@ -1989,7 +1989,7 @@ export class RangeValue implements Value {
   }
 
   Hash(): [number, Error | null] {
-    return [0, new Error("unhashable: range")];
+    return [0, new Error('unhashable: range')];
   }
 
   CompareSameType(op: Token, y: Value, depth: number): [boolean, Error | null] {
@@ -2045,7 +2045,7 @@ export function rangeLen(start: number, stop: number, step: number): number {
       return Math.floor((start - 1 - stop) / -step) + 1;
     }
   } else {
-    throw new Error("rangeLen: zero step");
+    throw new Error('rangeLen: zero step');
   }
   return 0;
 }
@@ -2108,7 +2108,7 @@ export class StringDict {
     // }
     // buf.writeChar('}');
     // return buf.toString();
-    return "a string dict";
+    return 'a string dict';
   }
 
   freeze(): void {
@@ -2122,7 +2122,7 @@ export class StringDict {
   }
 }
 
-export { Universe } from "./builtin";
+export { Universe } from './builtin';
 // export var Universe = new StringDict([
 //   ["print", new Builtin("print", print, null)],
 // ]);
