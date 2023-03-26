@@ -3,7 +3,7 @@
 import { parse } from './starlark-parser';
 import { ExecFile } from './starlark/eval';
 import { Thread } from './starlark/eval';
-import { StringDict } from './starlark/value';
+import { StringDict } from './starlark/values';
 
 // console.log(
 //   parse("/home/kumiko/starlark-ts/tests/testcases/parse/action.star", null, 0)

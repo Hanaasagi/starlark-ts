@@ -8,13 +8,13 @@ import { Call, Thread } from './eval';
 import { getAttr, getIndex, setArgs, setField, setIndex, slice } from './eval';
 import { Binary, Unary } from './eval';
 import { listExtend } from './eval';
-import { Callable, Function, Module, Tuple } from './value';
-import { Iterable, List } from './value';
-import { Compare, Value } from './value';
-import { Universe } from './value';
-import { Dict, Iterator, String } from './value';
-import { Bool, False, Iterate, None, True } from './value';
-import { IterableMapping } from './value';
+import { Universe } from './stdlib';
+import { IterableMapping } from './values';
+import { Callable, Function, Module, Tuple } from './values';
+import { Iterable, List } from './values';
+import { Compare, Value } from './values';
+import { Dict, Iterator, String } from './values';
+import { Bool, False, Iterate, None, True } from './values';
 
 // This file defines the bytecode interpreter.
 
@@ -468,7 +468,7 @@ export function CallInternal(
         break;
       }
       case Opcode.NOT:
-        stack[sp - 1] = stack[sp - 1].Truth().val == true ? True : None;
+        stack[sp - 1] = stack[sp - 1].Truth() == true ? True : None;
         break;
 
       case Opcode.SETINDEX: {
@@ -606,7 +606,7 @@ export function CallInternal(
       }
 
       case Opcode.CJMP:
-        if (stack[sp - 1].Truth().val) {
+        if (stack[sp - 1].Truth()) {
           pc = arg;
         }
         sp--;
@@ -824,8 +824,8 @@ export class mandatory implements Value {
     return 'mandatory';
   }
   public Freeze(): void {} // immutable
-  public Truth(): Bool {
-    return False;
+  public Truth(): boolean {
+    return false;
   }
   public Hash(): [number, Error | null] {
     return [0, null];
@@ -838,7 +838,7 @@ export class mandatory implements Value {
 // Cells are always accessed using indirect {FREE,LOCAL,SETLOCAL}CELL instructions.
 // The FreeVars tuple contains only cells.
 // The FREE instruction always yields a cell.
-class cell {
+class cell implements Value {
   public v: Value;
   constructor(v: Value) {
     this.v = v;
@@ -854,7 +854,7 @@ class cell {
       this.v.Freeze();
     }
   }
-  public Truth(): Bool {
+  public Truth(): boolean {
     throw new Error('unreachable');
   }
   public Hash(): [number, Error | null] {

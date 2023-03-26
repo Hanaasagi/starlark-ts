@@ -1,3 +1,5 @@
+import { b2i } from './common';
+
 // Nearest returns the element of candidates
 // nearest to x using the Levenshtein metric,
 // or "" if none were promising.
@@ -76,8 +78,4 @@ function levenshtein(x: string, y: string, max: number): number {
     }
   }
   return row[y.length];
-}
-
-function b2i(b: boolean): number {
-  return b ? 1 : 0;
 }

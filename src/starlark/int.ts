@@ -1,6 +1,6 @@
 import { Token } from '../starlark-parser';
-import { Value } from './value';
-import { Bool } from './value';
+import { Value } from './values';
+import { Bool } from './values';
 
 class IntImpl {
   // We use only the signed 32-bit range of small to ensure
@@ -156,8 +156,8 @@ export class Int implements Value {
     // Immutable.
   }
 
-  public Truth(): Bool {
-    return new Bool(this.Sign() !== 0);
+  public Truth(): boolean {
+    return this.Sign() !== 0;
   }
 
   public Hash(): [number, Error | null] {

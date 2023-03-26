@@ -1,7 +1,7 @@
-import { Value } from './value';
-import { Equal } from './value';
-import { None } from './value';
-import { Tuple } from './value';
+import { Value } from './values';
+import { Equal } from './values';
+import { None } from './values';
+import { Tuple } from './values';
 
 // noCopy is zero-sized type that triggers vet's copylock check.
 // See https://github.com/golang/go/issues/8005#issuecomment-190753527.

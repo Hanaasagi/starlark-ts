@@ -10,18 +10,19 @@ import { AsInt32, MakeBigInt, MakeInt64 } from './int';
 import { Int } from './int';
 import { CallInternal } from './interpreter';
 import { mandatory } from './interpreter';
-import { Callable, Equal, Function, Module, String, Tuple } from './value';
-import { Bytes } from './value';
-import { Iterable, List } from './value';
-import { Value } from './value';
-import { Builtin, StringDict, Universe } from './value';
-import { Bool } from './value';
-import { Dict } from './value';
-import { Float } from './value';
-import { Mapping, isMapping } from './value';
-import { Set } from './value';
-import { False, True } from './value';
-import { RangeValue } from './value';
+import { Universe } from './stdlib';
+import { Callable, Equal, Function, Module, String, Tuple } from './values';
+import { Bytes } from './values';
+import { Iterable, List } from './values';
+import { Value } from './values';
+import { Builtin, StringDict } from './values';
+import { Bool } from './values';
+import { Dict } from './values';
+import { Float } from './values';
+import { Mapping, isMapping } from './values';
+import { Set } from './values';
+import { False, True } from './values';
+import { RangeValue } from './values';
 
 // import {*} from "./value"
 
@@ -175,7 +176,7 @@ class Frame {
   }
 
   asCallFrame(): CallFrame {
-    return new CallFrame(this.Callable().name(), this.Position());
+    return new CallFrame(this.Callable().Name(), this.Position());
   }
 }
 
@@ -1101,7 +1102,7 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
       if (z instanceof Error) {
         return z;
       }
-      return new Bool(!z.Truth().val);
+      return new Bool(!z.Truth());
     }
 
     case Token.IN: {
@@ -1599,8 +1600,10 @@ export function setArgs(
   if (args.Len() > nonkwonly) {
     if (!fn.HasVarargs()) {
       throw new Error(
-        `function ${fn.Name()} accepts ${fn.defaults.Len() > fn.NumKwonlyParams() ? 'at most ' : ''
-        }${nonkwonly} positional argument${nonkwonly === 1 ? '' : 's'
+        `function ${fn.Name()} accepts ${
+          fn.defaults.Len() > fn.NumKwonlyParams() ? 'at most ' : ''
+        }${nonkwonly} positional argument${
+          nonkwonly === 1 ? '' : 's'
         } (${args.Len()} given)`
       );
     }
@@ -1679,7 +1682,8 @@ export function setArgs(
 
     if (missing.length !== 0) {
       return new Error(
-        `function ${fn.Name()} missing ${missing.length} argument${missing.length > 1 ? 's' : ''
+        `function ${fn.Name()} missing ${missing.length} argument${
+          missing.length > 1 ? 's' : ''
         }(${missing.join(', ')})`
       );
     }
