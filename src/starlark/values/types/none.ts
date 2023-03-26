@@ -3,7 +3,9 @@ import { Value } from './interface';
 // NoneType is the type of None.  Its only legal value is None.
 // (We represent it as a number, not struct{}, so that None may be constant.)
 export class NoneType implements Value {
-  constructor() { }
+  constructor() {
+    // no need
+  }
 
   String(): string {
     return 'None';
@@ -12,7 +14,9 @@ export class NoneType implements Value {
     return 'NoneType';
   }
 
-  Freeze() { }
+  Freeze() {
+    // no need
+  }
 
   Truth(): boolean {
     return false;

@@ -127,7 +127,7 @@ export interface Comparable extends Value {
   // Client code should not call this method. Instead, use the
   // standalone Compare or Equals functions, which are defined for
   // all pairs of operands.
-  CompareSameType(op: Token, y: Value, depth: number): [boolean, Error];
+  CompareSameType(op: Token, y: Value, depth: number): [boolean, Error | null];
 }
 
 // A Callable value f may be the operand of a function call, f(x).

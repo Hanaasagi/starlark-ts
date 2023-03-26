@@ -9,6 +9,8 @@ import { NoneType } from './values';
 
 // import { AsInt } from './value';
 
+var debug = require('debug')('unpack');
+
 interface Unpacker {
   unpack(v: Value): Result<Value, Error>;
 }
@@ -300,8 +302,8 @@ function unpackOneArg<T>(v: Value, dst: T): Result<T, Error> {
   if (!dst) {
     return Ok(dst);
   }
-  console.log('UNPACK');
-  console.log(v, dst);
+  debug('UNPACK');
+  debug(v, dst);
   // TODO:?
   if (isUnpacker(dst)) {
     // TODO:

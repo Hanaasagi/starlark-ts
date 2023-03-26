@@ -39,7 +39,7 @@ export class Thread {
   public stack: Frame[] = [];
 
   // Print is the client-supplied implementation of the Starlark
-  // 'print' function. If nil, console.log(msg) is
+  // 'print' function. If nil, debug(msg) is
   // used instead.
   public Print: (thread: Thread, msg: string) => void;
 
@@ -842,7 +842,7 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
 
         if (y instanceof Bytes) {
           // TODO:
-          console.log('TODO: eval.ts binary bytes');
+          debug('TODO: eval.ts binary bytes');
           // return bytesRepeat(y, x);
         }
 
@@ -880,7 +880,7 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
       }
 
       if (x instanceof Bytes) {
-        console.log('TODO: eval.ts binary x bytes');
+        debug('TODO: eval.ts binary x bytes');
       }
 
       if (x instanceof List) {
@@ -1363,7 +1363,7 @@ export function Call(
   // pass through the interpreter without leaving
   // it in a bad state.
   try {
-    // console.log(c, c.callInternal);
+    // debug(c, c.callInternal);
     // let [result, err] = c.callInternal(thread, args, kwargs);
     // TODO:
     let result;
@@ -1374,8 +1374,8 @@ export function Call(
     } else {
       [result, err] = CallInternal(fn as Function, thread, args, kwargs);
     }
-    console.log('result ' + (fn instanceof Builtin) + '>>>>>>>>>>> ');
-    console.log(result);
+    debug('result ' + (fn instanceof Builtin) + '>>>>>>>>>>> ');
+    debug(result);
 
     // TODO: IMPORANT uncommented this, current is type reason
     // Sanity check: null is not a valid Starlark value.
@@ -1582,7 +1582,7 @@ export function setArgs(
 
   // Define the number of non-kwonly parameters
   const nonkwonly: number = nparams - fn.NumKwonlyParams();
-  console.log(
+  debug(
     'SETARGS nparams=',
     nparams,
     'args.len()=',

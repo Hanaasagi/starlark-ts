@@ -3,6 +3,8 @@ import { Equal } from './values';
 import { None } from './values';
 import { Tuple } from './values';
 
+var debug = require('debug')('hashtable');
+
 // noCopy is zero-sized type that triggers vet's copylock check.
 // See https://github.com/golang/go/issues/8005#issuecomment-190753527.
 class noCopy {
@@ -186,15 +188,15 @@ export class Hashtable {
       this_.tailLink = insert.next;
 
       this_.len++;
-      // console.log("*********************", this_);
+      // debug("*********************", this_);
       return null;
     }
-    console.log('START DEBUG HashTable ===============');
-    console.log(this);
+    debug('START DEBUG HashTable ===============');
+    debug(this);
     // @ts-ignore
     insertImpl(this);
-    console.log(this);
-    console.log('END DEBUG HashTable ===============');
+    debug(this);
+    debug('END DEBUG HashTable ===============');
     return null;
   }
 
@@ -382,28 +384,28 @@ export class Hashtable {
   // TODO:
   // // dump is provided as an aid to debugging.
   // dump() {
-  //   console.log(
+  //   debug(
   //     `hashtable ${this} len=${this.len} head=${this.head} tailLink=${this.tailLink}`
   //   );
   //   if (this.tailLink !== null) {
-  //     console.log(` *tailLink=${this.tailLink}`);
+  //     debug(` *tailLink=${this.tailLink}`);
   //   }
-  //   console.log();
+  //   debug();
   //   for (let j = 0; j < this.table.length; j++) {
-  //     console.log(`bucket chain ${j}`);
+  //     debug(`bucket chain ${j}`);
   //     let p = this.table[j];
   //     while (p != null) {
-  //       console.log(`bucket ${p}`);
+  //       debug(`bucket ${p}`);
   //       for (let i = 0; i < p.entries.length; i++) {
   //         let e = p.entries[i];
-  //         console.log(
+  //         debug(
   //           `\tentry ${i} @ ${e} hash=${e.hash} key=${e.key} value=${e.value}`
   //         );
-  //         console.log(`\t\tnext=${e.next} &next=${e.next} prev=${e.prevLink}`);
+  //         debug(`\t\tnext=${e.next} &next=${e.next} prev=${e.prevLink}`);
   //         if (e.prevLink !== null) {
-  //           console.log(` *prev=${e.prevLink}`);
+  //           debug(` *prev=${e.prevLink}`);
   //         }
-  //         console.log();
+  //         debug();
   //       }
   //       p = p.next;
   //     }

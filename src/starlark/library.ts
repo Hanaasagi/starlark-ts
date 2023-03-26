@@ -105,7 +105,7 @@
 //   args: Tuple,
 //   kwargs: Tuple[]
 // ): [Value, Error | null] {
-//   console.log("print is not impl");
+//   debug("print is not impl");
 //   return [b, null];
 //   // let sep = " ";
 //   // const err = UnpackArgs("print", null, kwargs, "sep?", sep);
@@ -132,7 +132,7 @@
 //   // if (thread.Print !== null) {
 //   //   thread.Print(thread, s);
 //   // } else {
-//   //   console.log(s);
+//   //   debug(s);
 //   // }
 //   // return [None, null];
 // }

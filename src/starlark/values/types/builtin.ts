@@ -4,7 +4,7 @@ import { toString } from './common';
 import { Value } from './interface';
 import { Tuple } from './tuple';
 
-// A Builtin is a function implemented in TypeScript.
+// A Builtin is a starlark function implemented in TypeScript.
 export class Builtin implements Value {
   name: string;
   fn: (
@@ -81,6 +81,6 @@ export class Builtin implements Value {
   // "abc".index("a")
   //
   BindReceiver(recv: Value): Builtin {
-    return new Builtin(this.name, this.fn, this.recv);
+    return new Builtin(this.name, this.fn, recv);
   }
 }

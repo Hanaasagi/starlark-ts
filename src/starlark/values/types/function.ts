@@ -36,7 +36,6 @@ export class Function implements Value {
     return this.funcode.doc;
   }
 
-  // BUG:
   Hash(): [number, Error | null] {
     return [hashString(this.funcode.name), null];
   }

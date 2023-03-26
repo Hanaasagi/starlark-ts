@@ -1,4 +1,6 @@
 import { Token } from '../../../starlark-parser';
+import { unimplemented } from '../../../utils';
+import { threeway } from './common';
 import { Int } from './int';
 import { Comparable } from './interface';
 import { Value } from './interface';
@@ -17,15 +19,14 @@ export class Float implements Comparable {
     return 'float';
   }
 
-  Freeze() { }
+  Freeze() {}
 
   Truth(): boolean {
     return this.val == 0;
   }
 
   Hash(): [number, Error | null] {
-    // BUG:
-    return [0, null];
+    unimplemented('Float Hash');
   }
 
   // TODO: format
@@ -43,9 +44,8 @@ export class Float implements Comparable {
   // TODO:
   // rational()
 
-  CompareSameType(op: Token, y: Value, depth: number): [boolean, Error] {
-    // BUG:
-    return [false, new Error()];
+  CompareSameType(op: Token, y: Value, depth: number): [boolean, Error | null] {
+    return [threeway(op, floatCmp(this, y as Float)), null];
   }
 
   asJSValue(): number {
@@ -78,14 +78,15 @@ function floatCmp(x: Float, y: Float): number {
 // The f result is undefined if x is not a float or Int.
 // The result may be infinite if x is a very large Int.
 export function AsFloat(x: Value): [number, boolean] {
-  if (x instanceof Float) {
-    return [x.val, true];
-  }
-  if (x instanceof Int) {
-    // BUG:
-    return [0, true];
-    // return [x.val, true];
-  }
+  unimplemented('AsFloat');
 
-  return [0, false];
+  // if (x instanceof Float) {
+  //   s;
+  //   return [x.val, true];
+  // }
+  // if (x instanceof Int) {
+  //   return [0, true];
+  // }
+
+  // return [0, false];
 }

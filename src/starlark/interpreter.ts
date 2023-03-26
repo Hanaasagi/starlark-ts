@@ -53,9 +53,9 @@ export function CallInternal(
   }
 
   let f = fn.funcode;
-  console.log('CallInternal funcode is', f);
+  debug('CallInternal funcode is', f);
   let fr = thread.frameAt(0);
-  console.log('CallInternal fr is', fr);
+  debug('CallInternal fr is', fr);
 
   // Allocate space for stack and locals.
   // Logically these do not escape from this frame
@@ -85,7 +85,7 @@ export function CallInternal(
   debug(`Entering ${f.name} @${f.position(0)}`);
   debug(`${stack.length} stack, ${locals.length} locals`);
   // const leaveMsg = `Leaving ${f.name}`;
-  // setTimeout(() => console.log(leaveMsg), 0);
+  // setTimeout(() => debug(leaveMsg), 0);
 
   // Spill indicated locals to cells.
   // Each cell is a separate alloc to avoid spurious liveness.
@@ -148,7 +148,7 @@ export function CallInternal(
       compile.PrintOp(f, fr.pc, op, arg);
     }
 
-    console.log('CallInternal op code is', Opcode.String(op));
+    debug('CallInternal op code is', Opcode.String(op));
     switch (op) {
       case Opcode.NOP:
         // nop
@@ -392,7 +392,7 @@ export function CallInternal(
         const npos: number = arg >> 8;
         if (npos > 0) {
           positional = new Tuple(stack.slice(sp - npos, sp));
-          console.log('----->', positional);
+          debug('----->', positional);
           sp -= npos;
 
           // Copy positional arguments into a new array,
@@ -427,7 +427,7 @@ export function CallInternal(
 
         // thread.endProfSpan()
         const result = Call(thread, func, positional!, kvpairs);
-        console.log('VM call return', result);
+        debug('VM call return', result);
         // thread.beginProfSpan()
 
         if (result[1]) {
@@ -436,7 +436,7 @@ export function CallInternal(
         debug(`Resuming ${f.name} @${f.position(0)}`);
         stack[sp - 1] = result[0];
 
-        console.log('After Resuming', stack, result[0], sp);
+        debug('After Resuming', stack, result[0], sp);
         break;
       }
 

@@ -2,6 +2,7 @@ import { Token } from '../../../starlark-parser';
 import { signum } from '../../../utils';
 import { builtinAttr } from './common';
 import { builtinAttrNames } from './common';
+import { threeway } from './common';
 import { Comparable, Indexable, Sliceable, Value } from './interface';
 import { String } from './string';
 
@@ -10,16 +11,16 @@ import { String } from './string';
 // A Bytes encapsulates an immutable sequence of bytes.
 // It is comparable, indexable, and sliceable, but not directly iterable;
 // use bytes.elems() for an iterable view.
-// BUG: type bytes = string
 export class Bytes implements Value, Comparable, Sliceable, Indexable {
-  private readonly value: string;
+  // BUG: ???
+  private readonly val: string;
 
   constructor(value: string) {
-    this.value = value;
+    this.val = value;
   }
 
   String(): string {
-    return this.value;
+    return this.val;
     // return syntax.Quote(this.value, true);
   }
 
@@ -30,19 +31,19 @@ export class Bytes implements Value, Comparable, Sliceable, Indexable {
   Freeze(): void {} // immutable
 
   Truth(): boolean {
-    return this.value.length > 0;
+    return this.val.length > 0;
   }
 
   Hash(): [number, Error | null] {
-    return [new String(this.value).Hash()[0], null];
+    return [new String(this.val).Hash()[0], null];
   }
 
   len(): number {
-    return this.value.length;
+    return this.val.length;
   }
 
   index(i: number): Value {
-    return new Bytes(this.value[i]);
+    return new Bytes(this.val[i]);
   }
 
   Attr(name: string): [Value, Error | null] {
@@ -57,22 +58,23 @@ export class Bytes implements Value, Comparable, Sliceable, Indexable {
 
   slice(start: number, end: number, step: number): Value {
     if (step === 1) {
-      return new Bytes(this.value.slice(start, end));
+      return new Bytes(this.val.slice(start, end));
     }
 
     const sign = signum(step);
     let str = '';
     for (let i = start; signum(end - i) === sign; i += step) {
-      str += this.value[i];
+      str += this.val[i];
     }
     return new Bytes(str);
   }
 
-  CompareSameType(op: Token, y: Value, depth: number): [boolean, Error] {
-    return [false, new Error()];
-    // TODO:
-    // const valueY = y as Bytes;
-    // const result = threeway(op, stringCompare(this.value, valueY.value));
-    // return [result, null];
+  asJSValue(): string {
+    return this.val;
+  }
+
+  CompareSameType(op: Token, y: Value, depth: number): [boolean, Error | null] {
+    let y_ = y as Bytes;
+    return [threeway(op, this.val > y_.val ? 1 : 0), null];
   }
 }

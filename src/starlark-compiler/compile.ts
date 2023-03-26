@@ -454,7 +454,7 @@ class Pcomp {
     locals: binding.Binding[],
     freevars: binding.Binding[]
   ): Funcode {
-    console.log('=============Exec Pcomp func==================');
+    debug('=============Exec Pcomp func==================');
     let fcomp = new Fcomp(
       this,
       pos,
@@ -485,7 +485,7 @@ class Pcomp {
     const entry = fcomp.newBlock();
     fcomp.block = entry;
     fcomp.stmts(stmts);
-    console.log('block is', fcomp.block);
+    debug('block is', fcomp.block);
     if (fcomp.block !== null) {
       fcomp.emit(Opcode.NONE);
       fcomp.emit(Opcode.RETURN);
@@ -497,7 +497,7 @@ class Pcomp {
       if (b.initialstack === -1) {
         b.initialstack = depth;
       } else if (b.initialstack !== depth) {
-        console.log(
+        debug(
           `${b.index}: setinitialstack: depth mismatch: ${b.initialstack} vs ${depth}`
         );
         oops = true;
@@ -512,7 +512,7 @@ class Pcomp {
     let maxstack: number = 0;
 
     let visit = (b: Block) => {
-      console.log('visit', b.insns);
+      debug('visit', b.insns);
       if (b.index >= 0) {
         return; // already visited
       }
@@ -523,7 +523,7 @@ class Pcomp {
       let stack = b.initialstack;
       debug(`${name} block ${b.index}: (stack = ${stack})`);
       // Begin
-      console.log('PC is', pc);
+      debug('PC is', pc);
       let cjmpAddr: Insn | null = null;
       let isiterjmp = 0;
       for (let i = 0; i < b.insns.length; i++) {
@@ -553,7 +553,7 @@ class Pcomp {
         debug(`\t${Opcode.String(insn.op)} ${stack} ${stack + se}`);
         stack += se;
         if (stack < 0) {
-          console.log(`After pc=${pc}: stack underflow`);
+          debug(`After pc=${pc}: stack underflow`);
           oops = true;
         }
         if (stack + isiterjmp > maxstack) {
@@ -562,7 +562,7 @@ class Pcomp {
       }
       // After
 
-      console.log('PC after', pc);
+      debug('PC after', pc);
       debug(`successors of block ${b.addr} (start=${b.index}):`);
       if (b.jmp) {
         debug(`jmp to ${b.jmp.index}`);
@@ -607,16 +607,16 @@ class Pcomp {
       }
     };
     setinitialstack(entry, 0);
-    console.log('visit entry', entry);
+    debug('visit entry', entry);
     visit(entry);
 
     const fn = fcomp.fn;
-    console.log('^^^^^^^^^^^^^^^^^^^^^', maxstack);
+    debug('^^^^^^^^^^^^^^^^^^^^^', maxstack);
     fn.maxStack = maxstack;
 
     // Emit bytecode (and position table).
     if (Disassemble) {
-      console.log(`Function ${name}: (${blocks.length} blocks, ${pc} bytes)`);
+      debug(`Function ${name}: (${blocks.length} blocks, ${pc} bytes)`);
     }
     fcomp.generate(blocks, pc);
 
@@ -705,7 +705,7 @@ class Fcomp {
       }
       let pc: number = b.addr;
       for (const insn of b.insns) {
-        console.log('IIIIIIIIIIII', insn);
+        debug('IIIIIIIIIIII', insn);
         if (insn.line !== 0) {
           // Instruction has a source position. Delta-encode it.
           // See Funcode.Position for the encoding.
@@ -749,7 +749,7 @@ class Fcomp {
           }
 
           if (Disassemble) {
-            console.log('Disassemble todo');
+            debug('Disassemble todo');
             // console.error(
             //   `\t\t\t\t\t; ${path.basename(this.fn.pos.filename())}:${insn.line
             //   }:${insn.col}`
@@ -761,7 +761,7 @@ class Fcomp {
           PrintOp(this.fn, pc, insn.op, insn.arg);
         }
 
-        // console.log("code is", code, insn.op);
+        // debug("code is", code, insn.op);
         code.push(insn.op);
         pc++;
 
@@ -799,7 +799,7 @@ class Fcomp {
   }
 
   emit(op: Opcode): void {
-    console.log('EMIT', Opcode.String(op));
+    debug('EMIT', Opcode.String(op));
     if (op >= OpcodeArgMin) {
       throw new Error('missing arg: ' + op.toString());
     }
@@ -815,7 +815,7 @@ class Fcomp {
       throw new Error('unwanted arg: ' + op.toString());
     }
 
-    console.log('EMIT1', Opcode.String(op), op, arg);
+    debug('EMIT1', Opcode.String(op), op, arg);
     const insn: Insn = new Insn(op, arg, this.pos.line, this.pos.col);
     this.block?.insns.push(insn);
     this.pos.line = 0;
@@ -872,7 +872,7 @@ class Fcomp {
         this.emit1(Opcode.SETGLOBAL, bind.index);
         break;
       default:
-        console.log('should panic here');
+        debug('should panic here');
         // log.Panicf(
         //   `${id.NamePos}: set(${id.Name}): not global/local/cell (${bind.scope})`
         // );
@@ -882,7 +882,7 @@ class Fcomp {
 
   // lookup emits code to push the value of the specified variable.
   lookup(id: syntax.Ident): void {
-    console.log('>>>>', id.Binding);
+    debug('>>>>', id.Binding);
     const bind = id.Binding as binding.Binding;
     if (bind.scope !== binding.Scope.Universal) {
       // (universal lookup can't fail)
@@ -1130,13 +1130,13 @@ class Fcomp {
       return;
     }
     const [start, _] = stmt.span();
-    console.log(`${start}: exec: unexpected statement ${stmt} `);
+    debug(`${start}: exec: unexpected statement ${stmt} `);
   }
 
   assign(pos: Position, lhs: syntax.Expr): void {
-    console.log('-----');
-    console.log(pos, lhs);
-    console.log('-----');
+    debug('-----');
+    debug(pos, lhs);
+    debug('-----');
     if (lhs instanceof syntax.ParenExpr) {
       // (lhs) = rhs
       this.assign(pos, lhs.x);
@@ -1191,9 +1191,9 @@ class Fcomp {
   }
 
   expr(e: syntax.Expr) {
-    console.log('==========================');
-    console.log(e);
-    console.log('==========================');
+    debug('==========================');
+    debug(e);
+    debug('==========================');
     if (e instanceof syntax.ParenExpr) {
       this.expr(e.x);
       return;
@@ -1389,7 +1389,7 @@ class Fcomp {
     }
 
     const start = e.span()[0];
-    console.log(`${start}: unexpected expr ${e.constructor.name} `);
+    debug(`${start}: unexpected expr ${e.constructor.name} `);
   }
 
   plus(e: syntax.BinaryExpr): void {
@@ -1502,7 +1502,7 @@ class Fcomp {
         this.emit(Opcode.GE);
         break;
       default:
-        console.log(`${pos}: unexpected binary op: ${op} `);
+        debug(`${pos}: unexpected binary op: ${op} `);
         throw new Error('Unexpected binary op');
     }
   }
@@ -1938,7 +1938,7 @@ export function PrintOp(
   arg: number
 ): void {
   if (op < OpcodeArgMin) {
-    console.log(`\t${pc} \t${Opcode.String(op)}`);
+    debug(`\t${pc} \t${Opcode.String(op)}`);
     return;
   }
 
@@ -1991,7 +1991,7 @@ export function PrintOp(
   if (comment !== '') {
     buf.push(`\t; ${comment} `);
   }
-  console.log(buf.join(''));
+  debug(buf.join(''));
 }
 
 class Summand {
