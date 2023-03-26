@@ -16,6 +16,10 @@
     "format:check": "prettier \"./**\" --ignore-unknown --check"
   },
   "dependencies": {
+    "core-js": "^3.29.1",
+    "debug": "^4.3.4",
+    "loglevel": "^1.8.1",
+    "ts-results": "^3.3.0",
     "tslib": "^2.3.1"
   },
   "devDependencies": {
@@ -23,6 +27,7 @@
     "@commitlint/config-conventional": "^17.0.0",
     "@jest/globals": "^28.0.0",
     "@jest/types": "^28.0.0",
+    "@trivago/prettier-plugin-sort-imports": "^4.1.1",
     "@types/jest": "^27.5.2",
     "@types/node": "^18.15.3",
     "@types/supertest": "^2.0.12",
@@ -39,7 +44,7 @@
     "lint-staged": "^13.0.0",
     "mocha": "^10.2.0",
     "nodemon": "^2.0.15",
-    "prettier": "^2.6.1",
+    "prettier": "2.8.7",
     "supertest": "^6.2.2",
     "ts-jest": "^27.1.5",
     "ts-node": "^10.9.1",
