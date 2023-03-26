@@ -369,9 +369,9 @@ function print(
   kwargs: Tuple[]
 ): Value | Error {
   //@ts-ignore
-  // BigInt.prototype.toJSON = function () {
-  //   return this.toString();
-  // };
+  BigInt.prototype.toJSON = function() {
+    return this.toString();
+  };
 
   console.error('<<<<<<<<<<<<<<<<NOW PRINT<<<<<<<<<<<<<<<<<<<');
 

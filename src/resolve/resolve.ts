@@ -15,7 +15,7 @@ const doesnt = 'this Starlark dialect does not ';
 // features of the BUILD language, so we put them behind flags.
 export var AllowSet = false; // allow the 'set' built-in
 export var AllowGlobalReassign = false; // allow reassignment to top-level names; also, allow if/for/while at top-level
-export var AllowRecursion = false; // allow while statements and recursive functions
+export var AllowRecursion = true; // allow while statements and recursive functions
 export var LoadBindsGlobally = false; // load creates global not file-local bindings (deprecated)
 
 // obsolete flags for features that are now standard. No effect.
@@ -310,11 +310,7 @@ class Resolver {
     const id = use.id;
     let bind: Binding;
 
-    debug(
-      'this.file.bindings.has',
-      this.file.bindings.has(id.Name),
-      id.Name
-    );
+    debug('this.file.bindings.has', this.file.bindings.has(id.Name), id.Name);
     debug('globals.has', this.globals.has(id.Name), id.Name);
     debug(this.isUniversal, this.isUniversal!(id.Name), id.Name);
 

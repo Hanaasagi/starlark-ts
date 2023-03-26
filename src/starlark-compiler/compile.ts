@@ -33,7 +33,7 @@ import * as syntax from '../starlark-parser/syntax';
 // to be printed to stderr as it is generated.
 var Disassemble = false;
 
-const debug = true; // make code generation verbose, for debugging the compiler
+var debug = require('debug')('compiler');
 
 // Increment this to force recompilation of saved bytecode files.
 export const Version = 13;
@@ -479,9 +479,7 @@ class Pcomp {
       }
     }
 
-    if (debug) {
-      console.log(`start function(${name} @ ${pos})`);
-    }
+    debug(`start function(${name} @ ${pos})`);
 
     // Convert AST to a CFG of instructions.
     const entry = fcomp.newBlock();
@@ -523,12 +521,10 @@ class Pcomp {
       blocks.push(b);
 
       let stack = b.initialstack;
-      if (debug) {
-        console.log(`${name} block ${b.index}: (stack = ${stack})`);
-      }
+      debug(`${name} block ${b.index}: (stack = ${stack})`);
       // Begin
       console.log('PC is', pc);
-      let cjmpAddr: number | null = null;
+      let cjmpAddr: Insn | null = null;
       let isiterjmp = 0;
       for (let i = 0; i < b.insns.length; i++) {
         pc++;
@@ -539,11 +535,11 @@ class Pcomp {
           switch (insn.op) {
             case Opcode.ITERJMP:
               isiterjmp = 1;
-              cjmpAddr = b.insns[i].arg;
+              cjmpAddr = b.insns[i];
               pc += 4;
               break;
             case Opcode.CJMP:
-              cjmpAddr = b.insns[i].arg;
+              cjmpAddr = b.insns[i];
               pc += 4;
               break;
             default:
@@ -554,9 +550,7 @@ class Pcomp {
 
         // Compute effect on stack.
         let se = insn.stackeffect();
-        if (debug) {
-          console.log(`\t${Opcode.String(insn.op)} ${stack} ${stack + se}`);
-        }
+        debug(`\t${Opcode.String(insn.op)} ${stack} ${stack + se}`);
         stack += se;
         if (stack < 0) {
           console.log(`After pc=${pc}: stack underflow`);
@@ -568,15 +562,13 @@ class Pcomp {
       }
       // After
 
-      if (debug) {
-        console.log('PC after', pc);
-        console.log(`successors of block ${b.addr} (start=${b.index}):`);
-        if (b.jmp) {
-          console.log(`jmp to ${b.jmp.index}`);
-        }
-        if (b.cjmp) {
-          console.log(`cjmp to ${b.cjmp.index}`);
-        }
+      console.log('PC after', pc);
+      debug(`successors of block ${b.addr} (start=${b.index}):`);
+      if (b.jmp) {
+        debug(`jmp to ${b.jmp.index}`);
+      }
+      if (b.cjmp) {
+        debug(`cjmp to ${b.cjmp.index}`);
       }
 
       // Place the jmp block next.
@@ -610,7 +602,7 @@ class Pcomp {
 
         // Patch the CJMP/ITERJMP, if present.
         if (cjmpAddr !== null) {
-          b.insns[cjmpAddr].arg = b.cjmp!.addr;
+          cjmpAddr.arg = b.cjmp!.addr;
         }
       }
     };
@@ -628,18 +620,14 @@ class Pcomp {
     }
     fcomp.generate(blocks, pc);
 
-    if (debug) {
-      console.log(`code = ${fn.code} maxstack = ${fn.maxStack}`);
-    }
+    debug(`code = ${fn.code} maxstack = ${fn.maxStack}`);
 
     // Don't panic until we've completed printing of the function.
     if (oops) {
       throw new Error('internal error');
     }
 
-    if (debug) {
-      console.log(`end function(${name} @${pos})`);
-    }
+    debug(`end function(${name} @${pos})`);
 
     return fn;
   }
@@ -717,6 +705,7 @@ class Fcomp {
       }
       let pc: number = b.addr;
       for (const insn of b.insns) {
+        console.log('IIIIIIIIIIII', insn);
         if (insn.line !== 0) {
           // Instruction has a source position. Delta-encode it.
           // See Funcode.Position for the encoding.
@@ -815,13 +804,7 @@ class Fcomp {
       throw new Error('missing arg: ' + op.toString());
     }
 
-    let insn: Insn = new Insn(
-      op,
-      0,
-
-      this.pos.line,
-      this.pos.col
-    );
+    let insn: Insn = new Insn(op, 0, this.pos.line, this.pos.col);
     this.block?.insns.push(insn);
     this.pos.line = 0;
     this.pos.col = 0;
@@ -831,6 +814,8 @@ class Fcomp {
     if (op < OpcodeArgMin) {
       throw new Error('unwanted arg: ' + op.toString());
     }
+
+    console.log('EMIT1', Opcode.String(op), op, arg);
     const insn: Insn = new Insn(op, arg, this.pos.line, this.pos.col);
     this.block?.insns.push(insn);
     this.pos.line = 0;
@@ -1709,13 +1694,11 @@ class Fcomp {
       f.freeVars
     );
 
-    if (debug) {
-      // TODO(adonovan): do compilations sequentially not as a tree,
-      // to make the log easier to read.
-      // Simplify by identifying Toplevel and functionIndex 0.
-      // FIXME: missing debug
-      // console.log(`resuming ${ this.fn.Name } @${ this.pos } `);
-    }
+    // TODO(adonovan): do compilations sequentially not as a tree,
+    // to make the log easier to read.
+    // Simplify by identifying Toplevel and functionIndex 0.
+    // FIXME: missing debug
+    debug(`resuming ${this.fn.name} @${this.pos} `);
 
     // def f(a, *, b=1) has only 2 parameters.
     let numParams = f.params.length;
@@ -1955,7 +1938,7 @@ export function PrintOp(
   arg: number
 ): void {
   if (op < OpcodeArgMin) {
-    console.log(`\t${pc} \t${Opcode.String(op)} `);
+    console.log(`\t${pc} \t${Opcode.String(op)}`);
     return;
   }
 

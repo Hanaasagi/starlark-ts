@@ -285,11 +285,11 @@ export function UnpackPositionalArgs(
   for (let i = 0; i < args.Len(); i++) {
     const arg = args.index(i);
     // const variable = vars[i];
-    const [v, err] = unpackOneArg(arg, vars[i]);
-    if (err !== null) {
-      return new Error(`${fnname}: for parameter ${i + 1}: ${err}`);
+    const res = unpackOneArg(arg, vars[i]);
+    if (res.err) {
+      return new Error(`${fnname}: for parameter ${i + 1}: ${res.val}`);
     }
-    vars[i] = v;
+    vars[i] = res.unwrap();
   }
   return null;
 }
