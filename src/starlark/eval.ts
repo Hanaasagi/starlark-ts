@@ -1,3 +1,5 @@
+import { Err, Ok, Result } from 'ts-results';
+
 import * as binding from '../resolve/binding';
 import * as resolve from '../resolve/resolve';
 import * as compile from '../starlark-compiler/compile';
@@ -22,6 +24,8 @@ import { False, True } from './value';
 import { RangeValue } from './value';
 
 // import {*} from "./value"
+
+var debug = require('debug')('eval');
 
 // A Thread contains the state of a Starlark thread,
 // such as its call stack and thread-local storage.
@@ -317,22 +321,20 @@ export function ExecFile(
   filename: string,
   src: any,
   predeclared: StringDict
-): [StringDict | null, Error | null] {
-  // Parse, resolve, and compile a Starlark source file.
+): Result<StringDict | null, Error> {
   const f = (s: string): boolean => {
     return predeclared.has(s);
   };
-  const [, mod, err] = SourceProgram(filename, src, f);
-  if (err !== null) {
-    return [null, err];
-  }
 
-  console.log('mod====');
-  console.log(mod);
-  let [g, _] = mod!.init(thread, predeclared);
-  console.log('AFTER MOD BERFORE FREEZE', g);
-  g.freeze();
-  return [g, null];
+  // Parse, resolve, and compile a Starlark source file.
+  const res = sourceProgram(filename, src, f);
+
+  return res.map((val) => {
+    const [, mod] = val;
+    let [g] = mod.init(thread, predeclared);
+    g.freeze();
+    return g;
+  });
 }
 
 // SourceProgram produces a new program by parsing, resolving,
@@ -343,17 +345,17 @@ export function ExecFile(
 // a pre-declared identifier of the current module.
 // Its typical value is predeclared.Has,
 // where predeclared is a StringDict of pre-declared values.
-function SourceProgram(
+function sourceProgram(
   filename: string,
   src: any,
   isPredeclared: (name: string) => boolean
-): [syntax.File | null, Program | null, Error | null] {
+): Result<[syntax.File, Program], Error> {
   const [f, err] = parse(filename, src, 0);
   if (err !== null) {
-    return [null, null, err];
+    return Err(err);
   }
   const prog = FileProgram(f!, isPredeclared);
-  return [f, prog, err];
+  return Ok([f!, prog]);
 }
 
 // FileProgram produces a new program by resolving,

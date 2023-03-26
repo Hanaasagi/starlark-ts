@@ -6,7 +6,8 @@ import { Binding, Module } from './binding';
 import { Scope } from './binding';
 import { Function } from './binding';
 
-const debug = false;
+var debug = require('debug')('resolve');
+
 const doesnt = 'this Starlark dialect does not ';
 
 // global options
@@ -309,13 +310,13 @@ class Resolver {
     const id = use.id;
     let bind: Binding;
 
-    console.log(
+    debug(
       'this.file.bindings.has',
       this.file.bindings.has(id.Name),
       id.Name
     );
-    console.log('globals.has', this.globals.has(id.Name), id.Name);
-    console.log(this.isUniversal, this.isUniversal!(id.Name), id.Name);
+    debug('globals.has', this.globals.has(id.Name), id.Name);
+    debug(this.isUniversal, this.isUniversal!(id.Name), id.Name);
 
     if (this.file.bindings.has(id.Name)) {
       // use of load-defined name in file block
@@ -522,7 +523,7 @@ class Resolver {
       return;
     }
 
-    console.log('unreachable!!!');
+    debug('unreachable!!!');
   }
 
   assign(lhs: syntax.Expr, isAugmented: boolean): void {
@@ -784,7 +785,7 @@ class Resolver {
       return;
     }
 
-    console.log('unreachable');
+    debug('unreachable');
   }
 
   func(func: Function, pos: Position) {
@@ -922,13 +923,13 @@ class Resolver {
   // The use.env field captures the original environment for error reporting.
   public lookupLexical(use: Use, env: Block): Binding {
     if (debug) {
-      console.log(`lookupLexical ${use.id.Name} in ${env} = ...`);
+      debug(`lookupLexical ${use.id.Name} in ${env} = ...`);
     }
 
     // Is this the file block?
     if (env == this.file) {
       let a = this.useToplevel(use)!; // file-local, global, predeclared, or not found
-      console.log('~~~~~~~~~~~~~', use.id);
+      debug('~~~~~~~~~~~~~', use.id);
       return a;
     }
 
@@ -954,7 +955,7 @@ class Resolver {
         env.func.freeVars.push(bind);
         bind = new Binding(Scope.Free, index, bind.first);
         if (debug) {
-          console.log(
+          debug(
             `creating freevar ${env.func.freeVars.length} in function at ${env.func.pos}: ${use.id.Name}`
           );
         }
@@ -965,7 +966,7 @@ class Resolver {
       env.bind(use.id.Name, bind);
     }
     if (debug) {
-      console.log(`= ${bind}`);
+      debug(`= ${bind}`);
     }
     return bind;
   }
