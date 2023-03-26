@@ -18,6 +18,7 @@ import { IterableMapping } from './value';
 
 // This file defines the bytecode interpreter.
 
+var debug = require('debug')('interpreter');
 const vmdebug = true; // TODO(adonovan): use a bitfield of specific kinds of error.
 
 // TODO(adonovan):
@@ -81,12 +82,10 @@ export function CallInternal(
 
   fr.locals = locals;
 
-  if (vmdebug) {
-    console.log(`Entering ${f.name} @${f.position(0)}`);
-    console.log(`${stack.length} stack, ${locals.length} locals`);
-    // const leaveMsg = `Leaving ${f.name}`;
-    // setTimeout(() => console.log(leaveMsg), 0);
-  }
+  debug(`Entering ${f.name} @${f.position(0)}`);
+  debug(`${stack.length} stack, ${locals.length} locals`);
+  // const leaveMsg = `Leaving ${f.name}`;
+  // setTimeout(() => console.log(leaveMsg), 0);
 
   // Spill indicated locals to cells.
   // Each cell is a separate alloc to avoid spurious liveness.
@@ -145,7 +144,7 @@ export function CallInternal(
       }
     }
     if (vmdebug) {
-      console.log(stack.slice(0, sp)); // very verbose!
+      debug(stack.slice(0, sp)); // very verbose!
       compile.PrintOp(f, fr.pc, op, arg);
     }
 
@@ -389,7 +388,7 @@ export function CallInternal(
         }
 
         // positional args
-        let positional: Tuple | null = null;
+        let positional: Tuple = new Tuple(new Array());
         const npos: number = arg >> 8;
         if (npos > 0) {
           positional = new Tuple(stack.slice(sp - npos, sp));
@@ -401,7 +400,6 @@ export function CallInternal(
           // in which case it can be trusted not to mutate them.
           if (!(stack[sp - 1] instanceof Function) || args != null) {
             positional = new Tuple([...positional.elems]);
-            // positional.elems.push(...tmp.elems);
           }
         }
         if (args !== null) {
@@ -421,13 +419,11 @@ export function CallInternal(
 
         const func: Value = stack[sp - 1];
 
-        if (vmdebug) {
-          console.log(
-            `VM call ${func.String()} args = ${positional} kwargs = ${kvpairs} @${f.position(
-              fr.pc
-            )}`
-          );
-        }
+        debug(
+          `VM call ${func.String()} args = ${positional} kwargs = ${kvpairs} @${f.position(
+            fr.pc
+          )}`
+        );
 
         // thread.endProfSpan()
         const result = Call(thread, func, positional!, kvpairs);
@@ -437,9 +433,7 @@ export function CallInternal(
         if (result[1]) {
           break loop;
         }
-        if (vmdebug) {
-          console.log(`Resuming ${f.name} @${f.position(0)}`);
-        }
+        debug(`Resuming ${f.name} @${f.position(0)}`);
         stack[sp - 1] = result[0];
 
         console.log('After Resuming', stack, result[0], sp);

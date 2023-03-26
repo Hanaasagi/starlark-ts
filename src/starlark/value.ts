@@ -2134,7 +2134,7 @@ export class StringDict {
   }
 }
 
-export { Universe } from './builtin';
+export { Universe } from './stdlib';
 // export var Universe = new StringDict([
 //   ["print", new Builtin("print", print, null)],
 // ]);
