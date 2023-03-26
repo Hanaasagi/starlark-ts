@@ -12,7 +12,7 @@ export enum Scope {
   Universal,
 }
 
-export const scopeNames = [
+const scopeNames = [
   'undefined',
   'local',
   'cell',
