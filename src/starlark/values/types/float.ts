@@ -1,5 +1,5 @@
 import { Token } from '../../../starlark-parser';
-import { Int } from '../../int';
+import { Int } from './int';
 import { Comparable } from './interface';
 import { Value } from './interface';
 
@@ -17,7 +17,7 @@ export class Float implements Comparable {
     return 'float';
   }
 
-  Freeze() {}
+  Freeze() { }
 
   Truth(): boolean {
     return this.val == 0;

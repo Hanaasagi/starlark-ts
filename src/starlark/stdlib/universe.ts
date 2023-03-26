@@ -1,12 +1,12 @@
 import { argv0 } from 'process';
 
 import { Thread } from '../eval';
-import { Int } from '../int';
-import { AsInt32 } from '../int';
-import { MakeInt } from '../int';
-import { zero } from '../int';
 import { UnpackPositionalArgs } from '../unpack';
 import { UnpackArgs } from '../unpack';
+import { zero } from '../values';
+import { Int } from '../values';
+import { AsInt32 } from '../values';
+import { MakeInt } from '../values';
 import { Builtin, StringDict } from '../values';
 import { Tuple } from '../values';
 import { Value } from '../values';
@@ -369,7 +369,7 @@ function print(
   kwargs: Tuple[]
 ): Value | Error {
   //@ts-ignore
-  BigInt.prototype.toJSON = function () {
+  BigInt.prototype.toJSON = function() {
     return this.toString();
   };
 

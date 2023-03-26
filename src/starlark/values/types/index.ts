@@ -13,3 +13,4 @@ export * from './function';
 export * from './common';
 export * from './bytes';
 export * from './range';
+export * from './int';

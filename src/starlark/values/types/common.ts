@@ -1,10 +1,10 @@
 import { Token } from '../../../starlark-parser';
-import { Int } from '../../../starlark/int';
 import { Bool } from './bool';
 import { Builtin } from './builtin';
 import { Dict } from './dict';
 import { Float } from './float';
 import { Function } from './function';
+import { Int } from './int';
 import { Comparable, Value } from './interface';
 import { List } from './list';
 import { NoneType } from './none';

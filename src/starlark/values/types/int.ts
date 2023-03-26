@@ -1,6 +1,6 @@
-import { Token } from '../starlark-parser';
-import { Value } from './values';
-import { Bool } from './values';
+import { Token } from '../../../starlark-parser';
+import { Bool } from './bool';
+import { Value } from './interface';
 
 class IntImpl {
   // We use only the signed 32-bit range of small to ensure

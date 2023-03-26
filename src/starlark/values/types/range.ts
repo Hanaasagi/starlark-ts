@@ -1,5 +1,5 @@
 import { Token } from '../../../starlark-parser';
-import { AsInt32, Int, MakeInt } from '../../int';
+import { AsInt32, Int, MakeInt } from './int';
 import { Value } from './interface';
 import { Iterator } from './interface';
 
@@ -43,7 +43,7 @@ export class RangeValue implements Value {
     );
   }
 
-  Freeze(): void {} // immutable
+  Freeze(): void { } // immutable
 
   String(): string {
     if (this.step !== 1) {
@@ -144,5 +144,5 @@ class RangeIterator {
     return false;
   }
 
-  done(): void {}
+  done(): void { }
 }
