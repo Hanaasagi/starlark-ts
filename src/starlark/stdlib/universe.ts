@@ -427,7 +427,7 @@ function range_(
   if (err) {
     return err;
   }
-  console.log(res);
+  // console.log(res);
 
   let start = res[0] as Int;
   let stop = res[1] as Int;

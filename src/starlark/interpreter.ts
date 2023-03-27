@@ -453,7 +453,9 @@ export function CallInternal(
       }
       case Opcode.ITERJMP: {
         let iter = iterstack[iterstack.length - 1];
-        if (iter.next(stack[sp])) {
+        let nxt = iter.next();
+        if (nxt != null) {
+          stack[sp] = nxt;
           sp++;
         } else {
           pc = arg;
@@ -584,12 +586,19 @@ export function CallInternal(
         let i = 0;
         sp += n;
 
-        while (i < n && iter.next(stack[sp - 1 - i])) {
+        while (i < n) {
+          let v = iter.next();
+          if (v != null) {
+            stack[sp - 1 - i] = v;
+          } else {
+            break;
+          }
           i++;
         }
+
         // BUG:
-        var dummy: Value | null = null;
-        if (iter.next(dummy!)) {
+        var dummy: Value | null = iter.next();
+        if (dummy != null) {
           // NB: Len may return -1 here in obscure cases.
           err = new Error(
             'too many values to unpack (got ${iterable.length}, want ${n})'
@@ -697,7 +706,6 @@ export function CallInternal(
       }
 
       case Opcode.SETLOCAL:
-        console.log('DEBUG RANGE => SETLOCAL', arg, stack[sp - 1]);
         locals[arg] = stack[sp - 1];
         sp--;
         break;

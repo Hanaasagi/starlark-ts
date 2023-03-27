@@ -1,5 +1,6 @@
 import { Token } from '../../../starlark-parser';
 import { signum } from '../../../utils';
+import { unimplemented } from '../../../utils';
 import { builtinAttr } from './common';
 import { builtinAttrNames } from './common';
 import { Comparable } from './interface';
@@ -47,7 +48,7 @@ export class String implements Comparable, HasAttrs {
     return 'string';
   }
 
-  Freeze() {}
+  Freeze() { }
 
   Truth(): boolean {
     return this.val.length > 0;
@@ -129,7 +130,7 @@ class StringElems {
     return 'string.elems';
   }
 
-  Freeze(): void {} // immutable
+  Freeze(): void { } // immutable
 
   Truth(): boolean {
     return true;
@@ -168,17 +169,17 @@ class StringElemsIterator implements Iterator {
     this.i = i;
   }
 
-  next(p: Value): boolean {
+  next(): Value | null {
     if (this.i == this.si.Len()) {
-      return false;
+      return null;
     }
     // Bug
-    p = this.si.Index(this.i);
+    let p = this.si.Index(this.i);
     this.i++;
-    return true;
+    return p;
   }
 
-  done(): void {}
+  done(): void { }
 }
 
 // A stringCodepoints is an iterable whose iterator yields a sequence of
@@ -210,7 +211,7 @@ class stringCodepoints {
     return 'string.codepoints';
   }
 
-  Freeze(): void {} // immutable
+  Freeze(): void { } // immutable
 
   Truth(): boolean {
     return true;
@@ -232,9 +233,10 @@ class stringCodepointsIterator implements Iterator {
     this.i = i;
   }
 
-  next(p: Value): boolean {
+  next(): Value | null {
+    unimplemented('string next');
     // BUG:
-    return false;
+    return null;
     // let s = this.si.s.slice(this.i);
     // if (s === "") {
     //   return { done: true, value: undefined };
@@ -253,5 +255,5 @@ class stringCodepointsIterator implements Iterator {
     // return { done: false, value: p };
   }
 
-  done(): void {}
+  done(): void { }
 }

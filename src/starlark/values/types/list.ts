@@ -145,13 +145,13 @@ class ListIterator implements Iterator {
     this.i = 0;
   }
 
-  public next(p: Value): boolean {
+  public next(): Value | null {
     if (this.i < this.l.Len()) {
-      p = this.l.elems[this.i];
+      let p = this.l.elems[this.i];
       this.i++;
-      return true;
+      return p;
     }
-    return false;
+    return null;
   }
 
   public done() {

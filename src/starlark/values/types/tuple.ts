@@ -79,15 +79,15 @@ export class TupleIterator implements Iterator {
     this.elems = elems;
   }
 
-  next(p: Value): boolean {
+  next(): Value | null {
     if (this.elems.Len() > 0) {
-      p = this.elems.index(0);
+      let p = this.elems.index(0);
       // TODO: shitcode
       this.elems = new Tuple(this.elems.elems.slice(1));
-      return true;
+      return p;
     }
-    return false;
+    return null;
   }
 
-  done(): void {}
+  done(): void { }
 }

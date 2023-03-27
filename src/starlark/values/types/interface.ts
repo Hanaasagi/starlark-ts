@@ -172,7 +172,7 @@ export interface callableWithPosition extends Callable {
 //	}
 //
 export interface Iterator {
-  next(p: Value): boolean;
+  next(): Value | null;
   done(): void;
 }
 

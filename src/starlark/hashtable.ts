@@ -8,10 +8,10 @@ var debug = require('debug')('hashtable');
 // noCopy is zero-sized type that triggers vet's copylock check.
 // See https://github.com/golang/go/issues/8005#issuecomment-190753527.
 class noCopy {
-  constructor() {}
+  constructor() { }
 
-  Lock(): void {}
-  Unlock(): void {}
+  Lock(): void { }
+  Unlock(): void { }
 }
 
 const bucketSize = 8;
@@ -430,14 +430,14 @@ class keyIterator {
     this.e = e;
   }
 
-  public next(k: Value): boolean {
+  public next(): Value | null {
     if (this.e != null) {
       // BUG::
-      k = this.e.key;
+      let k = this.e.key;
       this.e = this.e.next;
-      return true;
+      return k;
     }
-    return false;
+    return null;
   }
 
   public done(): void {
