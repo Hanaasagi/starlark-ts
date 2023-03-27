@@ -1,9 +1,9 @@
 // import { ExecFile } from "./starlark/eval";
 // import { Thread } from "./starlark/eval";
 import { parse } from './starlark-parser';
-import { ExecFile } from './starlark/eval';
-import { Thread } from './starlark/eval';
-import { StringDict } from './starlark/values';
+import { ExecFile } from './starlark-runtime/eval';
+import { Thread } from './starlark-runtime/eval';
+import { StringDict } from './starlark-runtime/values';
 
 // console.log(
 //   parse("/home/kumiko/starlark-ts/tests/testcases/parse/action.star", null, 0)

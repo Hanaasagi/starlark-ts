@@ -1,4 +1,4 @@
-import { Thread } from 'src/starlark/eval';
+import { Thread } from 'src/starlark-runtime/eval';
 
 import { Token } from '../../../starlark-parser';
 import { Position } from '../../../starlark-parser';
