@@ -7,6 +7,15 @@ import { Comparable, Value } from './interface';
 
 export const minInt64 = BigInt('-9223372036854775808');
 export const maxInt64 = BigInt('9223372036854775807');
+const maxSafeInteger = BigInt(Number.MAX_SAFE_INTEGER);
+const minSafeInteger = BigInt(Number.MIN_SAFE_INTEGER);
+
+function isSafeInteger(n: bigint): boolean {
+  if (n >= minSafeInteger && n <= maxSafeInteger) {
+    return true;
+  }
+  return false;
+}
 
 // Int is the type of a Starlark int.
 // The zero value is not a legal value; use MakeInt(0).
@@ -60,7 +69,7 @@ export class Int implements Value, Comparable {
   }
 
   finiteFloat(): [number, Error | null] {
-    if (Number.isSafeInteger(this.val)) {
+    if (isSafeInteger(this.val)) {
       return [Number(this.val), null];
     }
 
@@ -129,7 +138,7 @@ export const one = new Int(1n);
 
 export function AsInt32(x: Value): [number, Error | null] {
   if (x instanceof Int) {
-    if (Number.isInteger(x.val) && Number.isSafeInteger(x.val)) {
+    if (isSafeInteger(x.val)) {
       return [Number(x.val), null];
     }
 

@@ -97,6 +97,10 @@ export interface Value {
 }
 
 export function isValue(v: any): v is Value {
+  if (v == null || v == undefined) {
+    return false;
+  }
+
   let is = true;
   for (var n of ['String', 'Type', 'Freeze', 'Truth', 'Hash']) {
     if (!(n in v)) {

@@ -3,7 +3,7 @@ import { argv0 } from 'process';
 import { Thread } from '../eval';
 import { UnpackPositionalArgs } from '../unpack';
 import { UnpackArgs } from '../unpack';
-import { zero } from '../values';
+import { one, zero } from '../values';
 import { Int } from '../values';
 import { AsInt32 } from '../values';
 import { Builtin, StringDict } from '../values';
@@ -371,7 +371,7 @@ function print(
   kwargs: Tuple[]
 ): Value | Error {
   //@ts-ignore
-  BigInt.prototype.toJSON = function() {
+  BigInt.prototype.toJSON = function () {
     return this.toString();
   };
 
@@ -429,18 +429,23 @@ function range_(
   }
   console.log(res);
 
-  let start = res[0];
-  let stop = res[1];
-  let step = res[2] || 1;
+  let start = res[0] as Int;
+  let stop = res[1] as Int;
+  let step = (res[2] as Int) || one;
 
   if (args.Len() == 1) {
-    start = 0;
+    start = zero;
     stop = start;
   }
 
-  if (step == 0) {
+  if (step.asJSValue() == 0n) {
     return new Error(`${b.Name()}: step argument must not be zero`);
   }
 
-  return new RangeValue(start, stop, step, rangeLen(start, stop, step));
+  return new RangeValue(
+    AsInt32(start)[0],
+    AsInt32(stop)[0],
+    AsInt32(step)[0],
+    rangeLen(AsInt32(start)[0], AsInt32(stop)[0], AsInt32(step)[0])
+  );
 }

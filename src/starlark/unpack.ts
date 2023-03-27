@@ -16,7 +16,7 @@ interface Unpacker {
 }
 
 function isUnpacker(v: any): v is Unpacker {
-  if ('unpack' in v) {
+  if (v && 'unpack' in v) {
     return true;
   }
   return false;
@@ -298,12 +298,11 @@ export function UnpackPositionalArgs(
 
 // TODO:
 function unpackOneArg<T>(v: Value, dst: T): Result<T, Error> {
-  // BUG:
-  if (!dst) {
-    return Ok(dst);
+  // // BUG:
+  if (dst == null || dst == undefined) {
+    return Ok(v as T);
   }
-  debug('UNPACK');
-  debug(v, dst);
+  debug('UNPACK ', v, 'to ', dst);
   // TODO:?
   if (isUnpacker(dst)) {
     // TODO:

@@ -697,6 +697,7 @@ export function CallInternal(
       }
 
       case Opcode.SETLOCAL:
+        console.log('DEBUG RANGE => SETLOCAL', arg, stack[sp - 1]);
         locals[arg] = stack[sp - 1];
         sp--;
         break;

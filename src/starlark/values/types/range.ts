@@ -43,7 +43,7 @@ export class RangeValue implements Value {
     );
   }
 
-  Freeze(): void { } // immutable
+  Freeze(): void {} // immutable
 
   String(): string {
     if (this.step !== 1) {
@@ -135,7 +135,7 @@ class RangeIterator {
   }
 
   next(p: Value): boolean {
-    if (this.i < this.r.len) {
+    if (this.i < this.r.Len()) {
       // BUG:
       // * p = this.r.index(this.i);
       this.i++;
@@ -144,5 +144,5 @@ class RangeIterator {
     return false;
   }
 
-  done(): void { }
+  done(): void {}
 }
