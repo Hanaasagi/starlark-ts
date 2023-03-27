@@ -1,6 +1,8 @@
 import { Token } from '../../../starlark-parser';
+import { signum64 } from '../../../utils';
 import { Bool } from './bool';
-import { Value } from './interface';
+import { threeway } from './common';
+import { Comparable, Value } from './interface';
 
 class IntImpl {
   // We use only the signed 32-bit range of small to ensure
@@ -40,7 +42,7 @@ const maxint64 = BigInt('9223372036854775807');
 
 // Int is the type of a Starlark int.
 // The zero value is not a legal value; use MakeInt(0).
-export class Int implements Value {
+export class Int implements Value, Comparable {
   impl: IntImpl;
 
   constructor(impl: IntImpl) {
@@ -171,20 +173,25 @@ export class Int implements Value {
     // return [12582917 * (lo + 3) as number, null];
     return [0, null];
   }
+
+  // BUG:
   public CompareSameType(
-    op: string,
+    op: Token,
     v: Int,
     depth: number
   ): [boolean, Error | null] {
-    return [true, null];
-    // const y = v;
-    // const [xSmall, xBig] = this.get();
-    // const [ySmall, yBig] = y.get();
-    // if (xBig !== null || yBig !== null) {
-    //   return [threeway(op, this.BigInt().compare(y.bigInt())), null];
-    // } else {
-    //   return [threeway(op, signum64(xSmall - ySmall)), null];
-    // }
+    const y = v;
+    const [xSmall, xBig] = this.get();
+    const [ySmall, yBig] = y.get();
+    if (xBig !== null || yBig !== null) {
+      return [
+        threeway(op, this.BigInt.toString() > v.BigInt.toString() ? 1 : 0),
+        null,
+      ];
+    } else {
+      //@ts-ignore
+      return [threeway(op, xSmall - ySmall), null];
+    }
   }
 
   public Float(): number {
@@ -220,8 +227,9 @@ export class Int implements Value {
   }
 
   public Add(other: Int): Int {
-    return one;
-    // return new Int(this.BigInt().add(other.bigInt()));
+    // return one;
+    // @ts-ignore
+    return makeSmallInt(this.impl.get()[0] + other.impl.get()[0]);
   }
 
   public Sub(other: Int): Int {

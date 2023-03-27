@@ -684,15 +684,15 @@ export class Scanner {
       }
     }
 
-    val.raw = raw.toString();
+    val.raw = raw.join('');
 
-    // BUG:
+    // BUG: bytes supported and string unquote
     // const { s, isByte, err } = unquote(val.raw);
     const [s, isByte, err] = [val.raw, false, null];
     // if (err) {
     //   this.error(start, err.message);
     // }
-    val.string = s;
+    val.string = s.slice(1, s.length - 1);
     return isByte ? Token.BYTES : Token.STRING;
   }
 

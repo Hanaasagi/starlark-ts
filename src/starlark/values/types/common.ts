@@ -5,7 +5,7 @@ import { Dict } from './dict';
 import { Float } from './float';
 import { Function } from './function';
 import { Int } from './int';
-import { Comparable, Value } from './interface';
+import { Comparable, Value, isComparable } from './interface';
 import { List } from './list';
 import { NoneType } from './none';
 import { Set } from './set';
@@ -197,8 +197,8 @@ export function CompareDepth(
     return [false, new Error('comparison exceeded maximum recursion depth')];
   }
   if (sameType(x, y)) {
-    // TODO:?
-    if ('CompareSameType' in x) {
+    if (isComparable(x)) {
+      // console.log('>>>>>>>>>>>>>>.', x, y);
       return (x as Comparable).CompareSameType(op, y, depth);
     }
 
@@ -259,8 +259,22 @@ export function CompareDepth(
 }
 
 export function sameType(x: Value, y: Value): boolean {
-  // BUG:
-  return x instanceof y.constructor || x.Type() === y.Type();
+  // BUG: maybe
+  if (x.constructor.name == y.constructor.name) {
+    return true;
+  }
+
+  // structural type
+  let xFields = Object.keys(x);
+  let yFields = Object.keys(y);
+  xFields.sort();
+  yFields.sort();
+
+  if (xFields == yFields) {
+    return true;
+  }
+
+  return false;
 }
 
 // threeway interprets a three-way comparison value cmp (-1, 0, +1)

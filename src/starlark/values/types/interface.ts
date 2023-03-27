@@ -130,6 +130,13 @@ export interface Comparable extends Value {
   CompareSameType(op: Token, y: Value, depth: number): [boolean, Error | null];
 }
 
+export function isComparable(v: Value): boolean {
+  if ('CompareSameType' in v) {
+    return true;
+  }
+  return false;
+}
+
 // A Callable value f may be the operand of a function call, f(x).
 //
 // Clients should use the call() function, never the callInternal() method.
