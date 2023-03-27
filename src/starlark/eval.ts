@@ -9,7 +9,7 @@ import * as syntax from '../starlark-parser/syntax';
 import { CallInternal } from './interpreter';
 import { mandatory } from './interpreter';
 import { Universe } from './stdlib';
-import { AsInt32, MakeBigInt, MakeInt64 } from './values';
+import { AsInt32 } from './values';
 import { Int } from './values';
 import { Callable, Equal, Function, Module, String, Tuple } from './values';
 import { Bytes } from './values';
@@ -472,9 +472,9 @@ function makeToplevelFunction(
     let v: Value;
 
     if (typeof c === 'number') {
-      v = MakeInt64(BigInt(c));
+      v = new Int(BigInt(c));
     } else if (typeof c == 'bigint') {
-      v = MakeBigInt(c);
+      v = new Int(c);
     } else if (typeof c === 'string') {
       v = new String(c);
       // TODO:
@@ -837,7 +837,7 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
         }
 
         if (y instanceof String) {
-          return new String(stringRepeat(y.val, x.BigInt())[0]);
+          return new String(stringRepeat(y.val, x.asJSValue())[0]);
         }
 
         if (y instanceof Bytes) {
@@ -875,7 +875,7 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
 
       if (x instanceof String) {
         if (y instanceof Int) {
-          return new String(stringRepeat(x.val, y.BigInt())[0]);
+          return new String(stringRepeat(x.val, y.asJSValue())[0]);
         }
       }
 
@@ -1240,7 +1240,10 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
     case Token.LTLT:
     case Token.GTGT: {
       if (x instanceof Int) {
-        const z = AsInt32(y);
+        const [z, err] = AsInt32(y);
+        if (err) {
+          return err;
+        }
 
         if (z < 0) {
           return new Error('negative shift count: ${y}');

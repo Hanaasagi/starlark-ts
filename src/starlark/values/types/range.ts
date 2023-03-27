@@ -1,5 +1,5 @@
 import { Token } from '../../../starlark-parser';
-import { AsInt32, Int, MakeInt } from './int';
+import { AsInt32, Int } from './int';
 import { Value } from './interface';
 import { Iterator } from './interface';
 
@@ -24,7 +24,7 @@ export class RangeValue implements Value {
   }
 
   Index(i: number): Value {
-    return MakeInt(this.start + i * this.step);
+    return new Int(BigInt(this.start + i * this.step));
   }
 
   Iterate(): Iterator {
@@ -84,8 +84,8 @@ export class RangeValue implements Value {
   }
 
   public contains(x: Int): boolean {
-    const x32 = AsInt32(x);
-    if (x32 === undefined) {
+    const [x32, err] = AsInt32(x);
+    if (err) {
       return false; // out of range
     }
     const delta = x32 - this.start;

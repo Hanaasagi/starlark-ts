@@ -6,7 +6,6 @@ import { UnpackArgs } from '../unpack';
 import { zero } from '../values';
 import { Int } from '../values';
 import { AsInt32 } from '../values';
-import { MakeInt } from '../values';
 import { Builtin, StringDict } from '../values';
 import { Tuple } from '../values';
 import { Value } from '../values';
@@ -158,7 +157,10 @@ function chr(
     return new Error(`chr: got ${args.Len()} arguments, want 1`);
   }
   // FIXME:?
-  const i: number = AsInt32(args.index(0) as Int);
+  const [i, err] = AsInt32(args.index(0) as Int);
+  if (err) {
+    return err;
+  }
 
   if (i < 0) {
     return new Error(`chr: Unicode code point ${i} out of range(<0)`);
@@ -331,7 +333,7 @@ function len_(
   if (len < 0) {
     return new Error('len: value of type ${x.Type()} has no len');
   }
-  return MakeInt(len);
+  return new Int(BigInt(len));
 }
 
 function list(
