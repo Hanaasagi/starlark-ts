@@ -11,7 +11,7 @@
   "main": "dist/main.js",
   "types": "dist/main.d.ts",
   "scripts": {
-    "start": "./node_modules/ts-node/dist/bin.js dist/main.js",
+    "start": "ts-node dist/main.js",
     "start:dev": "nodemon --ext js,ts,json,env --exec 'node --experimental-specifier-resolution=node --loader ts-node/esm' src/main.ts",
     "prepare": "husky install",
     "build": "tsc --project tsconfig.build.json",
