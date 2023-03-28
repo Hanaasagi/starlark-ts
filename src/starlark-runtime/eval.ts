@@ -1139,6 +1139,7 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
             return True;
           }
         }
+        return False;
       }
 
       if (y instanceof Tuple) {
@@ -1152,6 +1153,7 @@ export function Binary(op: Token, x: Value, y: Value): Value | Error {
             return True;
           }
         }
+        return False;
       }
       if (isMapping(y)) {
         const [_, found, __] = y.get(x);
@@ -1625,10 +1627,8 @@ export function setArgs(
   if (args.Len() > nonkwonly) {
     if (!fn.HasVarargs()) {
       throw new Error(
-        `function ${fn.Name()} accepts ${
-          fn.defaults.Len() > fn.NumKwonlyParams() ? 'at most ' : ''
-        }${nonkwonly} positional argument${
-          nonkwonly === 1 ? '' : 's'
+        `function ${fn.Name()} accepts ${fn.defaults.Len() > fn.NumKwonlyParams() ? 'at most ' : ''
+        }${nonkwonly} positional argument${nonkwonly === 1 ? '' : 's'
         } (${args.Len()} given)`
       );
     }
@@ -1707,8 +1707,7 @@ export function setArgs(
 
     if (missing.length !== 0) {
       return new Error(
-        `function ${fn.Name()} missing ${missing.length} argument${
-          missing.length > 1 ? 's' : ''
+        `function ${fn.Name()} missing ${missing.length} argument${missing.length > 1 ? 's' : ''
         }(${missing.join(', ')})`
       );
     }
