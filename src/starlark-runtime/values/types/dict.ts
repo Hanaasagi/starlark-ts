@@ -1,5 +1,5 @@
 import { Token } from '../../../starlark-parser';
-import { Hashtable } from '../../hashtable';
+import { Hashtable } from '../hashtable';
 import { builtinAttrNames } from './common';
 import { builtinAttr } from './common';
 import { EqualDepth } from './common';

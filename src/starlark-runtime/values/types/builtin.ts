@@ -1,5 +1,5 @@
 import { Thread } from '../../eval';
-import { hashString } from '../../hashtable';
+import { hashString } from '../hashtable';
 import { toString } from './common';
 import { Value } from './interface';
 import { Tuple } from './tuple';

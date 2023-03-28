@@ -1,8 +1,8 @@
 import { argv0 } from 'process';
 
 import { Thread } from '../eval';
-import { UnpackPositionalArgs } from '../unpack';
-import { UnpackArgs } from '../unpack';
+import { UnpackArgs } from '../values';
+import { UnpackPositionalArgs } from '../values';
 import { one, zero } from '../values';
 import { Int } from '../values';
 import { AsInt32 } from '../values';

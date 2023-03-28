@@ -1,11 +1,11 @@
 import { Err, Ok, Result } from 'ts-results';
 
-import * as spell from '../utils/spell';
-import { Value, isValue } from './values';
-import { Bool } from './values';
-import { Tuple } from './values';
-import { AsString, String } from './values';
-import { NoneType } from './values';
+import * as spell from '../../utils/spell';
+import { Value, isValue } from './types';
+import { Bool } from './types';
+import { Tuple } from './types';
+import { AsString, String } from './types';
+import { NoneType } from './types';
 
 // import { AsInt } from './value';
 

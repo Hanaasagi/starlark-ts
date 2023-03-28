@@ -1,7 +1,7 @@
-import { Value } from './values';
-import { Equal } from './values';
-import { None } from './values';
-import { Tuple } from './values';
+import { Value } from './types';
+import { Equal } from './types';
+import { None } from './types';
+import { Tuple } from './types';
 
 var debug = require('debug')('hashtable');
 

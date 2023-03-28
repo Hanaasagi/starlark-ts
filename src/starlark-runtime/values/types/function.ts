@@ -1,7 +1,7 @@
 import * as compile from '../../../starlark-compiler/compile';
 import { Position } from '../../../starlark-parser';
-import { hashString } from '../../hashtable';
 import { mandatory } from '../../interpreter';
+import { hashString } from '../hashtable';
 import { StringDict } from './common';
 import { toString } from './common';
 import { Value } from './interface';
