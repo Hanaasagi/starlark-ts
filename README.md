@@ -1,5 +1,7 @@
 # starlark-ts
 
+**Warning**: This is an interest project aimed at learning TypeScript and compiler principles. Some parts of the code in this project are generated using ChatGPT. If you want to obtain production availability, please use [starlark-go](https://github.com/google/starlark-go) or [starlark-rust](https://github.com/facebookexperimental/starlark-rust).
+
 ### Build and Install
 
 ```
@@ -58,8 +60,8 @@ fizz_buzz(number)
     - [x] `>`, `>=`, `==` ... comparison operator
     - [x] `and`
     - [x] `or`
-    - [ ] `in`
-    - [ ] `not in`
+    - [x] `in`
+    - [x] `not in`
     - [ ] `|`
     - [ ] `^`
     - [ ] `&`
