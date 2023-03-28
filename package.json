@@ -1,9 +1,17 @@
 {
-  "name": "starlark-ts",
+  "name": "starlark",
+  "version": "0.1.0",
+  "description": "An implementation of the Starlark language in TypeScript.",
+  "keywords": [
+    "starlark"
+  ],
+  "homepage": "https://github.com/Hanaasagi/starlark-ts",
+  "license": "Apache License 2.0",
+  "author": "Hanaasagi <ambiguous404@gmail.com>",
   "main": "dist/main.js",
   "types": "dist/main.d.ts",
   "scripts": {
-    "start": "node dist/main.js",
+    "start": "./node_modules/ts-node/dist/bin.js dist/main.js",
     "start:dev": "nodemon --ext js,ts,json,env --exec 'node --experimental-specifier-resolution=node --loader ts-node/esm' src/main.ts",
     "prepare": "husky install",
     "build": "tsc --project tsconfig.build.json",
@@ -16,9 +24,8 @@
     "format:check": "prettier \"./**\" --ignore-unknown --check"
   },
   "dependencies": {
-    "core-js": "^3.29.1",
+    "commander": "^10.0.0",
     "debug": "^4.3.4",
-    "loglevel": "^1.8.1",
     "ts-results": "^3.3.0",
     "tslib": "^2.3.1"
   },
