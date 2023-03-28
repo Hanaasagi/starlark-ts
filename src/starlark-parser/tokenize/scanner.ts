@@ -5,6 +5,8 @@ import { TokenValue } from './token';
 import { Token } from './token';
 import { keywordToken } from './token';
 
+var debug = require('debug')('scanner');
+
 class ScannerError extends Error {
   constructor(public pos: Position, public msg: string) {
     super(`${pos.toString()}: ${msg}`);
@@ -43,7 +45,7 @@ export class Scanner {
   // list of suffix comments (if keepComments)
   suffixComments: Comment[] = [];
   // read next line of input (REPL only)
-  readline?: () => Promise<Uint8Array>;
+  readline: () => [string, Error | null];
 
   // TODO: check this function
   constructor(filename: string, src: unknown, keepComments: boolean) {
@@ -59,7 +61,7 @@ export class Scanner {
     this.keepComments = keepComments;
 
     if (typeof src === 'function') {
-      this.readline = src as () => Promise<Uint8Array>;
+      this.readline = src as () => [string, Error | null];
     } else {
       // BUG:
       const data = readFileSync(filename, 'utf8');
@@ -98,7 +100,8 @@ export class Scanner {
     if (this.readline != null) {
       try {
         // TODO:
-        // this.rest = await this.readline();
+        // BUG:
+        this.rest = this.readline()[0];
       } catch (err) {
         this.error(this.pos, (err as Error).toString()); // EOF or ErrInterrupt
       }
@@ -142,8 +145,13 @@ export class Scanner {
   readRune(): string {
     // eof() has been inlined here, both to avoid a call
     // and to establish len(rest)>0 to avoid a bounds check.
-    if (this.rest.length === 0 && !this.readLine()) {
-      return '\0';
+    if (this.rest.length == 0) {
+      if (!this.readLine()) {
+        this.error(this.pos, 'internal scanner error: readRune at EOF');
+      }
+      if (this.rest.length == 0) {
+        return '\0';
+      }
     }
 
     // fast path: AthisII
@@ -292,7 +300,7 @@ export class Scanner {
     // start of line proper
     c = this.peekRune();
 
-    // console.log("scan.ts c is", c);
+    debug('scan.ts c is', c);
 
     // Skip spaces.
     while (c === ' ' || c === '\t') {

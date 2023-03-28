@@ -401,7 +401,7 @@ function FileProgram(
 // TypeScript implementation of ExecREPLChunk
 // Note: This implementation assumes that the required libraries and types are already imported/defined
 
-function ExecREPLChunk(
+export function ExecREPLChunk(
   f: syntax.File,
   thread: Thread,
   globals: StringDict
@@ -535,7 +535,7 @@ function Eval(
 //
 // If Eval fails during evaluation, it returns an EvalError
 // containing a backtrace.
-function EvalExpr(
+export function EvalExpr(
   thread: Thread,
   expr: syntax.Expr,
   env: StringDict
@@ -566,7 +566,14 @@ function makeExprFunc(
   expr: syntax.Expr,
   env: StringDict
 ): [Function, Error | null] {
-  const [locals, err] = resolve.Expr(expr, env.has, Universe.has);
+  const universeHas = (name: string): boolean => {
+    return Universe.has(name);
+  };
+
+  const envHas = (name: string): boolean => {
+    return env.has(name);
+  };
+  const [locals, err] = resolve.Expr(expr, envHas, universeHas);
   if (err instanceof Error) {
     //@ts-ignore
     return [locals, err];

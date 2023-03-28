@@ -2,11 +2,13 @@ import * as syntax from './syntax';
 import { Position, Scanner, Token, TokenValue } from './tokenize';
 import { Walk } from './walk';
 
+var debug = require('debug')('parser');
+
 // A Mode value is a set of flags (or 0) that controls optional parser functionality.
 type Mode = number;
 
 // Enable this flag to print the token stream and log.Fatal on the first error.
-export const debug = false;
+// export const debug = true;
 // export const debug = true;
 
 const RetainComments: Mode = 1 << 0; // retain comments in AST; see Node.Comments
@@ -53,7 +55,7 @@ export function parse(
 // time it needs a new line of input.
 export function ParseCompoundStmt(
   filename: string,
-  readline: () => [Uint8Array, Error]
+  readline: () => [string, Error | null]
 ): [syntax.File | null, Error | null] {
   const input = new Scanner(filename, readline, false);
   let p: Parser = new Parser(input);
@@ -146,9 +148,10 @@ class Parser {
     const oldpos = this.tokval.pos;
     this.tok = this.input.nextToken(this.tokval);
     // enable to see the token stream
-    if (debug) {
-      console.log(`nextToken: ${this.tok} ${this.tokval.pos}`);
-    }
+    // if (debug) {
+    //   console.log(`nextToken: ${this.tok} ${this.tokval.pos}`);
+    // }
+    debug(`nextToken: ${this.tok} ${this.tokval.pos}`);
     return oldpos;
   }
 
