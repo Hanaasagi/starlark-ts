@@ -16,7 +16,7 @@ import { Tuple } from './tuple';
 export function toString(v: Value): string {
   const buf = new Array();
   writeValue(buf, v, []);
-  return buf.toString();
+  return buf.join('');
 }
 
 // writeValue writes x to out.
@@ -33,7 +33,7 @@ function writeValue(out: string[], x: Value, path: Value[]): void {
   }
 
   if (x instanceof Int) {
-    out.push(x.toString());
+    out.push(x.String());
     return;
   }
   if (x instanceof Bool) {
@@ -47,7 +47,7 @@ function writeValue(out: string[], x: Value, path: Value[]): void {
   }
 
   if (x instanceof String) {
-    // TODO quote
+    // TODO: quote
     out.push(x.String());
     return;
   }
