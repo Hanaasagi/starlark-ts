@@ -312,6 +312,7 @@ class Resolver {
 
     debug('this.file.bindings.has', this.file.bindings.has(id.Name), id.Name);
     debug('globals.has', this.globals.has(id.Name), id.Name);
+    debug(this.isPredeclared, this.isPredeclared!(id.Name), id.Name);
     debug(this.isUniversal, this.isUniversal!(id.Name), id.Name);
 
     if (this.file.bindings.has(id.Name)) {
@@ -925,7 +926,7 @@ class Resolver {
     // Is this the file block?
     if (env == this.file) {
       let a = this.useToplevel(use)!; // file-local, global, predeclared, or not found
-      debug('~~~~~~~~~~~~~', use.id);
+      debug('~~~~~~~~~~~~~', use.id.Binding);
       return a;
     }
 

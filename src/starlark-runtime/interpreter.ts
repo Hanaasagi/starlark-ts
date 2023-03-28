@@ -774,6 +774,20 @@ export function CallInternal(
         sp++;
         break;
       }
+      case Opcode.PREDECLARED: {
+        let name = f.prog.names[arg];
+        let x = fn.module.predeclared.get(name);
+        if (!x) {
+          err = new Error(
+            `internal error: predeclared variable ${name} is uninitialized`
+          );
+          break loop;
+        }
+
+        stack[sp] = x;
+        sp++;
+        break;
+      }
 
       case Opcode.UNIVERSAL:
         stack[sp] = Universe.get(f.prog.names[arg])!;
@@ -787,7 +801,7 @@ export function CallInternal(
       // TODO:
       // case compile.INPLACE_PIPE:
       default:
-        err = new Error(`unimplemented: ${op}`);
+        err = new Error(`unimplemented: ${Opcode.String(op)}, opcode=[${op}]`);
         break loop;
     }
   }

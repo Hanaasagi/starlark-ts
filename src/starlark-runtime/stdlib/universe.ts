@@ -371,16 +371,16 @@ function print(
   kwargs: Tuple[]
 ): Value | Error {
   //@ts-ignore
-  BigInt.prototype.toJSON = function () {
+  BigInt.prototype.toJSON = function() {
     return this.toString();
   };
 
-  console.error('<<<<<<<<<<<<<<<<NOW PRINT<<<<<<<<<<<<<<<<<<<');
+  // console.error('<<<<<<<<<<<<<<<<NOW PRINT<<<<<<<<<<<<<<<<<<<');
 
-  console.error(
-    '<<<< print is not impl but i can give you',
-    JSON.stringify(args)
-  );
+  // console.error(
+  //   '<<<< print is not impl but i can give you',
+  //   JSON.stringify(args)
+  // );
 
   let sep = ' ';
   // const err = UnpackArgs('print', new Tuple([]), kwargs, ['sep?', sep]);
@@ -411,7 +411,7 @@ function print(
   } else {
     console.error(data);
   }
-  console.error('<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<');
+  // console.error('<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<');
   // @ts-ignore
   return null;
 }

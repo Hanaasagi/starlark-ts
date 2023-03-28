@@ -32,16 +32,26 @@ function repl(thread: Thread, globals: StringDict) {
   };
 
   let [f, err] = ParseCompoundStmt('<stdin>', readline_);
-  if (err || !f) {
+  if (err || f == null) {
     return;
   }
 
   if (f.Stmts.length == 1) {
     let expr = f.Stmts[0];
     if (expr instanceof ExprStmt) {
-      EvalExpr(thread, expr.X, globals);
+      // console.log('##########', 'EXEC EvalExpr');
+
+      const [v, err] = EvalExpr(thread, expr.X, globals);
+      if (err) {
+        throw err;
+      }
+
+      // print
+      // console.log(v);
+      return;
     }
-  } else {
-    ExecREPLChunk(f, thread, globals);
   }
+
+  // console.log('##########', 'ExecREPLChunk');
+  ExecREPLChunk(f, thread, globals);
 }

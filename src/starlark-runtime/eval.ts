@@ -400,7 +400,6 @@ function FileProgram(
 
 // TypeScript implementation of ExecREPLChunk
 // Note: This implementation assumes that the required libraries and types are already imported/defined
-
 export function ExecREPLChunk(
   f: syntax.File,
   thread: Thread,
@@ -410,9 +409,24 @@ export function ExecREPLChunk(
 
   // -- variant of FileProgram --
 
-  const has = (x: string): boolean => globals.hasOwnProperty(x);
-  const universeHas = (x: string): boolean => true; // The Universe object is not defined in TypeScript, but we can assume everything is part of the universe
-  const replChunkErr = resolve.REPLChunk(f, has, predeclared.has, universeHas);
+  const globalHas = (x: string): boolean => {
+    return globals.has(x);
+  };
+
+  const predeclaredHas = (x: string): boolean => {
+    return predeclared.has(x);
+  };
+
+  const universeHas = (x: string): boolean => {
+    return Universe.has(x);
+  };
+
+  const replChunkErr = resolve.REPLChunk(
+    f,
+    globalHas,
+    predeclaredHas,
+    universeHas
+  );
 
   if (replChunkErr !== null) {
     //@ts-ignore
@@ -573,6 +587,7 @@ function makeExprFunc(
   const envHas = (name: string): boolean => {
     return env.has(name);
   };
+
   const [locals, err] = resolve.Expr(expr, envHas, universeHas);
   if (err instanceof Error) {
     //@ts-ignore
@@ -1610,8 +1625,10 @@ export function setArgs(
   if (args.Len() > nonkwonly) {
     if (!fn.HasVarargs()) {
       throw new Error(
-        `function ${fn.Name()} accepts ${fn.defaults.Len() > fn.NumKwonlyParams() ? 'at most ' : ''
-        }${nonkwonly} positional argument${nonkwonly === 1 ? '' : 's'
+        `function ${fn.Name()} accepts ${
+          fn.defaults.Len() > fn.NumKwonlyParams() ? 'at most ' : ''
+        }${nonkwonly} positional argument${
+          nonkwonly === 1 ? '' : 's'
         } (${args.Len()} given)`
       );
     }
@@ -1690,7 +1707,8 @@ export function setArgs(
 
     if (missing.length !== 0) {
       return new Error(
-        `function ${fn.Name()} missing ${missing.length} argument${missing.length > 1 ? 's' : ''
+        `function ${fn.Name()} missing ${missing.length} argument${
+          missing.length > 1 ? 's' : ''
         }(${missing.join(', ')})`
       );
     }
